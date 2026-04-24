@@ -1,4 +1,4 @@
-import type { PagesFunction } from '@cloudflare/workers-types';
+import { verifyToken } from '../../lib/auth';
 
 interface Env {
   USERS: KVNamespace;
@@ -14,25 +14,15 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
   };
 
   try {
-    // 验证 token
-    const authHeader = context.request.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: '未授权' }), {
-        status: 401,
-        headers: corsHeaders,
-      });
-    }
-
-    const token = authHeader.slice(7);
-    const tokenDataStr = await context.env.AUTH_TOKENS.get(`token:${token}`);
-    if (!tokenDataStr) {
+    // 验证 token（复用 lib/auth 中的逻辑）
+    const tokenData = await verifyToken(context);
+    if (!tokenData) {
       return new Response(JSON.stringify({ error: '登录已过期' }), {
         status: 401,
         headers: corsHeaders,
       });
     }
 
-    const tokenData = JSON.parse(tokenDataStr) as { userId: string; username: string; email: string };
     const userId = tokenData.userId;
 
     // 尝试获取用户数据（普通用户）
@@ -66,21 +56,23 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
             headers: corsHeaders,
           });
         }
-        // 删除旧邮箱映射
-        await context.env.USERS.delete(`email:${user.email}`);
-        // 添加新邮箱映射
+        // 先写入新邮箱映射，确保新索引始终可用，再删除旧映射，避免中间状态导致数据不一致
         await context.env.USERS.put(`email:${body.email}`, userId);
+        await context.env.USERS.put(`user:${userId}`, JSON.stringify({ ...user, email: body.email }));
+        await context.env.USERS.delete(`email:${user.email}`);
+        user.email = body.email;
+      } else {
+        user.email = body.email;
+        await context.env.USERS.put(`user:${userId}`, JSON.stringify(user));
       }
-      user.email = body.email;
+    } else {
+      // 更新头像
+      if (body.avatar) {
+        user.avatar = body.avatar;
+      }
+      // 保存更新后的用户数据（测试账号也会保存）
+      await context.env.USERS.put(`user:${userId}`, JSON.stringify(user));
     }
-
-    // 更新头像
-    if (body.avatar) {
-      user.avatar = body.avatar;
-    }
-
-    // 保存更新后的用户数据（测试账号也会保存）
-    await context.env.USERS.put(`user:${userId}`, JSON.stringify(user));
 
     return new Response(JSON.stringify({
       success: true,

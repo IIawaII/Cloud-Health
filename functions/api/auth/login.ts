@@ -1,4 +1,3 @@
-import type { PagesFunction } from '@cloudflare/workers-types';
 import { verifyPassword, generateToken } from '../../lib/crypto';
 import { saveToken } from '../../lib/auth';
 

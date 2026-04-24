@@ -111,26 +111,6 @@ async function renderSpaHtml(response: Response, env: Env): Promise<Response> {
   })
 }
 
-/**
- * 获取静态资源的 Content-Type
- */
-function getContentType(pathname: string): string {
-  const ext = pathname.split('.').pop()?.toLowerCase()
-  const types: Record<string, string> = {
-    html: 'text/html',
-    js: 'application/javascript',
-    css: 'text/css',
-    svg: 'image/svg+xml',
-    png: 'image/png',
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    webp: 'image/webp',
-    woff: 'font/woff',
-    woff2: 'font/woff2',
-  }
-  return types[ext || ''] || 'application/octet-stream'
-}
-
 type Handler = (context: EventContext<Env, string, Record<string, unknown>>) => Promise<Response>
 
 const routes: Array<{
@@ -152,7 +132,7 @@ const routes: Array<{
 ]
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     try {
       const url = new URL(request.url)
       const corsOrigin = getCorsOrigin(request, env)

@@ -1,6 +1,5 @@
-import type { PagesFunction } from '@cloudflare/workers-types';
 import { hashPassword, verifyPassword } from '../../lib/crypto';
-import { revokeAllUserTokens } from '../../lib/auth';
+import { verifyToken, revokeAllUserTokens } from '../../lib/auth';
 
 interface Env {
   USERS: KVNamespace;
@@ -16,17 +15,8 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
   };
 
   try {
-    // 验证 token
-    const authHeader = context.request.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: '未授权' }), {
-        status: 401,
-        headers: corsHeaders,
-      });
-    }
-
-    const token = authHeader.slice(7);
-    const tokenData = await context.env.AUTH_TOKENS.get(`token:${token}`);
+    // 验证 token（复用 lib/auth 中的逻辑）
+    const tokenData = await verifyToken(context);
     if (!tokenData) {
       return new Response(JSON.stringify({ error: '登录已过期' }), {
         status: 401,
@@ -34,7 +24,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       });
     }
 
-    const { userId } = JSON.parse(tokenData);
+    const userId = tokenData.userId;
     const userData = await context.env.USERS.get(`user:${userId}`);
 
     if (!userData) {

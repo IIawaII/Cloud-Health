@@ -14,3 +14,14 @@ export function jsonResponse(data: unknown, status = 200): Response {
 export function errorResponse(error: string, status = 500): Response {
   return jsonResponse({ error }, status)
 }
+
+export function parseLLMResult(data: unknown): string {
+  if (typeof data !== 'object' || data === null) return ''
+  const choices = (data as Record<string, unknown>).choices
+  if (!Array.isArray(choices)) return ''
+  const first = choices[0] as Record<string, unknown> | undefined
+  if (!first) return ''
+  const message = first.message as Record<string, unknown> | undefined
+  if (!message) return ''
+  return typeof message.content === 'string' ? message.content : ''
+}

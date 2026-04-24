@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { User, AuthState, LoginCredentials, RegisterCredentials, AuthResponse } from '@/types/auth';
+import { getApiError, getStringField, getObjectField } from '@/lib/utils';
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<AuthResponse>;
@@ -26,6 +27,17 @@ async function fetchWithTimeout(
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function extractUser(data: unknown): User | undefined {
+  const userData = getObjectField(data, 'user');
+  if (!userData) return undefined;
+  return {
+    id: getStringField(userData, 'id') || '',
+    username: getStringField(userData, 'username') || '',
+    email: getStringField(userData, 'email') || '',
+    avatar: getStringField(userData, 'avatar'),
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -95,11 +107,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.ok) {
-        const data = await response.json() as { user?: User };
+        const data = await response.json();
+        const user = extractUser(data);
         // 从 localStorage 恢复头像（本地开发时 KV 不持久化）
         const cachedAvatar = localStorage.getItem('user_avatar');
-        const user = data.user;
-        if (cachedAvatar && user && !user.avatar) {
+        if (user && cachedAvatar && !user.avatar) {
           user.avatar = cachedAvatar;
         }
         // 将服务器返回的用户信息持久化到 localStorage
@@ -114,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         setState({
           isAuthenticated: true,
-          user: user || null,
+          user,
           token,
           isLoading: false,
         });
@@ -166,28 +178,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(credentials),
       });
 
-      const data = await response.json() as { token?: string; user?: User; message?: string; error?: string };
+      const data = await response.json();
+      const token = getStringField(data, 'token');
 
-      if (response.ok && data.token) {
-        localStorage.setItem('auth_token', data.token);
-        if (data.user?.avatar) {
-          localStorage.setItem('user_avatar', data.user.avatar);
+      if (response.ok && token) {
+        const user = extractUser(data);
+        localStorage.setItem('auth_token', token);
+        if (user?.avatar) {
+          localStorage.setItem('user_avatar', user.avatar);
         }
-        if (data.user?.username) {
-          localStorage.setItem('user_username', data.user.username);
+        if (user?.username) {
+          localStorage.setItem('user_username', user.username);
         }
-        if (data.user?.email) {
-          localStorage.setItem('user_email', data.user.email);
+        if (user?.email) {
+          localStorage.setItem('user_email', user.email);
         }
         setState({
           isAuthenticated: true,
-          user: data.user ?? null,
-          token: data.token,
+          user: user ?? null,
+          token,
           isLoading: false,
         });
-        return { success: true, message: data.message ?? '', token: data.token, user: data.user };
+        return { success: true, message: getStringField(data, 'message') ?? '', token, user };
       } else {
-        return { success: false, message: data.error || '登录失败', error: data.error };
+        const err = getApiError(data) || '登录失败';
+        return { success: false, message: err, error: getApiError(data) };
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
@@ -209,28 +224,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(registerData),
       });
 
-      const data = await response.json() as { token?: string; user?: User; message?: string; error?: string };
+      const data = await response.json();
+      const token = getStringField(data, 'token');
 
-      if (response.ok && data.token) {
-        localStorage.setItem('auth_token', data.token);
-        if (data.user?.avatar) {
-          localStorage.setItem('user_avatar', data.user.avatar);
+      if (response.ok && token) {
+        const user = extractUser(data);
+        localStorage.setItem('auth_token', token);
+        if (user?.avatar) {
+          localStorage.setItem('user_avatar', user.avatar);
         }
-        if (data.user?.username) {
-          localStorage.setItem('user_username', data.user.username);
+        if (user?.username) {
+          localStorage.setItem('user_username', user.username);
         }
-        if (data.user?.email) {
-          localStorage.setItem('user_email', data.user.email);
+        if (user?.email) {
+          localStorage.setItem('user_email', user.email);
         }
         setState({
           isAuthenticated: true,
-          user: data.user ?? null,
-          token: data.token,
+          user: user ?? null,
+          token,
           isLoading: false,
         });
-        return { success: true, message: data.message ?? '', token: data.token, user: data.user };
+        return { success: true, message: getStringField(data, 'message') ?? '', token, user };
       } else {
-        return { success: false, message: data.error || '注册失败', error: data.error };
+        const err = getApiError(data) || '注册失败';
+        return { success: false, message: err, error: getApiError(data) };
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {

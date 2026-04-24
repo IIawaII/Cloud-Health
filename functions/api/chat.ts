@@ -1,5 +1,5 @@
 import { verifyToken } from '../lib/auth';
-import { jsonResponse, errorResponse } from '../lib/response';
+import { jsonResponse, errorResponse, parseLLMResult } from '../lib/response';
 
 interface Env {
   AUTH_TOKENS: KVNamespace;
@@ -75,10 +75,8 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       });
     }
 
-    const data = (await response.json()) as {
-      choices: Array<{ message: { content: string } }>;
-    };
-    const result = data.choices?.[0]?.message?.content || '';
+    const data = await response.json()
+    const result = parseLLMResult(data)
 
     return jsonResponse({ result }, 200);
   } catch (err) {

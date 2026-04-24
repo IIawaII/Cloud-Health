@@ -1,5 +1,5 @@
 import { verifyToken } from '../lib/auth';
-import { jsonResponse, errorResponse } from '../lib/response';
+import { jsonResponse, errorResponse, parseLLMResult } from '../lib/response';
 
 interface Env {
   AUTH_TOKENS: KVNamespace;
@@ -141,10 +141,8 @@ ${JSON.stringify(formData, null, 2)}
       return errorResponse(`模型请求失败: ${err}`, 502);
     }
 
-    const data = (await response.json()) as {
-      choices: Array<{ message: { content: string } }>;
-    };
-    const result = data.choices?.[0]?.message?.content || '';
+    const data = await response.json()
+    const result = parseLLMResult(data)
 
     return jsonResponse({ result }, 200);
   } catch (err) {

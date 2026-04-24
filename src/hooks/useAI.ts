@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { getStoredApiConfig } from '../lib/aiConfig'
+import { getApiError, parseStreamChunk } from '../lib/utils'
 
 interface UseAIOptions<T> {
   endpoint: string
@@ -51,14 +52,15 @@ export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
           body: JSON.stringify(payload),
         })
 
-        const data = (await response.json()) as { error?: string } & T
+        const data = await response.json()
 
-        if (!response.ok || data.error) {
-          throw new Error(data.error || `请求失败: ${response.status}`)
+        if (!response.ok || getApiError(data)) {
+          throw new Error(getApiError(data) || `请求失败: ${response.status}`)
         }
 
-        setResult(data as T)
-        options.onSuccess?.(data as T)
+        const result = data as T
+        setResult(result)
+        options.onSuccess?.(result)
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         setError(msg)
@@ -82,6 +84,17 @@ export function useAIStream(options: {
   const { token } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort()
+    }
+  }, [])
+
+  const abort = useCallback(() => {
+    abortControllerRef.current?.abort()
+  }, [])
 
   const execute = useCallback(
     async (payload: Record<string, unknown>) => {
@@ -89,6 +102,11 @@ export function useAIStream(options: {
         setError('请先登录')
         return
       }
+
+      // 取消上一个未完成的请求
+      abortControllerRef.current?.abort()
+      const controller = new AbortController()
+      abortControllerRef.current = controller
 
       setLoading(true)
       setError(null)
@@ -98,11 +116,12 @@ export function useAIStream(options: {
           method: 'POST',
           headers: buildHeaders(token),
           body: JSON.stringify({ ...payload, stream: true }),
+          signal: controller.signal,
         })
 
         if (!response.ok) {
-          const data = (await response.json()) as { error?: string }
-          throw new Error(data.error || `请求失败: ${response.status}`)
+          const data = await response.json()
+          throw new Error(getApiError(data) || `请求失败: ${response.status}`)
         }
 
         const reader = response.body?.getReader()
@@ -126,10 +145,8 @@ export function useAIStream(options: {
             if (!trimmed || trimmed === 'data: [DONE]') continue
             if (trimmed.startsWith('data: ')) {
               try {
-                const json = JSON.parse(trimmed.slice(6)) as {
-                  choices?: Array<{ delta?: { content?: string } }>
-                }
-                const content = json.choices?.[0]?.delta?.content
+                const json: unknown = JSON.parse(trimmed.slice(6))
+                const content = parseStreamChunk(json)
                 if (content) {
                   options.onChunk(content)
                 }
@@ -142,15 +159,21 @@ export function useAIStream(options: {
 
         options.onDone?.()
       } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return
+        }
         const msg = err instanceof Error ? err.message : String(err)
         setError(msg)
         options.onError?.(msg)
       } finally {
         setLoading(false)
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null
+        }
       }
     },
     [token, options]
   )
 
-  return { loading, error, execute }
+  return { loading, error, execute, abort }
 }

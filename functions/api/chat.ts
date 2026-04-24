@@ -1,5 +1,5 @@
-import type { PagesFunction } from '@cloudflare/workers-types';
 import { verifyToken } from '../lib/auth';
+import { jsonResponse, errorResponse } from '../lib/response';
 
 interface Env {
   AUTH_TOKENS: KVNamespace;
@@ -10,21 +10,12 @@ interface Env {
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   const { request } = context;
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Content-Type': 'application/json',
-  };
 
   try {
     // 认证检查
     const tokenData = await verifyToken(context);
     if (!tokenData) {
-      return new Response(JSON.stringify({ error: '未授权' }), {
-        status: 401,
-        headers: corsHeaders,
-      });
+      return errorResponse('未授权', 401);
     }
 
     const body = await request.json<{
@@ -43,10 +34,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     const model = userModel || context.env.AI_MODEL;
 
     if (!baseUrl || !apiKey || !model) {
-      return new Response(
-        JSON.stringify({ error: '未配置 AI API，请在设置中填写或联系管理员' }),
-        { status: 503, headers: corsHeaders }
-      );
+      return errorResponse('未配置 AI API，请在设置中填写或联系管理员', 503);
     }
 
     const systemMessage = {
@@ -74,10 +62,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
 
     if (!response.ok) {
       const err = await response.text();
-      return new Response(
-        JSON.stringify({ error: `模型请求失败: ${err}` }),
-        { status: 502, headers: corsHeaders }
-      );
+      return errorResponse(`模型请求失败: ${err}`, 502);
     }
 
     if (stream) {
@@ -95,25 +80,9 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     };
     const result = data.choices?.[0]?.message?.content || '';
 
-    return new Response(JSON.stringify({ result }), {
-      headers: corsHeaders,
-    });
+    return jsonResponse({ result }, 200);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return new Response(
-      JSON.stringify({ error: msg }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return errorResponse(msg, 500);
   }
-};
-
-export const onRequestOptions = async () => {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
 };

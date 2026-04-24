@@ -1,5 +1,5 @@
-import type { PagesFunction } from '@cloudflare/workers-types';
 import { verifyToken } from '../lib/auth';
+import { jsonResponse, errorResponse } from '../lib/response';
 
 interface Env {
   AUTH_TOKENS: KVNamespace;
@@ -10,21 +10,12 @@ interface Env {
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   const { request } = context;
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Content-Type': 'application/json',
-  };
 
   try {
     // 认证检查
     const tokenData = await verifyToken(context);
     if (!tokenData) {
-      return new Response(JSON.stringify({ error: '未授权' }), {
-        status: 401,
-        headers: corsHeaders,
-      });
+      return errorResponse('未授权', 401);
     }
 
     const body = await request.json<{
@@ -38,18 +29,12 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
 
     // 校验参数
     if (!fileData || !fileType || !fileName) {
-      return new Response(
-        JSON.stringify({ error: '请提供完整的文件信息' }),
-        { status: 400, headers: corsHeaders }
-      );
+      return errorResponse('请提供完整的文件信息', 400);
     }
 
     // 校验 fileData 格式（必须是 data: 开头的 base64，禁止外部 URL）
     if (!fileData.startsWith('data:')) {
-      return new Response(
-        JSON.stringify({ error: '无效的文件数据格式' }),
-        { status: 400, headers: corsHeaders }
-      );
+      return errorResponse('无效的文件数据格式', 400);
     }
 
     const isImage = fileType.startsWith('image/');
@@ -69,7 +54,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
           content: [
             {
               type: 'text',
-              text: `请分析这份名为"${fileName}"的健康报告/检测图像。请从以下几个方面进行分析：\n1. 报告概述：这份报告/检测的主要内容是什么\n2. 关键指标：列出关键健康指标及其数值\n3. 异常分析：指出任何异常或需要关注的指标\n4. 健康建议：基于分析结果给出具体的健康改善建议\n5. 后续行动：建议下一步需要做什么（如复查、就医等）\n\n请以 Markdown 格式输出，结构清晰。`,
+              text: `请分析这份名为\"${fileName}\"的健康报告/检测图像。请从以下几个方面进行分析：\n1. 报告概述：这份报告/检测的主要内容是什么\n2. 关键指标：列出关键健康指标及其数值\n3. 异常分析：指出任何异常或需要关注的指标\n4. 健康建议：基于分析结果给出具体的健康改善建议\n5. 后续行动：建议下一步需要做什么（如复查、就医等）\n\n请以 Markdown 格式输出，结构清晰。`,
             },
             {
               type: 'image_url',
@@ -87,14 +72,11 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
         },
         {
           role: 'user',
-          content: `请分析这份名为"${fileName}"的健康报告。报告内容如下：\n\n${fileData}\n\n请从以下几个方面进行分析：\n1. 报告概述：这份报告的主要内容是什么\n2. 关键指标：列出关键健康指标及其数值\n3. 异常分析：指出任何异常或需要关注的指标\n4. 健康建议：基于分析结果给出具体的健康改善建议\n5. 后续行动：建议下一步需要做什么（如复查、就医等）\n\n请以 Markdown 格式输出，结构清晰。`,
+          content: `请分析这份名为\"${fileName}\"的健康报告。报告内容如下：\n\n${fileData}\n\n请从以下几个方面进行分析：\n1. 报告概述：这份报告的主要内容是什么\n2. 关键指标：列出关键健康指标及其数值\n3. 异常分析：指出任何异常或需要关注的指标\n4. 健康建议：基于分析结果给出具体的健康改善建议\n5. 后续行动：建议下一步需要做什么（如复查、就医等）\n\n请以 Markdown 格式输出，结构清晰。`,
         },
       ];
     } else {
-      return new Response(
-        JSON.stringify({ error: '不支持的文件类型' }),
-        { status: 400, headers: corsHeaders }
-      );
+      return errorResponse('不支持的文件类型', 400);
     }
 
     const userBaseUrl = request.headers.get('X-AI-Base-URL');
@@ -106,10 +88,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     const model = userModel || context.env.AI_MODEL;
 
     if (!baseUrl || !apiKey || !model) {
-      return new Response(
-        JSON.stringify({ error: '未配置 AI API，请在设置中填写或联系管理员' }),
-        { status: 503, headers: corsHeaders }
-      );
+      return errorResponse('未配置 AI API，请在设置中填写或联系管理员', 503);
     }
 
     // 流式输出
@@ -131,10 +110,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
 
       if (!response.ok) {
         const err = await response.text();
-        return new Response(
-          JSON.stringify({ error: `模型请求失败: ${err}` }),
-          { status: 502, headers: corsHeaders }
-        );
+        return errorResponse(`模型请求失败: ${err}`, 502);
       }
 
       return new Response(response.body, {
@@ -163,10 +139,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
 
     if (!response.ok) {
       const err = await response.text();
-      return new Response(
-        JSON.stringify({ error: `模型请求失败: ${err}` }),
-        { status: 502, headers: corsHeaders }
-      );
+      return errorResponse(`模型请求失败: ${err}`, 502);
     }
 
     const data = (await response.json()) as {
@@ -174,25 +147,9 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     };
     const result = data.choices?.[0]?.message?.content || '';
 
-    return new Response(JSON.stringify({ result }), {
-      headers: corsHeaders,
-    });
+    return jsonResponse({ result }, 200);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return new Response(
-      JSON.stringify({ error: msg }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return errorResponse(msg, 500);
   }
-};
-
-export const onRequestOptions = async () => {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
 };

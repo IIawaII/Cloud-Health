@@ -1,4 +1,5 @@
 import { verifyToken } from '../../lib/auth';
+import { jsonResponse, errorResponse } from '../../lib/response';
 
 interface Env {
   USERS: KVNamespace;
@@ -6,21 +7,11 @@ interface Env {
 }
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Content-Type': 'application/json',
-  };
-
   try {
     // 验证 token（复用 lib/auth 中的逻辑）
     const tokenData = await verifyToken(context);
     if (!tokenData) {
-      return new Response(JSON.stringify({ error: '登录已过期' }), {
-        status: 401,
-        headers: corsHeaders,
-      });
+      return errorResponse('登录已过期', 401);
     }
 
     const userId = tokenData.userId;
@@ -51,10 +42,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       if (userDataStr) {
         const existingUser = await context.env.USERS.get(`email:${body.email}`);
         if (existingUser && existingUser !== userId) {
-          return new Response(JSON.stringify({ error: '该邮箱已被使用' }), {
-            status: 400,
-            headers: corsHeaders,
-          });
+          return errorResponse('该邮箱已被使用', 400);
         }
         // 先写入新邮箱映射，确保新索引始终可用，再删除旧映射，避免中间状态导致数据不一致
         await context.env.USERS.put(`email:${body.email}`, userId);
@@ -74,7 +62,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       await context.env.USERS.put(`user:${userId}`, JSON.stringify(user));
     }
 
-    return new Response(JSON.stringify({
+    return jsonResponse({
       success: true,
       message: '更新成功',
       user: {
@@ -83,26 +71,9 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
         email: user.email,
         avatar: user.avatar,
       },
-    }), {
-      status: 200,
-      headers: corsHeaders,
-    });
+    }, 200);
   } catch (error) {
     console.error('Update profile error:', error);
-    return new Response(JSON.stringify({ error: '更新失败，请稍后重试' }), {
-      status: 500,
-      headers: corsHeaders,
-    });
+    return errorResponse('更新失败，请稍后重试', 500);
   }
-};
-
-export const onRequestOptions = async () => {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
 };

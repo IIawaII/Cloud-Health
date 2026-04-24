@@ -1,6 +1,7 @@
 import type { PagesFunction } from '@cloudflare/workers-types';
 import { hashPassword, generateToken } from '../../lib/crypto';
 import { saveToken } from '../../lib/auth';
+import { jsonResponse, errorResponse } from '../../lib/response';
 
 interface RegisterRequest {
   username: string;
@@ -39,47 +40,28 @@ async function verifyTurnstile(token: string, secretKey: string, ip?: string): P
 }
 
 export const onRequestPost = async (context: EventContext<{ TURNSTILE_SECRET_KEY: string; USERS: KVNamespace; AUTH_TOKENS: KVNamespace }, string, Record<string, unknown>>) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Content-Type': 'application/json',
-  };
-
   try {
     const body = await context.request.json() as RegisterRequest;
     const { username, email, password, turnstileToken } = body;
 
     // 验证输入
     if (!username || !email || !password || !turnstileToken) {
-      return new Response(
-        JSON.stringify({ error: '请填写所有必填字段' }),
-        { status: 400, headers: corsHeaders }
-      );
+      return errorResponse('请填写所有必填字段', 400);
     }
 
     // 验证用户名格式
     if (!/^[a-zA-Z0-9_]{3,10}$/.test(username)) {
-      return new Response(
-        JSON.stringify({ error: '用户名只能包含字母、数字和下划线，长度3-10位' }),
-        { status: 400, headers: corsHeaders }
-      );
+      return errorResponse('用户名只能包含字母、数字和下划线，长度3-10位', 400);
     }
 
     // 验证邮箱格式
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return new Response(
-        JSON.stringify({ error: '请输入有效的邮箱地址' }),
-        { status: 400, headers: corsHeaders }
-      );
+      return errorResponse('请输入有效的邮箱地址', 400);
     }
 
     // 验证密码强度
     if (password.length < 8) {
-      return new Response(
-        JSON.stringify({ error: '密码长度至少8位' }),
-        { status: 400, headers: corsHeaders }
-      );
+      return errorResponse('密码长度至少8位', 400);
     }
 
     // 验证 Turnstile
@@ -91,28 +73,19 @@ export const onRequestPost = async (context: EventContext<{ TURNSTILE_SECRET_KEY
     );
 
     if (!isValid) {
-      return new Response(
-        JSON.stringify({ error: '人机验证失败，请重试' }),
-        { status: 400, headers: corsHeaders }
-      );
+      return errorResponse('人机验证失败，请重试', 400);
     }
 
     // 检查用户名是否已存在
     const existingUserByUsername = await context.env.USERS.get(`username:${username}`);
     if (existingUserByUsername) {
-      return new Response(
-        JSON.stringify({ error: '用户名已被注册' }),
-        { status: 409, headers: corsHeaders }
-      );
+      return errorResponse('用户名已被注册', 409);
     }
 
     // 检查邮箱是否已存在
     const existingUserByEmail = await context.env.USERS.get(`email:${email}`);
     if (existingUserByEmail) {
-      return new Response(
-        JSON.stringify({ error: '邮箱已被注册' }),
-        { status: 409, headers: corsHeaders }
-      );
+      return errorResponse('邮箱已被注册', 409);
     }
 
     // 创建用户
@@ -145,35 +118,18 @@ export const onRequestPost = async (context: EventContext<{ TURNSTILE_SECRET_KEY
       createdAt: now,
     }, 7 * 24 * 60 * 60);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: '注册成功',
-        token,
-        user: {
-          id: userId,
-          username,
-          email,
-        },
-      }),
-      { status: 201, headers: corsHeaders }
-    );
+    return jsonResponse({
+      success: true,
+      message: '注册成功',
+      token,
+      user: {
+        id: userId,
+        username,
+        email,
+      },
+    }, 201);
   } catch (error) {
     console.error('Registration error:', error);
-    return new Response(
-      JSON.stringify({ error: '注册失败，请稍后重试' }),
-      { status: 500, headers: corsHeaders }
-    );
+    return errorResponse('注册失败，请稍后重试', 500);
   }
-};
-
-export const onRequestOptions = async () => {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
 };

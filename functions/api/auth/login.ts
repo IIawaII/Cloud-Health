@@ -1,5 +1,6 @@
 import { verifyPassword, generateToken } from '../../lib/crypto';
 import { saveToken } from '../../lib/auth';
+import { jsonResponse, errorResponse } from '../../lib/response';
 
 interface LoginRequest {
   usernameOrEmail: string;
@@ -41,23 +42,13 @@ async function verifyTurnstile(token: string, secretKey: string, ip?: string): P
 }
 
 export const onRequestPost = async (context: EventContext<{ TURNSTILE_SECRET_KEY: string; USERS: KVNamespace; AUTH_TOKENS: KVNamespace }, string, Record<string, unknown>>) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Content-Type': 'application/json',
-  };
-
   try {
     const body = await context.request.json() as LoginRequest;
     const { usernameOrEmail, password, turnstileToken } = body;
 
     // 验证输入
     if (!usernameOrEmail || !password || !turnstileToken) {
-      return new Response(
-        JSON.stringify({ error: '请填写所有必填字段' }),
-        { status: 400, headers: corsHeaders }
-      );
+      return errorResponse('请填写所有必填字段', 400);
     }
 
     // 验证 Turnstile
@@ -69,10 +60,7 @@ export const onRequestPost = async (context: EventContext<{ TURNSTILE_SECRET_KEY
     );
 
     if (!isValid) {
-      return new Response(
-        JSON.stringify({ error: '人机验证失败，请重试' }),
-        { status: 400, headers: corsHeaders }
-      );
+      return errorResponse('人机验证失败，请重试', 400);
     }
 
     // 判断是用户名还是邮箱
@@ -86,19 +74,13 @@ export const onRequestPost = async (context: EventContext<{ TURNSTILE_SECRET_KEY
     }
 
     if (!userId) {
-      return new Response(
-        JSON.stringify({ error: '用户名或密码错误' }),
-        { status: 401, headers: corsHeaders }
-      );
+      return errorResponse('用户名或密码错误', 401);
     }
 
     // 获取用户信息
     const userData = await context.env.USERS.get(`user:${userId}`);
     if (!userData) {
-      return new Response(
-        JSON.stringify({ error: '用户不存在' }),
-        { status: 404, headers: corsHeaders }
-      );
+      return errorResponse('用户不存在', 404);
     }
 
     const user: User = JSON.parse(userData);
@@ -106,10 +88,7 @@ export const onRequestPost = async (context: EventContext<{ TURNSTILE_SECRET_KEY
     // 验证密码
     const isPasswordValid = await verifyPassword(password, user.passwordHash);
     if (!isPasswordValid) {
-      return new Response(
-        JSON.stringify({ error: '用户名或密码错误' }),
-        { status: 401, headers: corsHeaders }
-      );
+      return errorResponse('用户名或密码错误', 401);
     }
 
     // 生成登录令牌
@@ -124,36 +103,19 @@ export const onRequestPost = async (context: EventContext<{ TURNSTILE_SECRET_KEY
       createdAt: now,
     }, 7 * 24 * 60 * 60);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: '登录成功',
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          avatar: (user as unknown as Record<string, unknown>).avatar,
-        },
-      }),
-      { status: 200, headers: corsHeaders }
-    );
+    return jsonResponse({
+      success: true,
+      message: '登录成功',
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatar: (user as unknown as Record<string, unknown>).avatar,
+      },
+    }, 200);
   } catch (error) {
     console.error('Login error:', error);
-    return new Response(
-      JSON.stringify({ error: '登录失败，请稍后重试' }),
-      { status: 500, headers: corsHeaders }
-    );
+    return errorResponse('登录失败，请稍后重试', 500);
   }
-};
-
-export const onRequestOptions = async () => {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
 };

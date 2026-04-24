@@ -1,4 +1,5 @@
 import type { PagesFunction } from '@cloudflare/workers-types';
+import { jsonResponse, errorResponse } from '../../lib/response';
 
 interface TokenData {
   userId: string;
@@ -8,21 +9,11 @@ interface TokenData {
 }
 
 export const onRequestGet = async (context: EventContext<{ AUTH_TOKENS: KVNamespace; USERS: KVNamespace }, string, Record<string, unknown>>) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Content-Type': 'application/json',
-  };
-
   try {
     // 从请求头获取令牌
     const authHeader = context.request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: '未提供有效的认证令牌' }),
-        { status: 401, headers: corsHeaders }
-      );
+      return errorResponse('未提供有效的认证令牌', 401);
     }
 
     const token = authHeader.substring(7);
@@ -30,10 +21,7 @@ export const onRequestGet = async (context: EventContext<{ AUTH_TOKENS: KVNamesp
     // 验证令牌
     const tokenDataStr = await context.env.AUTH_TOKENS.get(`token:${token}`);
     if (!tokenDataStr) {
-      return new Response(
-        JSON.stringify({ error: '令牌已过期或无效' }),
-        { status: 401, headers: corsHeaders }
-      );
+      return errorResponse('令牌已过期或无效', 401);
     }
 
     const tokenData: TokenData = JSON.parse(tokenDataStr);
@@ -52,34 +40,17 @@ export const onRequestGet = async (context: EventContext<{ AUTH_TOKENS: KVNamesp
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        user: {
-          id: tokenData.userId,
-          username: tokenData.username,
-          email,
-          avatar,
-        },
-      }),
-      { status: 200, headers: corsHeaders }
-    );
+    return jsonResponse({
+      success: true,
+      user: {
+        id: tokenData.userId,
+        username: tokenData.username,
+        email,
+        avatar,
+      },
+    }, 200);
   } catch (error) {
     console.error('Token verification error:', error);
-    return new Response(
-      JSON.stringify({ error: '验证失败，请稍后重试' }),
-      { status: 500, headers: corsHeaders }
-    );
+    return errorResponse('验证失败，请稍后重试', 500);
   }
-};
-
-export const onRequestOptions = async () => {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
 };

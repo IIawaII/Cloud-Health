@@ -1,5 +1,5 @@
-import type { PagesFunction } from '@cloudflare/workers-types';
 import { verifyToken } from '../lib/auth';
+import { jsonResponse, errorResponse } from '../lib/response';
 
 interface Env {
   AUTH_TOKENS: KVNamespace;
@@ -10,15 +10,8 @@ interface Env {
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   const { request } = context;
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Content-Type': 'application/json',
-  };
 
   try {
-    // 认证检查（仅 generate 模式需要，grade 模式纯本地计算）
     const body = await request.json<{
       mode: 'generate' | 'grade';
       category?: string;
@@ -36,10 +29,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     if (mode === 'generate') {
       const tokenData = await verifyToken(context);
       if (!tokenData) {
-        return new Response(JSON.stringify({ error: '未授权' }), {
-          status: 401,
-          headers: corsHeaders,
-        });
+        return errorResponse('未授权', 401);
       }
 
       const userBaseUrl = request.headers.get('X-AI-Base-URL');
@@ -51,10 +41,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       const model = userModel || context.env.AI_MODEL;
 
       if (!baseUrl || !apiKey || !model) {
-        return new Response(
-          JSON.stringify({ error: '未配置 AI API，请在设置中填写或联系管理员' }),
-          { status: 503, headers: corsHeaders }
-        );
+        return errorResponse('未配置 AI API，请在设置中填写或联系管理员', 503);
       }
 
       const prompt = `请生成5道健康知识问答题，类别：${category || '综合健康知识'}，难度：${difficulty || '中等'}。
@@ -99,10 +86,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
 
       if (!response.ok) {
         const err = await response.text();
-        return new Response(
-          JSON.stringify({ error: `模型请求失败: ${err}` }),
-          { status: 502, headers: corsHeaders }
-        );
+        return errorResponse(`模型请求失败: ${err}`, 502);
       }
 
       const data = (await response.json()) as {
@@ -122,23 +106,15 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
         }
       }
 
-      return new Response(JSON.stringify(parsed), {
-        headers: corsHeaders,
-      });
+      return jsonResponse(parsed, 200);
     }
 
     if (mode === 'grade' && questions && userAnswers) {
       if (questions.length === 0) {
-        return new Response(
-          JSON.stringify({ error: '题目数据为空，无法评分' }),
-          { status: 400, headers: corsHeaders }
-        );
+        return errorResponse('题目数据为空，无法评分', 400);
       }
       if (userAnswers.length !== questions.length) {
-        return new Response(
-          JSON.stringify({ error: '答题数量与题目数量不匹配' }),
-          { status: 400, headers: corsHeaders }
-        );
+        return errorResponse('答题数量与题目数量不匹配', 400);
       }
 
       let correctCount = 0;
@@ -162,38 +138,18 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       else if (score >= 50) comment = '还可以！建议多关注健康知识，提升健康素养。';
       else comment = '需要加油！建议你多学习一些基础健康知识，关爱自己的身体。';
 
-      return new Response(
-        JSON.stringify({
-          score,
-          correctCount,
-          total: questions.length,
-          comment,
-          results,
-        }),
-        { headers: corsHeaders }
-      );
+      return jsonResponse({
+        score,
+        correctCount,
+        total: questions.length,
+        comment,
+        results,
+      }, 200);
     }
 
-    return new Response(
-      JSON.stringify({ error: '无效的请求参数' }),
-      { status: 400, headers: corsHeaders }
-    );
+    return errorResponse('无效的请求参数', 400);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return new Response(
-      JSON.stringify({ error: msg }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return errorResponse(msg, 500);
   }
-};
-
-export const onRequestOptions = async () => {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
 };

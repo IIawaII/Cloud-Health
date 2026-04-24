@@ -29,9 +29,9 @@ async function fetchWithTimeout(
   }
 }
 
-function extractUser(data: unknown): User | undefined {
+function extractUser(data: unknown): User | null {
   const userData = getObjectField(data, 'user');
-  if (!userData) return undefined;
+  if (!userData) return null;
   return {
     id: getStringField(userData, 'id') || '',
     username: getStringField(userData, 'username') || '',

@@ -30,3 +30,24 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Sync secrets to Cloudflare Dashboard
+        run: |
+          ACCOUNT_ID="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN }}"
+          WORKER_NAME="health-project"
+
+          # Sync TURNSTILE_SECRET_KEY
+          curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/scripts/$WORKER_NAME/secrets" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"TURNSTILE_SECRET_KEY\",\"text\":\"${{ secrets.TURNSTILE_SECRET_KEY }}\",\"type\":\"secret_text\"}" || echo "Secret sync skipped or failed"
+
+          # Sync TURNSTILE_SITE_KEY as variable
+          curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/scripts/$WORKER_NAME/secrets" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"TURNSTILE_SITE_KEY\",\"text\":\"${{ secrets.TURNSTILE_SITE_KEY }}\",\"type\":\"secret_text\"}" || echo "Variable sync skipped or failed"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

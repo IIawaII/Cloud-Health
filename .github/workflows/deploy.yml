@@ -24,13 +24,6 @@ jobs:
           sed -i "s/KV_USERS_ID/${{ secrets.KV_USERS_ID }}/g" wrangler.toml
           sed -i "s/KV_AUTH_TOKENS_ID/${{ secrets.KV_AUTH_TOKENS_ID }}/g" wrangler.toml
 
-      - name: Sync secrets to Cloudflare
-        run: |
-          echo "${{ secrets.TURNSTILE_SECRET_KEY }}" | npx wrangler secret put TURNSTILE_SECRET_KEY
-          npx wrangler vars put TURNSTILE_SITE_KEY="${{ secrets.TURNSTILE_SITE_KEY }}"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-
       - name: Deploy to Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:

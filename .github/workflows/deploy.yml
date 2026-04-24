@@ -19,13 +19,17 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Inject KV namespace IDs
+      - name: Inject config
         run: |
           sed -i "s/KV_USERS_ID/${{ secrets.KV_USERS_ID }}/g" wrangler.toml
           sed -i "s/KV_AUTH_TOKENS_ID/${{ secrets.KV_AUTH_TOKENS_ID }}/g" wrangler.toml
+          sed -i "s/ACCOUNT_ID/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/g" wrangler.toml
 
       - name: Deploy to Cloudflare
-        run: npx wrangler deploy
+        run: |
+          echo "Checking secrets..."
+          echo "CLOUDFLARE_API_TOKEN length: ${#CLOUDFLARE_API_TOKEN}"
+          echo "CLOUDFLARE_API_TOKEN prefix: ${CLOUDFLARE_API_TOKEN:0:10}..."
+          npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          WRANGLER_LOG: debug

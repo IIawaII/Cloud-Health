@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,8 +11,15 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
 
   if (isLoading) {
-    // 静默加载，直接渲染子内容（token 验证在后台进行）
-    return <>{children}</>;
+    // 显示加载状态，避免受保护内容一闪而过导致组件快速 mount/unmount
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background-secondary">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
+          <p className="text-sm text-foreground-subtle">加载中...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {

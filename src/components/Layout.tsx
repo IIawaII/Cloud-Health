@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import SettingsModal from './SettingsModal'
 import ApiSettings from './ApiSettings'
 import { hasStoredApiConfig } from '@/lib/aiConfig'
-import { getUserAvatarUrl } from '@/lib/avatar'
+import { getAvatarDisplayUrl } from '@/lib/avatar'
 import {
   FiHome,
   FiFileText,
@@ -29,7 +29,6 @@ const navItems = [
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
-  const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -37,6 +36,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [apiSettingsOpen, setApiSettingsOpen] = useState(false)
   const [apiConfigured, setApiConfigured] = useState(hasStoredApiConfig())
   const userMenuRef = useRef<HTMLDivElement>(null)
+
+  // 监听 storage 事件，同步多标签页的 AI 配置状态变化
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'health_ai_config') {
+        setApiConfigured(hasStoredApiConfig())
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -56,12 +66,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     await logout()
-    navigate('/')
+    // 使用 window.location.href 进行完整页面刷新，确保清除所有状态并跳转到根路径
+    window.location.href = '/'
   }
 
   const avatarDisplay = useMemo(() => {
     const avatar = user?.avatar || localStorage.getItem('user_avatar') || undefined
-    return getUserAvatarUrl(avatar)
+    return getAvatarDisplayUrl(avatar)
   }, [user?.avatar])
 
   return (

@@ -75,7 +75,12 @@ export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
         }
 
         if (!response.ok || getApiError(data)) {
-          throw new Error(getApiError(data) || `请求失败: ${response.status}`)
+          const errMsg = getApiError(data) || `请求失败: ${response.status}`
+          // 502/504 通常表示后端超时或资源超限，给出更友好的提示
+          if (response.status === 502 || response.status === 504) {
+            throw new Error('服务器处理超时，请尝试上传较小的文件或稍后重试')
+          }
+          throw new Error(errMsg)
         }
 
         const result = data as T

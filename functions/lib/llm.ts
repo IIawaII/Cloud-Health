@@ -156,6 +156,26 @@ async function validateLLMUrl(url: string): Promise<boolean> {
 
 const urlValidationCache = new Map<string, { valid: boolean; expiry: number }>()
 const URL_VALIDATION_CACHE_TTL = 5 * 60 * 1000 // 5 分钟
+const URL_VALIDATION_CACHE_MAX_SIZE = 100 // 最大缓存条目数，防止恶意构造大量 URL 撑爆内存
+
+function setUrlValidationCache(url: string, valid: boolean): void {
+  // 如果超过上限，先清理已过期条目；若仍超限，淘汰最早的条目
+  if (urlValidationCache.size >= URL_VALIDATION_CACHE_MAX_SIZE) {
+    const now = Date.now()
+    for (const [key, val] of urlValidationCache) {
+      if (val.expiry <= now) {
+        urlValidationCache.delete(key)
+      }
+    }
+    if (urlValidationCache.size >= URL_VALIDATION_CACHE_MAX_SIZE) {
+      const firstKey = urlValidationCache.keys().next().value
+      if (firstKey !== undefined) {
+        urlValidationCache.delete(firstKey)
+      }
+    }
+  }
+  urlValidationCache.set(url, { valid, expiry: Date.now() + URL_VALIDATION_CACHE_TTL })
+}
 
 async function isValidLLMUrl(url: string): Promise<boolean> {
   const cached = urlValidationCache.get(url)
@@ -164,7 +184,7 @@ async function isValidLLMUrl(url: string): Promise<boolean> {
   }
 
   const result = await validateLLMUrl(url)
-  urlValidationCache.set(url, { valid: result, expiry: Date.now() + URL_VALIDATION_CACHE_TTL })
+  setUrlValidationCache(url, result)
   return result
 }
 

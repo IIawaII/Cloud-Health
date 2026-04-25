@@ -51,44 +51,75 @@ export const onRequestPost = createAIHandler({
     }
     const { baseUrl, apiKey, model } = llmConfig;
 
-    const messages = (isImage || isPdf)
+    // PDF 文件过大时，截断 base64 内容以避免 Worker CPU/内存超限导致 502
+    let processedFileData = fileData;
+    let isPdfTruncated = false;
+    if (isPdf && fileData.length > 500_000) {
+      // 保留 data:前缀 和 前约 300KB 的 base64 内容（约 225KB 原始数据）
+      const prefix = fileData.slice(0, fileData.indexOf(',') + 1);
+      processedFileData = prefix + fileData.slice(prefix.length, prefix.length + 400_000);
+      isPdfTruncated = true;
+      console.warn(`[analyze] PDF truncated from ${fileData.length} to ${processedFileData.length} chars`);
+    }
+
+    // PDF 不支持 image_url 类型，需要转为文本提示或提取内容描述
+    const messages = isImage
       ? [
           { role: 'system', content: SYSTEM_PROMPTS.REPORT_ANALYZER_IMAGE },
           {
             role: 'user',
             content: [
               { type: 'text', text: USER_PROMPTS.analyzeImage(fileName) },
-              { type: 'image_url', image_url: { url: fileData } },
+              { type: 'image_url', image_url: { url: processedFileData } },
             ],
           },
         ]
-      : [
-          { role: 'system', content: SYSTEM_PROMPTS.REPORT_ANALYZER_TEXT },
-          { role: 'user', content: USER_PROMPTS.analyzeText(fileName, fileData) },
-        ];
+      : isPdf
+        ? [
+            { role: 'system', content: SYSTEM_PROMPTS.REPORT_ANALYZER_TEXT },
+            { role: 'user', content: USER_PROMPTS.analyzeText(fileName, `[PDF 文件: ${fileName}，大小 ${dataSizeMB.toFixed(2)}MB]\n\n注：当前版本暂不支持直接解析 PDF 内容，请上传文本格式（.txt）或截图（.png/.jpg）进行分析。`) },
+          ]
+        : [
+            { role: 'system', content: SYSTEM_PROMPTS.REPORT_ANALYZER_TEXT },
+            { role: 'user', content: USER_PROMPTS.analyzeText(fileName, fileData) },
+          ];
 
-    const response = await callLLM({
-      baseUrl,
-      apiKey,
-      model,
-      messages,
-      stream: stream ?? false,
-      temperature: 0.5,
-      max_tokens: 4000,
-    });
-
-    if (!response.ok) {
-      const err = await response.text();
-      return errorResponse(`模型请求失败: ${err}`, 502);
+    // 如果 PDF 被截断，在系统提示中补充说明，避免模型基于不完整内容给出误导性结论
+    if (isPdf && isPdfTruncated) {
+      const systemMsg = messages.find((m) => m.role === 'system');
+      if (systemMsg && typeof systemMsg.content === 'string') {
+        systemMsg.content += '\n\n【重要提示】用户上传的 PDF 文件因体积过大已被截断，仅提供了部分内容。请基于现有片段进行分析，并在结论中明确说明"分析基于文件的部分内容，建议上传文本格式或截图以获取完整解读"。';
+      }
     }
 
-    if (stream) {
-      return createStreamResponse(response);
+    try {
+      const response = await callLLM({
+        baseUrl,
+        apiKey,
+        model,
+        messages,
+        stream: stream ?? false,
+        temperature: 0.5,
+        max_tokens: 4000,
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        console.error('[analyze] LLM request failed:', err);
+        return errorResponse(`模型请求失败: ${err.slice(0, 200)}`, 502);
+      }
+
+      if (stream) {
+        return createStreamResponse(response);
+      }
+
+      const responseData = await response.json();
+      const result = parseLLMResult(responseData);
+
+      return jsonResponse({ result }, 200);
+    } catch (err) {
+      console.error('[analyze] Unexpected error:', err);
+      return errorResponse('分析服务暂时不可用，请稍后重试或尝试上传较小的文件', 502);
     }
-
-    const responseData = await response.json();
-    const result = parseLLMResult(responseData);
-
-    return jsonResponse({ result }, 200);
   },
 });

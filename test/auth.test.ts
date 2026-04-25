@@ -7,7 +7,7 @@ import {
   deleteToken,
   deleteRefreshToken,
   revokeAllUserTokens,
-} from './auth'
+} from '../functions/lib/auth'
 
 function createMockKV(): KVNamespace {
   const store = new Map<string, { value: string; ttl?: number }>()

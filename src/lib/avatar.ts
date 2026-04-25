@@ -41,3 +41,14 @@ export function getUserAvatarUrl(avatar?: string | null): string {
   const index = hashToIndex(seed, 51)
   return `/User/User_${index}.svg`
 }
+
+/**
+ * 获取用户头像显示 URL，处理 base64 自定义头像
+ * 如果 avatar 是 base64 data URL，直接返回；否则走本地头像映射
+ */
+export function getAvatarDisplayUrl(avatar?: string | null): string {
+  if (avatar && avatar.startsWith('data:')) {
+    return avatar
+  }
+  return getUserAvatarUrl(avatar)
+}

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { FiSend, FiLoader, FiAlertCircle, FiSmile, FiHelpCircle, FiTrash2, FiX, FiMessageSquare, FiRotateCcw, FiInfo } from 'react-icons/fi'
 import { useAuth } from '../context/AuthContext'
-import { getUserAvatarUrl } from '@/lib/avatar'
+import { getAvatarDisplayUrl } from '@/lib/avatar'
 import type { ChatMessage } from '../types'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -170,7 +170,7 @@ export default function ChatInterface({ messages, onSend, loading, error, onClea
             >
               {msg.role === 'user' ? (
                 <img
-                  src={getUserAvatarUrl(user?.avatar || localStorage.getItem('user_avatar') || undefined)}
+                  src={getAvatarDisplayUrl(user?.avatar || localStorage.getItem('user_avatar') || undefined)}
                   alt="avatar"
                   className="w-full h-full"
                 />

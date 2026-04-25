@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hashPassword, verifyPassword, generateToken } from './crypto'
+import { hashPassword, verifyPassword, generateToken } from '../functions/lib/crypto'
 
 describe('crypto', () => {
   it('should hash and verify password correctly', async () => {

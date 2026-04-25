@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseLLMResult, jsonResponse, errorResponse } from './response'
+import { parseLLMResult, jsonResponse, errorResponse } from '../functions/lib/response'
 
 describe('response', () => {
   it('should parse LLM result correctly', () => {

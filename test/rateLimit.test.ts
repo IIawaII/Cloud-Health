@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { checkRateLimit, buildRateLimitKey } from './rateLimit'
+import { checkRateLimit, buildRateLimitKey } from '../functions/lib/rateLimit'
 
 function createMockKV(): KVNamespace {
   const store = new Map<string, string>()

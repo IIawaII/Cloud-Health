@@ -1,6 +1,9 @@
 import { hashPassword, generateToken } from '../../lib/crypto';
 import { saveToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
+import { verifyTurnstile } from '../../lib/turnstile';
+import { checkRateLimit, buildRateLimitKey } from '../../lib/rateLimit';
+import type { Env } from '../../lib/env';
 
 interface RegisterRequest {
   username: string;
@@ -19,28 +22,19 @@ interface User {
   updatedAt: string;
 }
 
-async function verifyTurnstile(token: string, secretKey: string, ip?: string): Promise<boolean> {
-  const formData = new URLSearchParams();
-  formData.append('secret', secretKey);
-  formData.append('response', token);
-  if (ip) {
-    formData.append('remoteip', ip);
-  }
-
-  const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-    method: 'POST',
-    body: formData,
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-  });
-
-  const data = await response.json<{ success: boolean }>();
-  return data.success;
-}
-
-export const onRequestPost = async (context: EventContext<{ TURNSTILE_SECRET_KEY: string; USERS: KVNamespace; AUTH_TOKENS: KVNamespace; VERIFICATION_CODES: KVNamespace }, string, Record<string, unknown>>) => {
+export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   try {
+    // 速率限制：每个 IP 每分钟最多 5 次注册尝试
+    const rateLimit = await checkRateLimit({
+      kv: context.env.AUTH_TOKENS,
+      key: buildRateLimitKey(context, 'register'),
+      limit: 5,
+      windowSeconds: 60,
+    });
+    if (!rateLimit.allowed) {
+      return errorResponse('注册尝试过于频繁，请稍后再试', 429);
+    }
+
     const body = await context.request.json<RegisterRequest>();
     const { username, email, password, turnstileToken, verificationCode } = body;
 
@@ -59,9 +53,12 @@ export const onRequestPost = async (context: EventContext<{ TURNSTILE_SECRET_KEY
       return errorResponse('请输入有效的邮箱地址', 400);
     }
 
-    // 验证密码强度
+    // 验证密码强度（至少8位，包含字母和数字）
     if (password.length < 8) {
       return errorResponse('密码长度至少8位', 400);
+    }
+    if (!/(?=.*[A-Za-z])(?=.*\d)/.test(password)) {
+      return errorResponse('密码必须同时包含字母和数字', 400);
     }
 
     // 验证 Turnstile
@@ -115,10 +112,25 @@ export const onRequestPost = async (context: EventContext<{ TURNSTILE_SECRET_KEY
       updatedAt: now,
     };
 
-    // 保存用户信息
-    await context.env.USERS.put(`user:${userId}`, JSON.stringify(user));
-    await context.env.USERS.put(`username:${username}`, userId);
-    await context.env.USERS.put(`email:${email}`, userId);
+    // 保存用户信息（带容错清理）
+    const userKey = `user:${userId}`;
+    const usernameKey = `username:${username}`;
+    const emailKey = `email:${email}`;
+
+    try {
+      await context.env.USERS.put(userKey, JSON.stringify(user));
+      await context.env.USERS.put(usernameKey, userId);
+      await context.env.USERS.put(emailKey, userId);
+    } catch (kvError) {
+      // 如果任一写入失败，尝试清理已写入的数据
+      console.error('Registration KV write failed, attempting cleanup:', kvError);
+      await Promise.allSettled([
+        context.env.USERS.delete(userKey),
+        context.env.USERS.delete(usernameKey),
+        context.env.USERS.delete(emailKey),
+      ]);
+      return errorResponse('注册失败，数据写入异常，请稍后重试', 500);
+    }
 
     // 生成登录令牌
     const token = generateToken();

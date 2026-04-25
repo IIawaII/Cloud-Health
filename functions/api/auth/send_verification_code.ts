@@ -1,4 +1,6 @@
 import { jsonResponse, errorResponse } from '../../lib/response';
+import { verifyTurnstile } from '../../lib/turnstile';
+import type { Env } from '../../lib/env';
 
 interface SendCodeRequest {
   email: string;
@@ -7,36 +9,11 @@ interface SendCodeRequest {
   currentEmail?: string;
 }
 
-interface Env {
-  USERS: KVNamespace;
-  AUTH_TOKENS: KVNamespace;
-  VERIFICATION_CODES: KVNamespace;
-  TURNSTILE_SECRET_KEY: string;
-  RESEND_API_KEY: string;
-}
-
-async function verifyTurnstile(token: string, secretKey: string, ip?: string): Promise<boolean> {
-  const formData = new URLSearchParams();
-  formData.append('secret', secretKey);
-  formData.append('response', token);
-  if (ip) {
-    formData.append('remoteip', ip);
-  }
-
-  const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-    method: 'POST',
-    body: formData,
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-  });
-
-  const data = await response.json<{ success: boolean }>();
-  return data.success;
-}
-
 function generateCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  const array = new Uint8Array(4);
+  crypto.getRandomValues(array);
+  const num = array[0] * 256 * 256 + array[1] * 256 + array[2];
+  return String(100000 + (num % 900000));
 }
 
 async function sendEmailViaResend(apiKey: string, to: string, code: string, type: string): Promise<void> {

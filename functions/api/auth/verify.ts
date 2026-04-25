@@ -1,4 +1,5 @@
 import { jsonResponse, errorResponse } from '../../lib/response';
+import type { Env } from '../../lib/env';
 
 interface TokenData {
   userId: string;
@@ -7,7 +8,7 @@ interface TokenData {
   createdAt: string;
 }
 
-export const onRequestGet = async (context: EventContext<{ AUTH_TOKENS: KVNamespace; USERS: KVNamespace }, string, Record<string, unknown>>) => {
+export const onRequestGet = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   try {
     // 从请求头获取令牌
     const authHeader = context.request.headers.get('Authorization');

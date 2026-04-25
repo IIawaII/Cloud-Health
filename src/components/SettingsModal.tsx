@@ -382,7 +382,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                  placeholder="至少6位"
+                  placeholder="至少8位，包含字母和数字"
                 />
               </div>
 

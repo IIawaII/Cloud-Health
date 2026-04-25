@@ -17,14 +17,19 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Inject config
+      - name: Lint check
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc -b
+
+      - name: Inject KV IDs
         run: |
           sed -i "s/KV_USERS_ID/${{ secrets.KV_USERS_ID }}/g" wrangler.toml
           sed -i "s/KV_AUTH_TOKENS_ID/${{ secrets.KV_AUTH_TOKENS_ID }}/g" wrangler.toml
           sed -i "s/KV_VERIFICATION_CODES_ID/${{ secrets.KV_VERIFICATION_CODES_ID }}/g" wrangler.toml
-          sed -i "s/ACCOUNT_ID/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/g" wrangler.toml
 
       - name: Deploy to Cloudflare
         run: npx wrangler deploy
@@ -38,23 +43,26 @@ jobs:
           TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN }}"
           WORKER_NAME="health-project"
 
-          # Sync TURNSTILE_SECRET_KEY
-          curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/scripts/$WORKER_NAME/secrets" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"name\":\"TURNSTILE_SECRET_KEY\",\"text\":\"${{ secrets.TURNSTILE_SECRET_KEY }}\",\"type\":\"secret_text\"}" || echo "Secret sync skipped or failed"
+          sync_secret() {
+            local name="$1"
+            local value="$2"
+            echo "Syncing secret: $name"
+            response=$(curl -s -w "\n%{http_code}" -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/scripts/$WORKER_NAME/secrets" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\":\"$name\",\"text\":\"$value\",\"type\":\"secret_text\"}")
+            http_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | sed '$d')
+            if [ "$http_code" != "200" ]; then
+              echo "Failed to sync secret $name (HTTP $http_code): $body"
+              exit 1
+            fi
+            echo "Secret $name synced successfully"
+          }
 
-          # Sync RESEND_API_KEY
-          curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/scripts/$WORKER_NAME/secrets" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"name\":\"RESEND_API_KEY\",\"text\":\"${{ secrets.RESEND_API_KEY }}\",\"type\":\"secret_text\"}" || echo "Secret sync skipped or failed"
-
-          # Sync TURNSTILE_SITE_KEY as variable
-          curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/scripts/$WORKER_NAME/secrets" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"name\":\"TURNSTILE_SITE_KEY\",\"text\":\"${{ secrets.TURNSTILE_SITE_KEY }}\",\"type\":\"secret_text\"}" || echo "Variable sync skipped or failed"
+          sync_secret "TURNSTILE_SECRET_KEY" "${{ secrets.TURNSTILE_SECRET_KEY }}"
+          sync_secret "RESEND_API_KEY" "${{ secrets.RESEND_API_KEY }}"
+          sync_secret "TURNSTILE_SITE_KEY" "${{ secrets.TURNSTILE_SITE_KEY }}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

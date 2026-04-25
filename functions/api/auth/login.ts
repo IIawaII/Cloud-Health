@@ -1,6 +1,9 @@
 import { verifyPassword, generateToken } from '../../lib/crypto';
 import { saveToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
+import { verifyTurnstile } from '../../lib/turnstile';
+import { checkRateLimit, buildRateLimitKey } from '../../lib/rateLimit';
+import type { Env } from '../../lib/env';
 
 interface LoginRequest {
   usernameOrEmail: string;
@@ -18,31 +21,7 @@ interface User {
   avatar?: string;
 }
 
-async function verifyTurnstile(token: string, secretKey: string, ip?: string): Promise<boolean> {
-  const formData = new URLSearchParams();
-  formData.append('secret', secretKey);
-  formData.append('response', token);
-  if (ip) {
-    formData.append('remoteip', ip);
-  }
-
-  try {
-    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    });
-
-    const data = await response.json<{ success: boolean }>();
-    return data.success;
-  } catch {
-    return false;
-  }
-}
-
-export const onRequestPost = async (context: EventContext<{ TURNSTILE_SECRET_KEY: string; USERS: KVNamespace; AUTH_TOKENS: KVNamespace }, string, Record<string, unknown>>) => {
+export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   try {
     const body = await context.request.json<LoginRequest>();
     const { usernameOrEmail, password, turnstileToken } = body;

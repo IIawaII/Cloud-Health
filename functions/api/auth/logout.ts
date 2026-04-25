@@ -1,7 +1,8 @@
 import { deleteToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
+import type { Env } from '../../lib/env';
 
-export const onRequestPost = async (context: EventContext<{ AUTH_TOKENS: KVNamespace }, string, Record<string, unknown>>) => {
+export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   try {
     // 从请求头获取令牌
     const authHeader = context.request.headers.get('Authorization');

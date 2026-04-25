@@ -29,8 +29,11 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse('请填写完整信息', 400);
     }
 
-    if (body.newPassword.length < 6) {
-      return errorResponse('新密码至少6位', 400);
+    if (body.newPassword.length < 8) {
+      return errorResponse('新密码至少8位', 400);
+    }
+    if (!/(?=.*[A-Za-z])(?=.*\d)/.test(body.newPassword)) {
+      return errorResponse('新密码必须同时包含字母和数字', 400);
     }
 
     // 验证当前密码

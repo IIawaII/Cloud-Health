@@ -1,12 +1,7 @@
 import { verifyToken } from '../lib/auth';
 import { jsonResponse, errorResponse, parseLLMResult } from '../lib/response';
-
-interface Env {
-  AUTH_TOKENS: KVNamespace;
-  AI_API_KEY: string;
-  AI_BASE_URL: string;
-  AI_MODEL: string;
-}
+import { checkRateLimit } from '../lib/rateLimit';
+import type { Env } from '../lib/env';
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   const { request } = context;
@@ -30,6 +25,17 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       const tokenData = await verifyToken(context);
       if (!tokenData) {
         return errorResponse('未授权', 401);
+      }
+
+      // 速率限制：每个用户每小时最多 20 次题目生成
+      const rateLimit = await checkRateLimit({
+        kv: context.env.AUTH_TOKENS,
+        key: `ai:${tokenData.userId}:quiz`,
+        limit: 20,
+        windowSeconds: 3600,
+      });
+      if (!rateLimit.allowed) {
+        return errorResponse('题目生成请求过于频繁，请稍后再试', 429);
       }
 
       const userBaseUrl = request.headers.get('X-AI-Base-URL');

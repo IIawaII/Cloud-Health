@@ -1,12 +1,7 @@
 import { verifyToken } from '../lib/auth';
 import { jsonResponse, errorResponse, parseLLMResult } from '../lib/response';
-
-interface Env {
-  AUTH_TOKENS: KVNamespace;
-  AI_API_KEY: string;
-  AI_BASE_URL: string;
-  AI_MODEL: string;
-}
+import { checkRateLimit } from '../lib/rateLimit';
+import type { Env } from '../lib/env';
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   const { request } = context;

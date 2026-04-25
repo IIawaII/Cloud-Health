@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { User, AuthState, LoginCredentials, RegisterCredentials, AuthResponse } from '@/types/auth';
 import { getApiError, getStringField, getObjectField } from '@/lib/utils';
+import { compressAvatarBase64 } from '@/lib/avatar';
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<AuthResponse>;
@@ -284,7 +285,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateUser = useCallback((user: User) => {
     // 缓存用户信息到 localStorage（本地开发时 KV 不持久化）
     if (user.avatar) {
-      localStorage.setItem('user_avatar', user.avatar);
+      const compressed = compressAvatarBase64(user.avatar);
+      if (compressed) {
+        localStorage.setItem('user_avatar', compressed);
+      }
     }
     if (user.username) {
       localStorage.setItem('user_username', user.username);

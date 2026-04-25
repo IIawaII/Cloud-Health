@@ -37,6 +37,23 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse('无效的文件数据格式', 400);
     }
 
+    // 校验文件大小（base64 长度约为原始大小的 4/3）
+    const base64SizeMB = (fileData.length * 3) / 4 / 1024 / 1024;
+    if (base64SizeMB > MAX_FILE_SIZE_MB) {
+      return errorResponse(`文件大小超过 ${MAX_FILE_SIZE_MB}MB 限制`, 413);
+    }
+
+    // 速率限制：每个用户每小时最多 20 次分析
+    const rateLimit = await checkRateLimit({
+      kv: context.env.AUTH_TOKENS,
+      key: `ai:${tokenData.userId}:analyze`,
+      limit: 20,
+      windowSeconds: 3600,
+    });
+    if (!rateLimit.allowed) {
+      return errorResponse('分析请求过于频繁，请稍后再试', 429);
+    }
+
     const isImage = fileType.startsWith('image/');
     const isPdf = fileType === 'application/pdf';
 

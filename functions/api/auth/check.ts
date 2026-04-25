@@ -1,11 +1,12 @@
 import { jsonResponse, errorResponse } from '../../lib/response';
+import type { Env } from '../../lib/env';
 
 interface CheckRequest {
   username?: string;
   email?: string;
 }
 
-export const onRequestPost = async (context: EventContext<{ USERS: KVNamespace }, string, Record<string, unknown>>) => {
+export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   try {
     const body = await context.request.json<CheckRequest>();
     const { username, email } = body;

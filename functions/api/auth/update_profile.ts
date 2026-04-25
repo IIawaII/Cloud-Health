@@ -1,11 +1,6 @@
 import { verifyToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
-
-interface Env {
-  USERS: KVNamespace;
-  AUTH_TOKENS: KVNamespace;
-  VERIFICATION_CODES: KVNamespace;
-}
+import type { Env } from '../../lib/env';
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   try {

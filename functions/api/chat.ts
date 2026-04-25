@@ -18,6 +18,17 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse('未授权', 401);
     }
 
+    // 速率限制：每个用户每分钟最多 30 次 AI 请求
+    const rateLimit = await checkRateLimit({
+      kv: context.env.AUTH_TOKENS,
+      key: `ai:${tokenData.userId}:chat`,
+      limit: 30,
+      windowSeconds: 60,
+    });
+    if (!rateLimit.allowed) {
+      return errorResponse('AI 请求过于频繁，请稍后再试', 429);
+    }
+
     const body = await request.json<{
       messages: Array<{ role: string; content: string }>;
       stream?: boolean;

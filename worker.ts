@@ -12,22 +12,9 @@ import * as chatHandler from './functions/api/chat'
 import * as analyzeHandler from './functions/api/analyze'
 import * as planHandler from './functions/api/plan'
 import * as quizHandler from './functions/api/quiz'
+import type { Env } from './functions/lib/env'
 
-interface Env {
-  USERS: KVNamespace
-  AUTH_TOKENS: KVNamespace
-  VERIFICATION_CODES: KVNamespace
-  TURNSTILE_SITE_KEY?: string
-  TURNSTILE_SECRET_KEY: string
-  RESEND_API_KEY?: string
-  AI_API_KEY: string
-  AI_BASE_URL: string
-  AI_MODEL: string
-  ALLOWED_ORIGINS?: string
-  ASSETS?: Fetcher
-}
-
-function createContext(request: Request, env: Env) {
+function createContext(request: Request, env: Env): EventContext<Env, string, Record<string, unknown>> {
   return {
     request,
     env,
@@ -36,7 +23,7 @@ function createContext(request: Request, env: Env) {
     next: () => Promise.resolve(new Response('Not Found', { status: 404 })),
     waitUntil: () => {},
     passThroughOnException: () => {},
-  } as unknown as EventContext<Env, string, Record<string, unknown>>
+  } as EventContext<Env, string, Record<string, unknown>>
 }
 
 /**
@@ -135,6 +122,19 @@ const routes: Array<{
   { method: 'POST', path: '/api/quiz', handler: quizHandler.onRequestPost as Handler },
 ]
 
+function addCorsHeaders(response: Response, corsOrigin: string): Response {
+  if (response.headers.has('Access-Control-Allow-Origin')) {
+    return response
+  }
+  const headers = new Headers(response.headers)
+  headers.set('Access-Control-Allow-Origin', corsOrigin)
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     try {
@@ -154,22 +154,23 @@ export default {
         })
       }
 
+      // Health check endpoint
+      if (request.method === 'GET' && url.pathname === '/api/health') {
+        return addCorsHeaders(
+          new Response(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+          corsOrigin
+        )
+      }
+
       // API routes
       const route = routes.find((r) => r.method === request.method && r.path === url.pathname)
 
       if (route) {
         const response = await route.handler(createContext(request, env))
-        // 为 API 响应注入 CORS 头（如果 handler 未设置）
-        if (!response.headers.has('Access-Control-Allow-Origin')) {
-          const headers = new Headers(response.headers)
-          headers.set('Access-Control-Allow-Origin', corsOrigin)
-          return new Response(response.body, {
-            status: response.status,
-            statusText: response.statusText,
-            headers,
-          })
-        }
-        return response
+        return addCorsHeaders(response, corsOrigin)
       }
 
       // 判断是否为静态资源

@@ -23,7 +23,8 @@ function createContext(request: Request, env: Env): EventContext<Env, string, Re
     next: () => Promise.resolve(new Response('Not Found', { status: 404 })),
     waitUntil: () => {},
     passThroughOnException: () => {},
-  } as EventContext<Env, string, Record<string, unknown>>
+    functionPath: '',
+  } as unknown as EventContext<Env, string, Record<string, unknown>>
 }
 
 /**

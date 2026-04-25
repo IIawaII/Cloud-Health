@@ -19,5 +19,11 @@ const escaped = html
 
 const tsContent = `export const FALLBACK_HTML = \`${escaped}\`\n`;
 
+const existing = fs.existsSync(outputPath) ? fs.readFileSync(outputPath, 'utf-8') : '';
+if (existing === tsContent) {
+  console.log('src/spa-fallback-html.ts is up to date, skipping write.');
+  process.exit(0);
+}
+
 fs.writeFileSync(outputPath, tsContent);
 console.log('src/spa-fallback-html.ts updated with latest dist/index.html content.');

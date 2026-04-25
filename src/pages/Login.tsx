@@ -19,7 +19,7 @@ export default function Login() {
   const { login } = useAuth();
   
   // 获取登录后要跳转的路径（ProtectedRoute 保存的）
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/home';
   
   const [formData, setFormData] = useState({
     usernameOrEmail: '',

@@ -20,7 +20,7 @@ import {
 } from 'react-icons/fi'
 
 const navItems = [
-  { path: '/', label: '首页', icon: FiHome },
+  { path: '/home', label: '首页', icon: FiHome },
   { path: '/report', label: '报告分析', icon: FiFileText },
   { path: '/plan', label: '计划生成', icon: FiClipboard },
   { path: '/chat', label: '智能对话', icon: FiMessageSquare },
@@ -74,7 +74,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
                 <FiActivity className="w-5 h-5 text-white" />
               </div>
-              <Link to="/" className="text-xl font-semibold text-foreground tracking-tight">
+              <Link to="/home" className="text-xl font-semibold text-foreground tracking-tight">
                 Health Project
               </Link>
             </div>

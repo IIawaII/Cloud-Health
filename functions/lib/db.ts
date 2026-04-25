@@ -9,12 +9,37 @@ export interface DbUser {
   email: string
   password_hash: string
   avatar: string | null
+  role: string
   created_at: string
   updated_at: string
 }
 
 /** 不含敏感字段的用户信息 */
 export type DbUserPublic = Omit<DbUser, 'password_hash'>
+
+export interface UsageLog {
+  id: string
+  user_id: string | null
+  action: string
+  metadata: string | null
+  created_at: string
+}
+
+export interface SystemConfig {
+  key: string
+  value: string
+  updated_at: string
+}
+
+export interface AuditLog {
+  id: string
+  admin_id: string
+  action: string
+  target_type: string | null
+  target_id: string | null
+  details: string | null
+  created_at: string
+}
 
 export type VerificationCodePurpose = 'register' | 'update_email'
 
@@ -30,7 +55,7 @@ export interface VerificationCodeRecord {
  * 通过用户名查找用户
  */
 export async function findUserByUsername(db: D1Database, username: string): Promise<DbUser | null> {
-  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, created_at, updated_at FROM users WHERE username = ? COLLATE NOCASE')
+  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, role, created_at, updated_at FROM users WHERE username = ? COLLATE NOCASE')
   const result = await stmt.bind(username).first<DbUser>()
   return result ?? null
 }
@@ -39,7 +64,7 @@ export async function findUserByUsername(db: D1Database, username: string): Prom
  * 通过邮箱查找用户
  */
 export async function findUserByEmail(db: D1Database, email: string): Promise<DbUser | null> {
-  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, created_at, updated_at FROM users WHERE email = ? COLLATE NOCASE')
+  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, role, created_at, updated_at FROM users WHERE email = ? COLLATE NOCASE')
   const result = await stmt.bind(email).first<DbUser>()
   return result ?? null
 }
@@ -48,7 +73,7 @@ export async function findUserByEmail(db: D1Database, email: string): Promise<Db
  * 通过 ID 查找用户（含密码哈希，仅用于认证相关场景）
  */
 export async function findUserById(db: D1Database, id: string): Promise<DbUser | null> {
-  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, created_at, updated_at FROM users WHERE id = ?')
+  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, role, created_at, updated_at FROM users WHERE id = ?')
   const result = await stmt.bind(id).first<DbUser>()
   return result ?? null
 }
@@ -57,7 +82,7 @@ export async function findUserById(db: D1Database, id: string): Promise<DbUser |
  * 通过 ID 查找用户（不含密码哈希，用于普通查询场景）
  */
 export async function findUserByIdPublic(db: D1Database, id: string): Promise<DbUserPublic | null> {
-  const stmt = db.prepare('SELECT id, username, email, avatar, created_at, updated_at FROM users WHERE id = ?')
+  const stmt = db.prepare('SELECT id, username, email, avatar, role, created_at, updated_at FROM users WHERE id = ?')
   const result = await stmt.bind(id).first<DbUserPublic>()
   return result ?? null
 }
@@ -126,6 +151,240 @@ export async function updateUser(
 
   const stmt = db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`)
   await stmt.bind(...values).run()
+}
+
+/**
+ * 创建使用日志
+ */
+export async function createUsageLog(
+  db: D1Database,
+  log: Omit<UsageLog, 'created_at'>
+): Promise<void> {
+  const stmt = db.prepare(
+    'INSERT INTO usage_logs (id, user_id, action, metadata, created_at) VALUES (?, ?, ?, ?, ?)'
+  )
+  await stmt.bind(log.id, log.user_id ?? null, log.action, log.metadata ?? null, new Date().toISOString()).run()
+}
+
+/**
+ * 获取使用日志列表（支持分页）
+ */
+export async function getUsageLogs(
+  db: D1Database,
+  options: { limit?: number; offset?: number; action?: string; startDate?: string; endDate?: string } = {}
+): Promise<{ logs: UsageLog[]; total: number }> {
+  const conditions: string[] = []
+  const values: (string | number)[] = []
+
+  if (options.action) {
+    conditions.push('action = ?')
+    values.push(options.action)
+  }
+  if (options.startDate) {
+    conditions.push('created_at >= ?')
+    values.push(options.startDate)
+  }
+  if (options.endDate) {
+    conditions.push('created_at <= ?')
+    values.push(options.endDate)
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+
+  const countStmt = db.prepare(`SELECT COUNT(*) as total FROM usage_logs ${whereClause}`)
+  const countResult = await countStmt.bind(...values).first<{ total: number }>()
+
+  const limit = options.limit ?? 20
+  const offset = options.offset ?? 0
+  const stmt = db.prepare(
+    `SELECT id, user_id, action, metadata, created_at FROM usage_logs ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+  )
+  const logs = await stmt.bind(...values, limit, offset).all<UsageLog>()
+
+  return {
+    logs: logs.results ?? [],
+    total: countResult?.total ?? 0,
+  }
+}
+
+/**
+ * 获取使用统计（按 action 分组）
+ */
+export async function getUsageStats(db: D1Database, startDate?: string, endDate?: string): Promise<{ action: string; count: number }[]> {
+  const conditions: string[] = []
+  const values: string[] = []
+
+  if (startDate) {
+    conditions.push('created_at >= ?')
+    values.push(startDate)
+  }
+  if (endDate) {
+    conditions.push('created_at <= ?')
+    values.push(endDate)
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+  const stmt = db.prepare(`SELECT action, COUNT(*) as count FROM usage_logs ${whereClause} GROUP BY action ORDER BY count DESC`)
+  const result = await stmt.bind(...values).all<{ action: string; count: number }>()
+  return result.results ?? []
+}
+
+/**
+ * 获取每日用户注册统计
+ */
+export async function getDailyUserStats(db: D1Database, days: number = 30): Promise<{ date: string; count: number }[]> {
+  const stmt = db.prepare(
+    `SELECT DATE(created_at) as date, COUNT(*) as count FROM users WHERE created_at >= date('now', ?) GROUP BY DATE(created_at) ORDER BY date ASC`
+  )
+  const result = await stmt.bind(`-${days} days`).all<{ date: string; count: number }>()
+  return result.results ?? []
+}
+
+/**
+ * 获取系统配置
+ */
+export async function getSystemConfig(db: D1Database, key: string): Promise<SystemConfig | null> {
+  const stmt = db.prepare('SELECT key, value, updated_at FROM system_configs WHERE key = ?')
+  const result = await stmt.bind(key).first<SystemConfig>()
+  return result ?? null
+}
+
+/**
+ * 获取所有系统配置
+ */
+export async function getAllSystemConfigs(db: D1Database): Promise<SystemConfig[]> {
+  const stmt = db.prepare('SELECT key, value, updated_at FROM system_configs ORDER BY key ASC')
+  const result = await stmt.all<SystemConfig>()
+  return result.results ?? []
+}
+
+/**
+ * 设置系统配置
+ */
+export async function setSystemConfig(db: D1Database, key: string, value: string): Promise<void> {
+  const stmt = db.prepare(
+    `INSERT INTO system_configs (key, value, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+  )
+  await stmt.bind(key, value, new Date().toISOString()).run()
+}
+
+/**
+ * 创建审计日志
+ */
+export async function createAuditLog(
+  db: D1Database,
+  log: Omit<AuditLog, 'created_at'>
+): Promise<void> {
+  const stmt = db.prepare(
+    'INSERT INTO audit_logs (id, admin_id, action, target_type, target_id, details, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  )
+  await stmt.bind(
+    log.id, log.admin_id, log.action,
+    log.target_type ?? null, log.target_id ?? null, log.details ?? null,
+    new Date().toISOString()
+  ).run()
+}
+
+/**
+ * 获取审计日志列表
+ */
+export async function getAuditLogs(
+  db: D1Database,
+  options: { limit?: number; offset?: number } = {}
+): Promise<{ logs: AuditLog[]; total: number }> {
+  const countStmt = db.prepare('SELECT COUNT(*) as total FROM audit_logs')
+  const countResult = await countStmt.first<{ total: number }>()
+
+  const limit = options.limit ?? 20
+  const offset = options.offset ?? 0
+  const stmt = db.prepare(
+    'SELECT id, admin_id, action, target_type, target_id, details, created_at FROM audit_logs ORDER BY created_at DESC LIMIT ? OFFSET ?'
+  )
+  const logs = await stmt.bind(limit, offset).all<AuditLog>()
+
+  return {
+    logs: logs.results ?? [],
+    total: countResult?.total ?? 0,
+  }
+}
+
+/**
+ * 获取用户列表（支持分页和搜索）
+ */
+export async function getUserList(
+  db: D1Database,
+  options: { limit?: number; offset?: number; search?: string } = {}
+): Promise<{ users: DbUserPublic[]; total: number }> {
+  const conditions: string[] = []
+  const values: (string | number)[] = []
+
+  if (options.search) {
+    conditions.push('(username LIKE ? OR email LIKE ?)')
+    values.push(`%${options.search}%`, `%${options.search}%`)
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+
+  const countStmt = db.prepare(`SELECT COUNT(*) as total FROM users ${whereClause}`)
+  const countResult = await countStmt.bind(...values).first<{ total: number }>()
+
+  const limit = options.limit ?? 20
+  const offset = options.offset ?? 0
+  const stmt = db.prepare(
+    `SELECT id, username, email, avatar, role, created_at, updated_at FROM users ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+  )
+  const users = await stmt.bind(...values, limit, offset).all<DbUserPublic>()
+
+  return {
+    users: users.results ?? [],
+    total: countResult?.total ?? 0,
+  }
+}
+
+/**
+ * 更新用户角色和状态
+ */
+export async function updateUserRole(db: D1Database, id: string, role: string): Promise<void> {
+  const stmt = db.prepare('UPDATE users SET role = ?, updated_at = ? WHERE id = ?')
+  await stmt.bind(role, new Date().toISOString(), id).run()
+}
+
+/**
+ * 删除用户
+ */
+export async function deleteUserById(db: D1Database, id: string): Promise<void> {
+  const stmt = db.prepare('DELETE FROM users WHERE id = ?')
+  await stmt.bind(id).run()
+}
+
+/**
+ * 获取统计数字
+ */
+export async function getStats(db: D1Database): Promise<{
+  totalUsers: number
+  todayNewUsers: number
+  totalLogs: number
+  todayLogs: number
+}> {
+  const totalUsersStmt = db.prepare('SELECT COUNT(*) as count FROM users')
+  const totalUsersResult = await totalUsersStmt.first<{ count: number }>()
+
+  const todayNewUsersStmt = db.prepare("SELECT COUNT(*) as count FROM users WHERE DATE(created_at) = DATE('now')")
+  const todayNewUsersResult = await todayNewUsersStmt.first<{ count: number }>()
+
+  const totalLogsStmt = db.prepare('SELECT COUNT(*) as count FROM usage_logs')
+  const totalLogsResult = await totalLogsStmt.first<{ count: number }>()
+
+  const todayLogsStmt = db.prepare("SELECT COUNT(*) as count FROM usage_logs WHERE DATE(created_at) = DATE('now')")
+  const todayLogsResult = await todayLogsStmt.first<{ count: number }>()
+
+  return {
+    totalUsers: totalUsersResult?.count ?? 0,
+    todayNewUsers: todayNewUsersResult?.count ?? 0,
+    totalLogs: totalLogsResult?.count ?? 0,
+    todayLogs: todayLogsResult?.count ?? 0,
+  }
 }
 
 /**

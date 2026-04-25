@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { getStoredApiConfig } from '../lib/aiConfig'
-import { getApiError, parseStreamChunk } from '../lib/utils'
+import { getApiError, parseStreamChunk, resolveErrorMessage } from '../lib/utils'
 
 interface UseAIOptions<T> {
   endpoint: string
@@ -16,10 +16,9 @@ interface UseAIReturn<T> {
   execute: (payload: Record<string, unknown>) => Promise<void>
 }
 
-function buildHeaders(token: string): Record<string, string> {
+function buildHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
   }
   const cfg = getStoredApiConfig()
   if (cfg?.baseUrl) headers['X-AI-Base-URL'] = cfg.baseUrl
@@ -29,7 +28,7 @@ function buildHeaders(token: string): Record<string, string> {
 }
 
 export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
-  const { token } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<T | null>(null)
@@ -40,7 +39,7 @@ export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
 
   const execute = useCallback(
     async (payload: Record<string, unknown>) => {
-      if (!token) {
+      if (!isAuthenticated) {
         setLoading(false)
         setResult(null)
         setError('请先登录')
@@ -56,7 +55,7 @@ export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
       try {
         const response = await fetch(currentOptions.endpoint, {
           method: 'POST',
-          headers: buildHeaders(token),
+          headers: buildHeaders(),
           body: JSON.stringify(payload),
         })
 
@@ -94,11 +93,13 @@ export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
         setLoading(false)
       }
     },
-    [token]
+    [isAuthenticated]
   )
 
   return { loading, error, result, execute }
 }
+
+const STREAM_TIMEOUT_MS = 120_000 // 流式请求最长 2 分钟
 
 export function useAIStream(options: {
   endpoint: string
@@ -106,19 +107,25 @@ export function useAIStream(options: {
   onError?: (error: string) => void
   onDone?: () => void
 }) {
-  const { token, refreshToken } = useAuth()
+  const { isAuthenticated, refreshSession } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort()
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
   }, [])
 
   const abort = useCallback(() => {
     abortControllerRef.current?.abort()
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
   }, [])
 
   // 使用 ref 保存 options 引用，避免 options 对象变化导致 execute 频繁重建
@@ -127,7 +134,7 @@ export function useAIStream(options: {
 
   const execute = useCallback(
     async (payload: Record<string, unknown>) => {
-      if (!token) {
+      if (!isAuthenticated) {
         setLoading(false)
         setError('请先登录')
         return
@@ -135,31 +142,36 @@ export function useAIStream(options: {
 
       // 取消上一个未完成的请求
       abortControllerRef.current?.abort()
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+
       const controller = new AbortController()
       abortControllerRef.current = controller
+      timeoutRef.current = setTimeout(() => {
+        controller.abort()
+      }, STREAM_TIMEOUT_MS)
 
       setLoading(true)
       setError(null)
 
       const currentOptions = optionsRef.current
 
-      async function doFetch(authToken: string) {
+      async function doFetch() {
         return fetch(currentOptions.endpoint, {
           method: 'POST',
-          headers: buildHeaders(authToken),
+          headers: buildHeaders(),
           body: JSON.stringify({ ...payload, stream: true }),
           signal: controller.signal,
         })
       }
 
       try {
-        let response = await doFetch(token)
+        let response = await doFetch()
 
-        // 401 时尝试自动刷新 Token 并重试一次
+        // 401 时尝试自动刷新会话并重试一次
         if (response.status === 401) {
-          const newToken = await refreshToken()
-          if (newToken) {
-            response = await doFetch(newToken)
+          const refreshed = await refreshSession()
+          if (refreshed) {
+            response = await doFetch()
           } else {
             throw new Error('登录已过期，请重新登录')
           }
@@ -167,14 +179,7 @@ export function useAIStream(options: {
 
         if (!response.ok) {
           const text = await response.text()
-          let errMsg: string
-          try {
-            const data = JSON.parse(text)
-            errMsg = getApiError(data) || `请求失败: ${response.status}`
-          } catch {
-            errMsg = text || `请求失败: ${response.status}`
-          }
-          throw new Error(errMsg)
+          throw new Error(resolveErrorMessage(response.status, text))
         }
 
         const reader = response.body?.getReader()
@@ -220,12 +225,16 @@ export function useAIStream(options: {
         currentOptions.onError?.(msg)
       } finally {
         setLoading(false)
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current)
+          timeoutRef.current = null
+        }
         if (abortControllerRef.current === controller) {
           abortControllerRef.current = null
         }
       }
     },
-    [token, refreshToken]
+    [isAuthenticated, refreshSession]
   )
 
   return { loading, error, execute, abort }

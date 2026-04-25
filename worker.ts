@@ -15,6 +15,11 @@ import * as chatHandler from './functions/api/chat'
 import * as analyzeHandler from './functions/api/analyze'
 import * as planHandler from './functions/api/plan'
 import * as quizHandler from './functions/api/quiz'
+import * as adminStats from './functions/api/admin/stats'
+import * as adminUsers from './functions/api/admin/users'
+import * as adminLogs from './functions/api/admin/logs'
+import * as adminAudit from './functions/api/admin/audit'
+import * as adminConfig from './functions/api/admin/config'
 
 import { generateNonce, addSecurityHeaders } from './functions/middleware/security'
 import { getCorsOrigin, addCorsHeaders, createCorsPreflightResponse } from './functions/middleware/cors'
@@ -29,7 +34,13 @@ type AppEnv = { Bindings: Env }
 function asHonoHandler(handler: PagesHandler) {
   return (context: Context<AppEnv>) => {
     const execCtx = (context as unknown as { executionCtx?: ExecutionContext }).executionCtx
-    return handler(createContext(context.req.raw, context.env, execCtx))
+    const evtCtx = createContext(context.req.raw, context.env, execCtx)
+    // 将 Hono 路由参数合并到 EventContext params 中
+    const honoParams = context.req.param()
+    if (Object.keys(honoParams).length > 0) {
+      Object.assign(evtCtx.params, honoParams)
+    }
+    return handler(evtCtx)
   }
 }
 
@@ -48,9 +59,35 @@ api.post('/api/chat', asHonoHandler(chatHandler.onRequestPost as PagesHandler))
 api.post('/api/analyze', asHonoHandler(analyzeHandler.onRequestPost as PagesHandler))
 api.post('/api/plan', asHonoHandler(planHandler.onRequestPost as PagesHandler))
 api.post('/api/quiz', asHonoHandler(quizHandler.onRequestPost as PagesHandler))
+
+// Admin API routes
+api.get('/api/admin/stats', asHonoHandler(adminStats.onRequestGet as PagesHandler))
+api.get('/api/admin/users', asHonoHandler(adminUsers.onRequestGet as PagesHandler))
+api.patch('/api/admin/users/:id', asHonoHandler(adminUsers.onRequestPatch as PagesHandler))
+api.delete('/api/admin/users/:id', asHonoHandler(adminUsers.onRequestDelete as PagesHandler))
+api.get('/api/admin/logs', asHonoHandler(adminLogs.onRequestGet as PagesHandler))
+api.get('/api/admin/audit', asHonoHandler(adminAudit.onRequestGet as PagesHandler))
+api.get('/api/admin/config', asHonoHandler(adminConfig.onRequestGet as PagesHandler))
+api.put('/api/admin/config', asHonoHandler(adminConfig.onRequestPut as PagesHandler))
+
 api.get('/api/health', (context) => {
   return context.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
+
+function handleWorkerError(err: unknown, request: Request, env: Env): Response {
+  console.error('[Worker Error]', err)
+  const errorCorsOrigin = getCorsOrigin(request, env)
+  return addSecurityHeaders(
+    addCorsHeaders(
+      new Response(JSON.stringify({ error: '服务器内部错误，请稍后重试' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      errorCorsOrigin
+    ),
+    false
+  )
+}
 
 const STATIC_EXTENSIONS = new Set([
   '.js', '.css', '.svg', '.png', '.jpg', '.jpeg', '.webp',
@@ -112,18 +149,7 @@ export default {
       // ASSETS 不可用时返回 404
       return addSecurityHeaders(new Response('Not Found', { status: 404 }), false)
     } catch (err) {
-      console.error('[Worker Error]', err)
-      const errorCorsOrigin = getCorsOrigin(request, env)
-      return addSecurityHeaders(
-        addCorsHeaders(
-          new Response(JSON.stringify({ error: '服务器内部错误，请稍后重试' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-          errorCorsOrigin
-        ),
-        false
-      )
+      return handleWorkerError(err, request, env)
     }
   },
 }

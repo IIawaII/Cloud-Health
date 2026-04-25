@@ -161,10 +161,6 @@ npm install
 TURNSTILE_SITE_KEY=1x00000000000000000000AA
 TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 
-# 本地开发测试账号
-DEV_USERNAME=admin
-DEV_PASSWORD=123456
-
 # AI 大模型配置
 AI_BASE_URL=https://api.openai.com/v1
 AI_API_KEY=your-api-key-here
@@ -205,8 +201,9 @@ npm run dev
 | `AI_BASE_URL` | Secret | AI 大模型 API 基础地址 |
 | `AI_API_KEY` | Secret | AI 大模型 API 密钥 |
 | `AI_MODEL` | Secret | AI 模型名称，如 `gpt-4o` |
-| `DEV_USERNAME` | Secret | 本地开发测试账号用户名 |
-| `DEV_PASSWORD` | Secret | 本地开发测试账号密码 |
+
+> **管理员密码格式**：`ADMIN_PASSWORD` 必须为 PBKDF2 哈希格式（`iterations:salt:hash`），不能直接使用明文。可通过注册一个普通账号获取其数据库中的 `password_hash` 字段值作为管理员密码，或在本地调用 `hashPassword()` 生成。
+
 
 ## 🔔 安全说明
 

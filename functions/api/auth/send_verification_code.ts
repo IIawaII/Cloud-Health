@@ -31,6 +31,13 @@ function generateCode(): string {
   return Array.from(digits, (b) => (b % 10).toString()).join('')
 }
 
+class EmailSendError extends Error {
+  constructor(message: string, public statusCode: number) {
+    super(message);
+    this.name = 'EmailSendError';
+  }
+}
+
 async function sendEmailViaResend(apiKey: string, to: string, code: string, type: string): Promise<void> {
   const subject = type === 'register' ? 'Health Project - 注册验证码' : 'Health Project - 修改邮箱验证码';
   const html = `
@@ -60,8 +67,19 @@ async function sendEmailViaResend(apiKey: string, to: string, code: string, type
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-    throw new Error(`Resend API error: ${JSON.stringify(errorData)}`);
+    const errorData = await response.json().catch(() => ({ message: 'Unknown error' })) as { message?: string };
+    const errMsg = typeof errorData.message === 'string' ? errorData.message : JSON.stringify(errorData);
+
+    if (response.status === 401 || response.status === 403) {
+      throw new EmailSendError('邮件服务认证失败，请联系管理员检查邮件 API 配置', response.status);
+    }
+    if (response.status === 422 && errMsg.includes('invalid')) {
+      throw new EmailSendError('邮箱地址格式不受邮件服务商支持', 422);
+    }
+    if (response.status >= 500) {
+      throw new EmailSendError('邮件服务商暂时不可用，请稍后重试', response.status);
+    }
+    throw new EmailSendError(`邮件发送失败: ${errMsg}`, response.status);
   }
 }
 
@@ -179,6 +197,10 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
         rollbackTasks.push(deleteVerificationCooldown(context.env.DB, type, email));
       }
       await Promise.allSettled(rollbackTasks);
+
+      if (sendError instanceof EmailSendError) {
+        return errorResponse(sendError.message, sendError.statusCode >= 500 ? 503 : 400);
+      }
       throw sendError;
     }
 

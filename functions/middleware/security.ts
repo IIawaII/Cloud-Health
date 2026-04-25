@@ -40,6 +40,13 @@ export function addSecurityHeaders(response: Response, isHtml = false, scriptNon
   headers.set('X-Content-Type-Options', 'nosniff')
   headers.set('X-Frame-Options', 'DENY')
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  headers.set('Cross-Origin-Opener-Policy', 'same-origin')
+  headers.set('Cross-Origin-Embedder-Policy', 'require-corp')
+  headers.set('Cross-Origin-Resource-Policy', 'cross-origin')
+  headers.set(
+    'Permissions-Policy',
+    'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()'
+  )
   if (isHtml) {
     headers.set('Content-Security-Policy', buildCsp(scriptNonce))
     headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')

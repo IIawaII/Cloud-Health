@@ -5,6 +5,7 @@ import { jsonResponse, errorResponse } from '../../lib/response';
 import { validateTurnstile } from '../../lib/turnstile';
 import { checkRateLimit } from '../../lib/rateLimit';
 import { findUserByUsername, findUserByEmail } from '../../lib/db';
+import { serializeCookie, getSecureCookieOptions, getAccessTokenCookieMaxAge, getRefreshTokenCookieMaxAge } from '../../lib/cookie';
 import type { Env } from '../../lib/env';
 
 const loginSchema = z.object({
@@ -39,6 +40,57 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse('登录尝试过于频繁，请稍后再试', 429);
     }
 
+    // 优先检查环境变量中的管理员凭据
+    const adminUsername = context.env.ADMIN_USERNAME;
+    const adminPassword = context.env.ADMIN_PASSWORD;
+    if (adminUsername && adminPassword && usernameOrEmail === adminUsername) {
+      // 校验密码格式，防止误配明文密码导致验证始终失败
+      if (!/^\d+:[a-f0-9]{32}:[a-f0-9]{64}$/i.test(adminPassword)) {
+        console.error('[Admin Login] ADMIN_PASSWORD 格式不正确，必须为 PBKDF2 哈希格式（iterations:salt:hash）');
+        return errorResponse('管理员账户配置异常，请联系运维人员', 500);
+      }
+      const isAdminPasswordValid = await verifyPassword(password, adminPassword);
+      if (isAdminPasswordValid) {
+        const accessToken = generateToken();
+        const refreshToken = generateToken();
+        const now = new Date().toISOString();
+
+        await saveToken(context.env.AUTH_TOKENS, accessToken, {
+          userId: 'system-admin',
+          username: adminUsername,
+          email: 'admin@system.local',
+          role: 'admin',
+          createdAt: now,
+        }, 60 * 60);
+
+        await saveRefreshToken(context.env.AUTH_TOKENS, refreshToken, {
+          userId: 'system-admin',
+          username: adminUsername,
+          email: 'admin@system.local',
+          role: 'admin',
+          createdAt: now,
+        }, 24 * 60 * 60);
+
+    const cookieOptions = getSecureCookieOptions(context.request);
+    return jsonResponse({
+      success: true,
+      message: '管理员登录成功',
+      user: {
+        id: 'system-admin',
+        username: adminUsername,
+        email: 'admin@system.local',
+        role: 'admin',
+      },
+    }, 200, {
+      'Set-Cookie': [
+        serializeCookie('auth_token', accessToken, { ...cookieOptions, maxAge: getAccessTokenCookieMaxAge() }),
+        serializeCookie('auth_refresh_token', refreshToken, { ...cookieOptions, maxAge: getRefreshTokenCookieMaxAge() }),
+      ].join(', '),
+    });
+      }
+      return errorResponse('用户名或密码错误', 401);
+    }
+
     // 判断是用户名还是邮箱，直接从 D1 查询用户
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(usernameOrEmail);
     const user = isEmail
@@ -65,6 +117,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       userId: user.id,
       username: user.username,
       email: user.email,
+      role: (user.role as 'user' | 'admin') ?? 'user',
       createdAt: now,
     });
 
@@ -73,21 +126,27 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       userId: user.id,
       username: user.username,
       email: user.email,
+      role: (user.role as 'user' | 'admin') ?? 'user',
       createdAt: now,
     });
 
+    const cookieOptions = getSecureCookieOptions(context.request);
     return jsonResponse({
       success: true,
       message: '登录成功',
-      token: accessToken,
-      refreshToken,
       user: {
         id: user.id,
         username: user.username,
         email: user.email,
         avatar: user.avatar ?? undefined,
+        role: user.role ?? 'user',
       },
-    }, 200);
+    }, 200, {
+      'Set-Cookie': [
+        serializeCookie('auth_token', accessToken, { ...cookieOptions, maxAge: getAccessTokenCookieMaxAge() }),
+        serializeCookie('auth_refresh_token', refreshToken, { ...cookieOptions, maxAge: getRefreshTokenCookieMaxAge() }),
+      ].join(', '),
+    });
   } catch (error) {
     console.error('Login error:', error);
     return errorResponse('登录失败，请稍后重试', 500);

@@ -4,10 +4,14 @@
  * CORS 头由 worker.ts 全局统一注入，handler 中无需重复设置
  */
 
-export function jsonResponse<T>(data: T, status = 200): Response {
+export function jsonResponse<T>(data: T, status = 200, extraHeaders?: Record<string, string>): Response {
+  const headers = new Headers({ 'Content-Type': 'application/json' })
+  if (extraHeaders) {
+    Object.entries(extraHeaders).forEach(([key, value]) => headers.set(key, value))
+  }
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
   })
 }
 

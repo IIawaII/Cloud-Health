@@ -77,7 +77,11 @@ export default function Login() {
     setIsLoading(false);
 
     if (result.success) {
-      navigate(from, { replace: true });
+      if (result.user?.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate(from, { replace: true });
+      }
     } else {
       setError(result.error || '登录失败');
       // 重置 Turnstile token 并强制重新渲染验证组件

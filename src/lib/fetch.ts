@@ -13,6 +13,7 @@ export async function fetchWithTimeout(
   try {
     const response = await fetch(input, {
       ...rest,
+      credentials: 'include',
       signal: controller.signal,
     })
     return response

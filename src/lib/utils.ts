@@ -103,3 +103,18 @@ export function parseStreamChunk(data: unknown): string | undefined {
   if (!delta) return undefined
   return typeof delta.content === 'string' ? delta.content : undefined
 }
+
+export function resolveErrorMessage(status: number, serverText: string): string {
+  if (status === 503) {
+    return 'AI 服务未配置，请在设置中填写 API 信息或联系管理员'
+  }
+  if (status === 502 || status === 504) {
+    return '服务器处理超时，请尝试上传较小的文件或稍后重试'
+  }
+  try {
+    const data = JSON.parse(serverText)
+    return isApiError(data) ? data.error : `请求失败: ${status}`
+  } catch {
+    return serverText || `请求失败: ${status}`
+  }
+}

@@ -26,7 +26,7 @@
     "paths": {
       "@/*": ["src/*"]
     },
-    "types": ["@cloudflare/workers-types/2023-07-01"]
+    "types": ["@cloudflare/workers-types"]
   },
   "include": ["src", "worker.ts", "functions", "shared"],
   "exclude": ["node_modules", "dist", "test"]

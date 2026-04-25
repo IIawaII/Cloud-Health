@@ -3,8 +3,7 @@ import { FiSend, FiLoader, FiAlertCircle, FiSmile, FiHelpCircle, FiTrash2, FiX, 
 import { useAuth } from '../context/AuthContext'
 import { getAvatarDisplayUrl } from '@/lib/avatar'
 import type { ChatMessage } from '../types'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import MarkdownRenderer from './MarkdownRenderer'
 
 interface ChatInterfaceProps {
   messages: ChatMessage[]
@@ -196,9 +195,7 @@ export default function ChatInterface({ messages, onSend, loading, error, onClea
                   </p>
                 ))
               ) : (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {msg.content}
-                </ReactMarkdown>
+                <MarkdownRenderer content={msg.content} />
               )}
             </div>
           </div>

@@ -31,6 +31,7 @@ export const onRequestGet = async (context: EventContext<Env, string, Record<str
         username: tokenData.username,
         email,
         avatar,
+        role: tokenData.role ?? 'user',
       },
     }, 200);
   } catch (error) {

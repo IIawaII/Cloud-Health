@@ -23,7 +23,7 @@ binding = "VERIFICATION_CODES"
 id = "KV_VERIFICATION_CODES_ID"
 
 # D1 Database:
-#   - DB (users table, verification_codes table, verification_code_cooldowns table)
+#   - DB (users table, verification_codes table, verification_code_cooldowns table, usage_logs table, system_configs table, audit_logs table)
 #
 # KV Namespaces:
 #   - AUTH_TOKENS (登录令牌、刷新令牌)
@@ -35,3 +35,5 @@ id = "KV_VERIFICATION_CODES_ID"
 # Secrets:
 #   - TURNSTILE_SECRET_KEY
 #   - RESEND_API_KEY
+#   - ADMIN_USERNAME
+#   - ADMIN_PASSWORD

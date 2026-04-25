@@ -2,6 +2,7 @@ export interface TokenData {
   userId: string
   username: string
   email: string
+  role: 'user' | 'admin'
   createdAt: string
 }
 
@@ -9,6 +10,7 @@ export interface RefreshTokenData {
   userId: string
   username: string
   email: string
+  role: 'user' | 'admin'
   createdAt: string
 }
 
@@ -26,16 +28,28 @@ function parseJsonSafely<T>(value: string | null): T | null {
   }
 }
 
+import { getCookie } from './cookie'
+
 /**
- * 从请求头验证 Bearer Access Token
+ * 从 Cookie 或请求头验证 Access Token
+ * 优先从 httpOnly Cookie 读取，fallback 到 Authorization header（向后兼容）
  */
 export async function verifyToken(context: {
   request: Request
   env: { AUTH_TOKENS: KVNamespace }
 }): Promise<TokenData | null> {
-  const authHeader = context.request.headers.get('Authorization')
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return null
-  const token = authHeader.slice(7)
+  // 优先从 Cookie 读取 token
+  let token = getCookie(context.request, 'auth_token')
+
+  // Fallback 到 Authorization header
+  if (!token) {
+    const authHeader = context.request.headers.get('Authorization')
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.slice(7)
+    }
+  }
+
+  if (!token) return null
   const tokenDataStr = await context.env.AUTH_TOKENS.get(`token:${token}`)
   return parseJsonSafely<TokenData>(tokenDataStr)
 }

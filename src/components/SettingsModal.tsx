@@ -10,7 +10,7 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const { user, updateUser, token } = useAuth()
+  const { user, updateUser } = useAuth()
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile')
   const [username, setUsername] = useState(user?.username || '')
   const [email, setEmail] = useState(user?.email || '')
@@ -68,8 +68,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify({
           email,
           type: 'update_email',
@@ -101,8 +101,6 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   }
 
   const handleUpdateProfile = async () => {
-    if (!token) return
-
     // 用户名格式验证
     if (username && !/^[a-zA-Z0-9_]{3,10}$/.test(username)) {
       showMessage('error', '用户名只能包含字母、数字和下划线，长度3-10位')
@@ -139,8 +137,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify(body),
       })
       const data = await response.json() as { user?: unknown; error?: string }
@@ -159,7 +157,6 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   }
 
   const handleChangePassword = async () => {
-    if (!token) return
     if (!currentPassword || !newPassword || !confirmPassword) {
       showMessage('error', '请填写所有密码字段')
       return
@@ -182,8 +179,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify({ currentPassword, newPassword }),
       })
       const data = await response.json() as { error?: string }

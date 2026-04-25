@@ -3,12 +3,12 @@ export interface User {
   username: string;
   email: string;
   avatar?: string;
+  role?: 'user' | 'admin';
 }
 
 export interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
-  token: string | null;
   isLoading: boolean;
 }
 
@@ -30,8 +30,6 @@ export interface RegisterCredentials {
 export interface AuthResponse {
   success: boolean;
   message: string;
-  token?: string;
-  refreshToken?: string;
   user?: User | null;
   error?: string;
 }

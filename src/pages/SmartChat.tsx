@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import { useAIStream } from '../hooks/useAI'
 import { useResult } from '../context/ResultContext'
 import ChatInterface from '../components/ChatInterface'
@@ -6,19 +6,14 @@ import type { ChatMessage } from '../types'
 
 export default function SmartChat() {
   const { chatMessages, setChatMessages } = useResult()
-  const [messages, setMessages] = useState<ChatMessage[]>(chatMessages)
 
   const handleChunk = useCallback((chunk: string) => {
-    setMessages((prev) => {
+    setChatMessages((prev) => {
       const last = prev[prev.length - 1]
-      let newMessages: ChatMessage[]
       if (last && last.role === 'assistant') {
-        newMessages = [...prev.slice(0, -1), { ...last, content: last.content + chunk }]
-      } else {
-        newMessages = [...prev, { role: 'assistant', content: chunk }]
+        return [...prev.slice(0, -1), { ...last, content: last.content + chunk }]
       }
-      setChatMessages(newMessages)
-      return newMessages
+      return [...prev, { role: 'assistant', content: chunk }]
     })
   }, [setChatMessages])
 
@@ -30,23 +25,21 @@ export default function SmartChat() {
 
   const handleSend = useCallback(
     (content: string) => {
-      const newMessages: ChatMessage[] = [...messages, { role: 'user', content }]
-      setMessages(newMessages)
+      const newMessages: ChatMessage[] = [...chatMessages, { role: 'user', content }]
       setChatMessages(newMessages)
       execute({ messages: newMessages })
     },
-    [messages, execute, setChatMessages]
+    [chatMessages, execute, setChatMessages]
   )
 
   const handleClear = () => {
-    setMessages([])
     setChatMessages([])
   }
 
   return (
     <div className="max-w-3xl mx-auto animate-fade-in">
       <ChatInterface
-        messages={messages}
+        messages={chatMessages}
         onSend={handleSend}
         loading={loading}
         error={error}

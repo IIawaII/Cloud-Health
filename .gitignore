@@ -7,16 +7,21 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+
+# Build outputs
 dist
 dist-ssr
+*.tsbuildinfo
 *.local
 
 # Editor directories and files
 .vscode
 !.vscode/extensions.json
 .idea
-.DS_Store
+.cursor/
+.cursorrules
 *.suo
 *.ntvs*
 *.njsproj
@@ -34,11 +39,6 @@ dist-ssr
 .dev.vars
 .wrangler/
 
-# Build outputs
-dist
-dist-ssr
-*.tsbuildinfo
-
 # Test coverage
 coverage/
 
@@ -47,16 +47,12 @@ coverage/
 *.key
 *.crt
 
-# IDE and editor files
-.vscode/
-.idea/
-.cursor/
-.cursorrules
+# Misc
+.DS_Store
 
 # Deployment platforms
 .netlify/
 .vercel/
 
-# Misc
-.DS_Store
-*.log
+# CodeBuddy
+.codebuddy/

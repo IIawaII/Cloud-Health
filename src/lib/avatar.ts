@@ -42,13 +42,28 @@ export function getUserAvatarUrl(avatar?: string | null): string {
   return `/User/User_${index}.svg`
 }
 
+const ALLOWED_IMAGE_DATA_URL_PREFIXES = [
+  'data:image/png',
+  'data:image/jpeg',
+  'data:image/jpg',
+  'data:image/webp',
+  'data:image/gif',
+  'data:image/svg+xml',
+]
+
 /**
  * 获取用户头像显示 URL，处理 base64 自定义头像
- * 如果 avatar 是 base64 data URL，直接返回；否则走本地头像映射
+ * 如果 avatar 是 base64 data URL，验证 MIME 类型后返回；否则走本地头像映射
  */
 export function getAvatarDisplayUrl(avatar?: string | null): string {
   if (avatar && avatar.startsWith('data:')) {
-    return avatar
+    const isValidImage = ALLOWED_IMAGE_DATA_URL_PREFIXES.some((prefix) =>
+      avatar.startsWith(prefix)
+    )
+    if (isValidImage) {
+      return avatar
+    }
+    console.warn('[avatar] Rejected non-image data URL')
   }
   return getUserAvatarUrl(avatar)
 }

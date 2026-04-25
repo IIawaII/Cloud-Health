@@ -28,6 +28,7 @@ export function addCorsHeaders(response: Response, corsOrigin: string): Response
   }
   const headers = new Headers(response.headers)
   headers.set('Access-Control-Allow-Origin', corsOrigin)
+  headers.set('Access-Control-Allow-Credentials', 'true')
   headers.set('X-Content-Type-Options', 'nosniff')
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   return new Response(response.body, {
@@ -42,6 +43,7 @@ export function createCorsPreflightResponse(corsOrigin: string): Response {
     status: 204,
     headers: {
       'Access-Control-Allow-Origin': corsOrigin,
+      'Access-Control-Allow-Credentials': 'true',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-AI-Base-URL, X-AI-API-Key, X-AI-Model',
       'Access-Control-Max-Age': '86400',

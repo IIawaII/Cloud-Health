@@ -5,6 +5,7 @@ import { jsonResponse, errorResponse } from '../../lib/response';
 import { validateTurnstile } from '../../lib/turnstile';
 import { checkRateLimit, buildRateLimitKey } from '../../lib/rateLimit';
 import { findUserByUsername, findUserByEmail, createUser, consumeVerificationCode } from '../../lib/db';
+import { serializeCookie, getSecureCookieOptions, getAccessTokenCookieMaxAge, getRefreshTokenCookieMaxAge } from '../../lib/cookie';
 import type { Env } from '../../lib/env';
 
 const registerSchema = z.object({
@@ -45,6 +46,11 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     if (turnstileError) return errorResponse(turnstileError, 400);
 
     // 先做用户唯一性检查，避免无谓消耗验证码
+    // 禁止注册与管理员用户名相同的账号
+    if (context.env.ADMIN_USERNAME && username === context.env.ADMIN_USERNAME) {
+      return errorResponse('该用户名已被系统保留，请选择其他用户名', 409);
+    }
+
     const existingUserByUsername = await findUserByUsername(context.env.DB, username);
     if (existingUserByUsername) {
       return errorResponse('用户名已被注册', 409);
@@ -80,6 +86,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
         username,
         email,
         password_hash: passwordHash,
+        role: 'user',
         created_at: now,
         updated_at: now,
       });
@@ -101,6 +108,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
         userId,
         username,
         email,
+        role: 'user',
         createdAt: now,
       });
 
@@ -109,6 +117,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
         userId,
         username,
         email,
+        role: 'user',
         createdAt: now,
       });
     } catch (tokenError) {
@@ -121,17 +130,21 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       );
     }
 
+    const cookieOptions = getSecureCookieOptions(context.request);
     return jsonResponse({
       success: true,
       message: '注册成功',
-      token: accessToken,
-      refreshToken,
       user: {
         id: userId,
         username,
         email,
       },
-    }, 201);
+    }, 201, {
+      'Set-Cookie': [
+        serializeCookie('auth_token', accessToken, { ...cookieOptions, maxAge: getAccessTokenCookieMaxAge() }),
+        serializeCookie('auth_refresh_token', refreshToken, { ...cookieOptions, maxAge: getRefreshTokenCookieMaxAge() }),
+      ].join(', '),
+    });
   } catch (error) {
     console.error('Registration error:', error);
     return errorResponse('注册失败，请稍后重试', 500);

@@ -154,6 +154,11 @@ async function validateLLMUrl(url: string): Promise<boolean> {
   }
 }
 
+/**
+ * URL 验证结果缓存。
+ * 注意：在 Cloudflare Workers 中，模块级变量在 isolate 复用期间跨请求共享。
+ * 该缓存设置了 TTL 和最大条目数限制，既利用了复用性能，又避免了内存无限增长。
+ */
 const urlValidationCache = new Map<string, { valid: boolean; expiry: number }>()
 const URL_VALIDATION_CACHE_TTL = 5 * 60 * 1000 // 5 分钟
 const URL_VALIDATION_CACHE_MAX_SIZE = 100 // 最大缓存条目数，防止恶意构造大量 URL 撑爆内存

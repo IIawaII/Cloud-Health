@@ -21,15 +21,16 @@ replacePlaceholder('D1_DATABASE_ID', process.env.D1_DATABASE_ID);
 
 // 处理 vars 段
 const turnstileSiteKey = process.env.TURNSTILE_SITE_KEY;
-if (turnstileSiteKey) {
+function addVarLine(key, value) {
+  if (!value) return;
   if (!content.match(/^\[vars\]\s*$/m)) {
     content += '\n[vars]\n';
   }
-  // 删除已有的 TURNSTILE_SITE_KEY 行
-  content = content.replace(/^TURNSTILE_SITE_KEY\s*=.*\n?/gm, '');
-  // 在 [vars] 后添加新的行
-  content = content.replace(/^(\[vars\]\s*)\n?/m, `$1\nTURNSTILE_SITE_KEY = "${turnstileSiteKey}"\n`);
+  content = content.replace(new RegExp(`^${key}\\s*=.*\\n?`, 'gm'), '');
+  content = content.replace(/^(\[vars\]\s*)\n?/m, `$1\n${key} = "${value}"\n`);
 }
+
+addVarLine('TURNSTILE_SITE_KEY', turnstileSiteKey);
 
 fs.writeFileSync(wranglerPath, content);
 console.log('wrangler.toml updated successfully.');

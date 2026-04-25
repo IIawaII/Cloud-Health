@@ -16,4 +16,8 @@ export interface Env {
   AI_MODEL: string
   ALLOWED_ORIGINS?: string
   ASSETS?: Fetcher
+  /** 管理员用户名（从 GitHub Actions vars 注入） */
+  ADMIN_USERNAME?: string
+  /** 管理员密码哈希（必须为 PBKDF2 格式：iterations:salt:hash，可用 crypto.hashPassword 生成） */
+  ADMIN_PASSWORD?: string
 }

@@ -8,7 +8,7 @@ interface ResultContextType {
   planResult: string;
   setPlanResult: (result: string) => void;
   chatMessages: ChatMessage[];
-  setChatMessages: (messages: ChatMessage[]) => void;
+  setChatMessages: (messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
   clearResults: () => void;
 }
 
@@ -63,10 +63,16 @@ function saveToStorage(storageKey: string, data: { analysisResult: string; planR
 function getAnonymousId(): string {
   let id = localStorage.getItem('health_project_anonymous_id')
   if (!id) {
-    // crypto.randomUUID() 在旧浏览器中可能不可用，提供降级方案
-    id = typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`
+    // crypto.randomUUID() 在旧浏览器或 http 环境下可能不可用，提供增强降级方案
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      id = crypto.randomUUID()
+    } else {
+      const time = Date.now().toString(36)
+      const random1 = Math.random().toString(36).slice(2, 8)
+      const random2 = Math.random().toString(36).slice(2, 8)
+      const perf = typeof performance !== 'undefined' ? performance.now().toString(36).slice(0, 4) : ''
+      id = `anon-${time}-${random1}-${random2}${perf ? '-' + perf : ''}`
+    }
     localStorage.setItem('health_project_anonymous_id', id)
   }
   return id
@@ -116,8 +122,12 @@ export function ResultProvider({ children }: { children: ReactNode }) {
     setPlanResultState(result);
   };
 
-  const setChatMessages = (messages: ChatMessage[]) => {
-    setChatMessagesState(messages);
+  const setChatMessages = (messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
+    if (typeof messages === 'function') {
+      setChatMessagesState((prev) => messages(prev));
+    } else {
+      setChatMessagesState(messages);
+    }
   };
 
   const clearResults = () => {

@@ -2,17 +2,14 @@ import { useState, useCallback, useEffect } from 'react'
 import { useAIStream } from '../hooks/useAI'
 import { useResult } from '../context/ResultContext'
 import FileUploader from '../components/FileUploader'
-import { AnalysisResultSkeleton } from '../components/AnalysisResult'
-import { FiLoader, FiAlertCircle, FiCheck, FiSearch, FiFileText } from 'react-icons/fi'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import ResultCard from '../components/ResultCard'
+import { FiLoader, FiAlertCircle, FiSearch } from 'react-icons/fi'
 
 export default function ReportAnalysis() {
   const [file, setFile] = useState<{ fileData: string; fileType: string; fileName: string } | null>(null)
   const { analysisResult, setAnalysisResult } = useResult()
   const [streamResult, setStreamResult] = useState(analysisResult)
   const [isStreaming, setIsStreaming] = useState(false)
-  const [copied, setCopied] = useState(false)
 
   // 同步全局状态到本地
   useEffect(() => {
@@ -94,69 +91,19 @@ export default function ReportAnalysis() {
 
         <div>
           {loading && !streamResult ? (
-            <AnalysisResultSkeleton />
+            <ResultCard title="分析结果" content="" loading />
           ) : streamResult ? (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-card overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                <div className="flex items-center gap-2">
-                  {isStreaming ? (
-                    <>
-                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                      <h3 className="text-sm font-semibold text-foreground">正在生成...</h3>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-2 h-2 rounded-full bg-success" />
-                      <h3 className="text-sm font-semibold text-foreground">分析结果</h3>
-                    </>
-                  )}
-                </div>
-                {!isStreaming && (
-                  <button
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(streamResult)
-                        setCopied(true)
-                        setTimeout(() => setCopied(false), 2000)
-                      } catch {
-                        // 复制失败静默处理
-                      }
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                      copied
-                        ? 'text-success bg-success/10'
-                        : 'text-foreground-muted hover:text-primary hover:bg-primary-50'
-                    }`}
-                  >
-                    {copied ? (
-                      <>
-                        <FiCheck className="w-3.5 h-3.5" />
-                        已复制
-                      </>
-                    ) : (
-                      <>
-                        <FiFileText className="w-3.5 h-3.5" />
-                        复制
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-              <div className="p-6">
-                <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground-muted prose-strong:text-foreground prose-li:text-foreground-muted">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {streamResult}
-                  </ReactMarkdown>
-                  {isStreaming && (
-                    <span className="inline-block w-2 h-4 bg-primary ml-1 animate-pulse" />
-                  )}
-                </div>
-              </div>
-            </div>
+            <ResultCard
+              title="分析结果"
+              content={streamResult}
+              isStreaming={isStreaming}
+            />
           ) : (
             <div className="bg-white rounded-2xl border border-gray-200 border-dashed p-10 text-center h-full flex flex-col items-center justify-center min-h-[400px]">
               <div className="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center mb-4">
-                <FiFileText className="w-8 h-8 text-gray-300" />
+                <svg className="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
               <p className="text-sm text-foreground-muted">
                 分析结果将在此处显示

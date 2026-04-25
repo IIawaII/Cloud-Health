@@ -3,8 +3,10 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { ResultProvider } from '@/context/ResultContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { AdminProtectedRoute } from '@/components/AdminProtectedRoute'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import Layout from '@/components/Layout'
+import AdminLayout from '@/components/AdminLayout'
 import { FiActivity } from 'react-icons/fi'
 
 const Home = lazy(() => import('@/pages/Home'))
@@ -15,6 +17,10 @@ const SmartChat = lazy(() => import('@/pages/SmartChat'))
 const HealthQuiz = lazy(() => import('@/pages/HealthQuiz'))
 const Login = lazy(() => import('@/pages/Login'))
 const Register = lazy(() => import('@/pages/Register'))
+const AdminDashboard = lazy(() => import('@/pages/admin/Dashboard'))
+const AdminUsers = lazy(() => import('@/pages/admin/Users'))
+const AdminDataManagement = lazy(() => import('@/pages/admin/DataManagement'))
+const AdminSystemConfig = lazy(() => import('@/pages/admin/SystemConfig'))
 
 function LoadingScreen() {
   return (
@@ -34,28 +40,34 @@ function LoadingScreen() {
 
 // 已登录用户访问登录/注册页面的重定向组件
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
 
   if (isLoading) {
     return <LoadingScreen />
   }
 
   if (isAuthenticated) {
+    if (user?.role === 'admin') {
+      return <Navigate to="/admin" replace />
+    }
     return <Navigate to="/home" replace />
   }
 
   return <>{children}</>
 }
 
-// 根路由：已登录用户重定向到 /home，未登录用户显示落地页
+// 根路由：已登录用户重定向到 /home 或 /admin，未登录用户显示落地页
 function LandingRoute() {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
 
   if (isLoading) {
     return <LoadingScreen />
   }
 
   if (isAuthenticated) {
+    if (user?.role === 'admin') {
+      return <Navigate to="/admin" replace />
+    }
     return <Navigate to="/home" replace />
   }
 
@@ -136,6 +148,48 @@ function AppRoutes() {
               <HealthQuiz />
             </Layout>
           </ProtectedRoute>
+        }
+      />
+
+      {/* 管理员路由 */}
+      <Route
+        path="/admin"
+        element={
+          <AdminProtectedRoute>
+            <AdminLayout>
+              <AdminDashboard />
+            </AdminLayout>
+          </AdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <AdminProtectedRoute>
+            <AdminLayout>
+              <AdminUsers />
+            </AdminLayout>
+          </AdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/data"
+        element={
+          <AdminProtectedRoute>
+            <AdminLayout>
+              <AdminDataManagement />
+            </AdminLayout>
+          </AdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/config"
+        element={
+          <AdminProtectedRoute>
+            <AdminLayout>
+              <AdminSystemConfig />
+            </AdminLayout>
+          </AdminProtectedRoute>
         }
       />
 

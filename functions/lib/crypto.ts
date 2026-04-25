@@ -13,7 +13,9 @@ function toHex(bytes: Uint8Array | ArrayBuffer): string {
 }
 
 function fromHex(hex: string): Uint8Array {
-  return new Uint8Array(hex.match(/.{2}/g)!.map((b) => parseInt(b, 16)))
+  const pairs = hex.match(/.{2}/g)
+  if (!pairs) throw new Error('Invalid hex string')
+  return new Uint8Array(pairs.map((b) => parseInt(b, 16)))
 }
 
 /**

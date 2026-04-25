@@ -1,26 +1,19 @@
+import { z } from 'zod';
 import { hashPassword, generateToken } from '../../lib/crypto';
-import { saveToken } from '../../lib/auth';
+import { saveToken, saveRefreshToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
-import { verifyTurnstile } from '../../lib/turnstile';
+import { validateTurnstile } from '../../lib/turnstile';
 import { checkRateLimit, buildRateLimitKey } from '../../lib/rateLimit';
+import { findUserByUsername, findUserByEmail, createUser } from '../../lib/db';
 import type { Env } from '../../lib/env';
 
-interface RegisterRequest {
-  username: string;
-  email: string;
-  password: string;
-  turnstileToken: string;
-  verificationCode: string;
-}
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  passwordHash: string;
-  createdAt: string;
-  updatedAt: string;
-}
+const registerSchema = z.object({
+  username: z.string().regex(/^[a-zA-Z0-9_]{3,10}$/, '用户名只能包含字母、数字和下划线，长度3-10位'),
+  email: z.string().email('请输入有效的邮箱地址'),
+  password: z.string().min(8, '密码长度至少8位').regex(/(?=.*[A-Za-z])(?=.*\d)/, '密码必须同时包含字母和数字'),
+  turnstileToken: z.string().min(1, '请完成人机验证'),
+  verificationCode: z.string().min(1, '请输入验证码'),
+});
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   try {
@@ -35,43 +28,17 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse('注册尝试过于频繁，请稍后再试', 429);
     }
 
-    const body = await context.request.json<RegisterRequest>();
-    const { username, email, password, turnstileToken, verificationCode } = body;
-
-    // 验证输入
-    if (!username || !email || !password || !turnstileToken || !verificationCode) {
-      return errorResponse('请填写所有必填字段', 400);
+    const body = await context.request.json<unknown>();
+    const parseResult = registerSchema.safeParse(body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0]?.message || '请求参数错误';
+      return errorResponse(firstError, 400);
     }
-
-    // 验证用户名格式
-    if (!/^[a-zA-Z0-9_]{3,10}$/.test(username)) {
-      return errorResponse('用户名只能包含字母、数字和下划线，长度3-10位', 400);
-    }
-
-    // 验证邮箱格式
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return errorResponse('请输入有效的邮箱地址', 400);
-    }
-
-    // 验证密码强度（至少8位，包含字母和数字）
-    if (password.length < 8) {
-      return errorResponse('密码长度至少8位', 400);
-    }
-    if (!/(?=.*[A-Za-z])(?=.*\d)/.test(password)) {
-      return errorResponse('密码必须同时包含字母和数字', 400);
-    }
+    const { username, email, password, turnstileToken, verificationCode } = parseResult.data;
 
     // 验证 Turnstile
-    const clientIP = context.request.headers.get('CF-Connecting-IP') || undefined;
-    const isValid = await verifyTurnstile(
-      turnstileToken,
-      context.env.TURNSTILE_SECRET_KEY,
-      clientIP || undefined
-    );
-
-    if (!isValid) {
-      return errorResponse('人机验证失败，请重试', 400);
-    }
+    const turnstileError = await validateTurnstile(context, turnstileToken);
+    if (turnstileError) return errorResponse(turnstileError, 400);
 
     // 验证邮箱验证码
     const codeKey = `verify_code:register:${email}`;
@@ -87,13 +54,13 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     await context.env.VERIFICATION_CODES.delete(codeKey);
 
     // 检查用户名是否已存在
-    const existingUserByUsername = await context.env.USERS.get(`username:${username}`);
+    const existingUserByUsername = await findUserByUsername(context.env.DB, username);
     if (existingUserByUsername) {
       return errorResponse('用户名已被注册', 409);
     }
 
     // 检查邮箱是否已存在
-    const existingUserByEmail = await context.env.USERS.get(`email:${email}`);
+    const existingUserByEmail = await findUserByEmail(context.env.DB, email);
     if (existingUserByEmail) {
       return errorResponse('邮箱已被注册', 409);
     }
@@ -103,50 +70,45 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     const passwordHash = await hashPassword(password);
     const now = new Date().toISOString();
 
-    const user: User = {
-      id: userId,
-      username,
-      email,
-      passwordHash,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    // 保存用户信息（带容错清理）
-    const userKey = `user:${userId}`;
-    const usernameKey = `username:${username}`;
-    const emailKey = `email:${email}`;
-
     try {
-      await context.env.USERS.put(userKey, JSON.stringify(user));
-      await context.env.USERS.put(usernameKey, userId);
-      await context.env.USERS.put(emailKey, userId);
-    } catch (kvError) {
-      // 如果任一写入失败，尝试清理已写入的数据
-      console.error('Registration KV write failed, attempting cleanup:', kvError);
-      await Promise.allSettled([
-        context.env.USERS.delete(userKey),
-        context.env.USERS.delete(usernameKey),
-        context.env.USERS.delete(emailKey),
-      ]);
+      await createUser(context.env.DB, {
+        id: userId,
+        username,
+        email,
+        password_hash: passwordHash,
+        created_at: now,
+        updated_at: now,
+      });
+    } catch (dbError) {
+      console.error('Registration D1 write failed:', dbError);
       return errorResponse('注册失败，数据写入异常，请稍后重试', 500);
     }
 
-    // 生成登录令牌
-    const token = generateToken();
+    // 生成 Access Token 和 Refresh Token
+    const accessToken = generateToken();
+    const refreshToken = generateToken();
 
-    // 保存令牌（7天有效期）并建立用户索引
-    await saveToken(context.env.AUTH_TOKENS, token, {
+    // 保存 Access Token（15分钟有效期）
+    await saveToken(context.env.AUTH_TOKENS, accessToken, {
       userId,
       username,
       email,
       createdAt: now,
-    }, 7 * 24 * 60 * 60);
+    });
+
+    // 保存 Refresh Token（30天有效期）
+    await saveRefreshToken(context.env.AUTH_TOKENS, refreshToken, {
+      userId,
+      username,
+      email,
+      createdAt: now,
+    });
 
     return jsonResponse({
       success: true,
       message: '注册成功',
-      token,
+      token: accessToken,
+      refreshToken,
       user: {
         id: userId,
         username,

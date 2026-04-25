@@ -1,17 +1,20 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { ResultProvider } from '@/context/ResultContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import Layout from '@/components/Layout'
-import Home from '@/pages/Home'
-import LandingPage from '@/pages/LandingPage'
-import ReportAnalysis from '@/pages/ReportAnalysis'
-import PlanGenerator from '@/pages/PlanGenerator'
-import SmartChat from '@/pages/SmartChat'
-import HealthQuiz from '@/pages/HealthQuiz'
-import Login from '@/pages/Login'
-import Register from '@/pages/Register'
 import { FiActivity } from 'react-icons/fi'
+
+const Home = lazy(() => import('@/pages/Home'))
+const LandingPage = lazy(() => import('@/pages/LandingPage'))
+const ReportAnalysis = lazy(() => import('@/pages/ReportAnalysis'))
+const PlanGenerator = lazy(() => import('@/pages/PlanGenerator'))
+const SmartChat = lazy(() => import('@/pages/SmartChat'))
+const HealthQuiz = lazy(() => import('@/pages/HealthQuiz'))
+const Login = lazy(() => import('@/pages/Login'))
+const Register = lazy(() => import('@/pages/Register'))
 
 function LoadingScreen() {
   return (
@@ -61,6 +64,7 @@ function LandingRoute() {
 
 function AppRoutes() {
   return (
+    <Suspense fallback={<LoadingScreen />}>
     <Routes>
       {/* 根路由 - 落地页（未登录）或重定向到 /home（已登录） */}
       <Route path="/" element={<LandingRoute />} />
@@ -138,16 +142,19 @@ function AppRoutes() {
       {/* 默认重定向 */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   )
 }
 
 function App() {
   return (
-    <AuthProvider>
-      <ResultProvider>
-        <AppRoutes />
-      </ResultProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ResultProvider>
+          <AppRoutes />
+        </ResultProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
 

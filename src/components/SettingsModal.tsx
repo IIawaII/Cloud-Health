@@ -164,8 +164,12 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       showMessage('error', '请填写所有密码字段')
       return
     }
-    if (newPassword.length < 6) {
-      showMessage('error', '新密码至少6位')
+    if (newPassword.length < 8) {
+      showMessage('error', '新密码至少8位')
+      return
+    }
+    if (!/(?=.*[A-Za-z])(?=.*\d)/.test(newPassword)) {
+      showMessage('error', '新密码必须同时包含字母和数字')
       return
     }
     if (newPassword !== confirmPassword) {

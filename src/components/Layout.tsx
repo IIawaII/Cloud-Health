@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import SettingsModal from './SettingsModal'
@@ -56,13 +56,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     await logout()
-    navigate('/login')
+    navigate('/')
   }
 
-  const getAvatarDisplay = () => {
+  const avatarDisplay = useMemo(() => {
     const avatar = user?.avatar || localStorage.getItem('user_avatar') || undefined
     return getUserAvatarUrl(avatar)
-  }
+  }, [user?.avatar])
 
   return (
     <div className="min-h-screen bg-background-secondary flex flex-col">
@@ -126,7 +126,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-foreground-muted hover:text-foreground hover:bg-gray-100 transition-all"
                 >
                   <img
-                    src={getAvatarDisplay()}
+                    src={avatarDisplay}
                     alt="avatar"
                     className="w-8 h-8 rounded-full bg-gray-100"
                   />

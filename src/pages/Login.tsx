@@ -4,14 +4,14 @@ import { useAuth } from '@/context/AuthContext';
 import { TurnstileWidget } from '@/components/TurnstileWidget';
 import { TURNSTILE_SITE_KEY } from '@/lib/config';
 import { 
-  User, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  Loader2,
-  ShieldCheck,
-  ArrowRight
-} from 'lucide-react';
+  FiUser, 
+  FiLock, 
+  FiEye, 
+  FiEyeOff, 
+  FiLoader,
+  FiShield,
+  FiArrowRight
+} from 'react-icons/fi';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -92,7 +92,7 @@ export default function Login() {
         {/* Logo */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl shadow-lg mb-4">
-            <ShieldCheck className="w-8 h-8 text-white" />
+            <FiShield className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">Health Project</h1>
           <p className="text-slate-500 mt-1">智能健康诊断平台</p>
@@ -117,7 +117,7 @@ export default function Login() {
                   用户名或邮箱
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <input
                     type="text"
                     name="usernameOrEmail"
@@ -136,7 +136,7 @@ export default function Login() {
                   密码
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     name="password"
@@ -151,7 +151,7 @@ export default function Login() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
                   </button>
                 </div>
               </div>
@@ -175,13 +175,13 @@ export default function Login() {
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <FiLoader className="w-5 h-5 animate-spin" />
                     登录中...
                   </>
                 ) : (
                   <>
                     登录
-                    <ArrowRight className="w-5 h-5" />
+                    <FiArrowRight className="w-5 h-5" />
                   </>
                 )}
               </button>

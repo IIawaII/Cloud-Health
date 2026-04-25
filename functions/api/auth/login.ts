@@ -1,47 +1,31 @@
+import { z } from 'zod';
 import { verifyPassword, generateToken } from '../../lib/crypto';
-import { saveToken } from '../../lib/auth';
+import { saveToken, saveRefreshToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
-import { verifyTurnstile } from '../../lib/turnstile';
+import { validateTurnstile } from '../../lib/turnstile';
 import { checkRateLimit } from '../../lib/rateLimit';
+import { findUserByUsername, findUserByEmail } from '../../lib/db';
 import type { Env } from '../../lib/env';
 
-interface LoginRequest {
-  usernameOrEmail: string;
-  password: string;
-  turnstileToken: string;
-}
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  passwordHash: string;
-  createdAt: string;
-  updatedAt: string;
-  avatar?: string;
-}
+const loginSchema = z.object({
+  usernameOrEmail: z.string().min(1, '请填写用户名或邮箱'),
+  password: z.string().min(1, '请填写密码'),
+  turnstileToken: z.string().min(1, '请完成人机验证'),
+});
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   try {
-    const body = await context.request.json<LoginRequest>();
-    const { usernameOrEmail, password, turnstileToken } = body;
-
-    // 验证输入
-    if (!usernameOrEmail || !password || !turnstileToken) {
-      return errorResponse('请填写所有必填字段', 400);
+    const body = await context.request.json<unknown>();
+    const parseResult = loginSchema.safeParse(body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0]?.message || '请求参数错误';
+      return errorResponse(firstError, 400);
     }
+    const { usernameOrEmail, password, turnstileToken } = parseResult.data;
 
     // 验证 Turnstile
-    const clientIP = context.request.headers.get('CF-Connecting-IP') || undefined;
-    const isValid = await verifyTurnstile(
-      turnstileToken,
-      context.env.TURNSTILE_SECRET_KEY,
-      clientIP || undefined
-    );
-
-    if (!isValid) {
-      return errorResponse('人机验证失败，请重试', 400);
-    }
+    const turnstileError = await validateTurnstile(context, turnstileToken);
+    if (turnstileError) return errorResponse(turnstileError, 400);
 
     // 速率限制：每个 IP 每分钟最多 10 次登录尝试
     const rateIP = context.request.headers.get('CF-Connecting-IP') || 'unknown';
@@ -55,55 +39,53 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse('登录尝试过于频繁，请稍后再试', 429);
     }
 
-    // 判断是用户名还是邮箱
+    // 判断是用户名还是邮箱，直接从 D1 查询用户
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(usernameOrEmail);
-    let userId: string | null = null;
+    const user = isEmail
+      ? await findUserByEmail(context.env.DB, usernameOrEmail)
+      : await findUserByUsername(context.env.DB, usernameOrEmail);
 
-    if (isEmail) {
-      userId = await context.env.USERS.get(`email:${usernameOrEmail}`);
-    } else {
-      userId = await context.env.USERS.get(`username:${usernameOrEmail}`);
-    }
-
-    if (!userId) {
+    if (!user) {
       return errorResponse('用户名或密码错误', 401);
     }
 
-    // 获取用户信息
-    const userData = await context.env.USERS.get(`user:${userId}`);
-    if (!userData) {
-      return errorResponse('用户不存在', 404);
-    }
-
-    const user: User = JSON.parse(userData);
-
     // 验证密码
-    const isPasswordValid = await verifyPassword(password, user.passwordHash);
+    const isPasswordValid = await verifyPassword(password, user.password_hash);
     if (!isPasswordValid) {
       return errorResponse('用户名或密码错误', 401);
     }
 
-    // 生成登录令牌
-    const token = generateToken();
+    // 生成 Access Token 和 Refresh Token
+    const accessToken = generateToken();
+    const refreshToken = generateToken();
     const now = new Date().toISOString();
 
-    // 保存令牌（7天有效期）并建立用户索引
-    await saveToken(context.env.AUTH_TOKENS, token, {
+    // 保存 Access Token（15分钟有效期）
+    await saveToken(context.env.AUTH_TOKENS, accessToken, {
       userId: user.id,
       username: user.username,
       email: user.email,
       createdAt: now,
-    }, 7 * 24 * 60 * 60);
+    });
+
+    // 保存 Refresh Token（30天有效期）
+    await saveRefreshToken(context.env.AUTH_TOKENS, refreshToken, {
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      createdAt: now,
+    });
 
     return jsonResponse({
       success: true,
       message: '登录成功',
-      token,
+      token: accessToken,
+      refreshToken,
       user: {
         id: user.id,
         username: user.username,
         email: user.email,
-        avatar: user.avatar,
+        avatar: user.avatar ?? undefined,
       },
     }, 200);
   } catch (error) {

@@ -1,6 +1,8 @@
 import { verifyToken } from '../lib/auth';
-import { jsonResponse, errorResponse, parseLLMResult } from '../lib/response';
+import { jsonResponse, errorResponse, safeErrorResponse } from '../lib/response';
 import { checkRateLimit } from '../lib/rateLimit';
+import { callLLMText } from '../lib/llm';
+import { SYSTEM_PROMPTS, USER_PROMPTS } from '../lib/prompts';
 import type { Env } from '../lib/env';
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
@@ -15,6 +17,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
         question: string;
         options: string[];
         correctAnswer?: number;
+        explanation?: string;
       }>;
       userAnswers?: number[];
     }>();
@@ -50,53 +53,17 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
         return errorResponse('未配置 AI API，请在设置中填写或联系管理员', 503);
       }
 
-      const prompt = `请生成5道健康知识问答题，类别：${category || '综合健康知识'}，难度：${difficulty || '中等'}。
-
-要求：
-1. 每道题包含4个选项（A、B、C、D）
-2. 标明每道题的正确答案索引（0=A, 1=B, 2=C, 3=D）
-3. 为每道题提供简要的知识点解析
-
-请严格按照以下 JSON 格式输出，不要包含其他文字：
-{
-  "questions": [
-    {
-      "question": "题目内容",
-      "options": ["选项A", "选项B", "选项C", "选项D"],
-      "correctAnswer": 0,
-      "explanation": "解析内容"
-    }
-  ]
-}`;
-
-      const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            {
-              role: 'system',
-              content:
-                '你是一位健康知识教育专家，擅长生成有趣且富有教育意义的健康知识问答题。请严格按照用户要求的 JSON 格式输出，不要包含 markdown 代码块标记或其他额外文字。',
-            },
-            { role: 'user', content: prompt },
-          ],
-          temperature: 0.8,
-          max_tokens: 3000,
-        }),
+      const content = await callLLMText({
+        baseUrl,
+        apiKey,
+        model,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPTS.QUIZ_GENERATOR },
+          { role: 'user', content: USER_PROMPTS.generateQuiz(category, difficulty) },
+        ],
+        temperature: 0.8,
+        max_tokens: 3000,
       });
-
-      if (!response.ok) {
-        const err = await response.text();
-        return errorResponse(`模型请求失败: ${err}`, 502);
-      }
-
-      const data = await response.json()
-      const content = parseLLMResult(data)
 
       let parsed;
       try {
@@ -114,6 +81,12 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     }
 
     if (mode === 'grade' && questions && userAnswers) {
+      // 评分模式也要求登录，保持行为一致性
+      const tokenData = await verifyToken(context);
+      if (!tokenData) {
+        return errorResponse('未授权', 401);
+      }
+
       if (questions.length === 0) {
         return errorResponse('题目数据为空，无法评分', 400);
       }
@@ -121,14 +94,21 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
         return errorResponse('答题数量与题目数量不匹配', 400);
       }
 
+      // 校验题目数据完整性
+      for (let i = 0; i < questions.length; i++) {
+        if (typeof questions[i].correctAnswer !== 'number') {
+          return errorResponse(`第 ${i + 1} 题缺少正确答案数据`, 400);
+        }
+      }
+
       let correctCount = 0;
-      const results = questions.map((q: { question: string; options: string[]; correctAnswer?: number; explanation?: string }, idx: number) => {
+      const results = questions.map((q, idx) => {
         const isCorrect = userAnswers[idx] === q.correctAnswer;
         if (isCorrect) correctCount++;
         return {
           question: q.question,
           userAnswer: userAnswers[idx],
-          correctAnswer: q.correctAnswer,
+          correctAnswer: q.correctAnswer!,
           isCorrect,
           explanation: q.explanation || '',
         };
@@ -153,7 +133,6 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
 
     return errorResponse('无效的请求参数', 400);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return errorResponse(msg, 500);
+    return safeErrorResponse(err);
   }
 };

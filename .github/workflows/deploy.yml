@@ -36,6 +36,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
 
       - name: Sync secrets to Cloudflare Dashboard
         run: |
@@ -62,7 +63,34 @@ jobs:
 
           sync_secret "TURNSTILE_SECRET_KEY" "${{ secrets.TURNSTILE_SECRET_KEY }}"
           sync_secret "RESEND_API_KEY" "${{ secrets.RESEND_API_KEY }}"
-          sync_secret "TURNSTILE_SITE_KEY" "${{ secrets.TURNSTILE_SITE_KEY }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Sync variables to Cloudflare Dashboard
+        run: |
+          ACCOUNT_ID="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN }}"
+          WORKER_NAME="health-project"
+
+          sync_var() {
+            local name="$1"
+            local value="$2"
+            echo "Syncing variable: $name"
+            response=$(curl -s -w "\n%{http_code}" -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/scripts/$WORKER_NAME/vars" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\":\"$name\",\"text\":\"$value\",\"type\":\"secret_text\"}")
+            http_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | sed '$d')
+            if [ "$http_code" != "200" ]; then
+              echo "Failed to sync variable $name (HTTP $http_code): $body"
+              exit 1
+            fi
+            echo "Variable $name synced successfully"
+          }
+
+          sync_var "TURNSTILE_SITE_KEY" "${{ vars.TURNSTILE_SITE_KEY }}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

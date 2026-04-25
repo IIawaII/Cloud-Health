@@ -24,7 +24,7 @@
 |------|------|
 | 前端 | React 18 + TypeScript + Vite + Tailwind CSS + React Router DOM |
 | 后端 | Cloudflare Workers |
-| 数据存储 | Cloudflare KV (USERS / AUTH_TOKENS) |
+| 数据存储 | Cloudflare D1 (users 表) + KV (AUTH_TOKENS / VERIFICATION_CODES) |
 | AI 接口 | OpenAI API / 兼容 OpenAI 格式的大模型 API |
 | 人机验证 | Cloudflare Turnstile |
 | 部署 | Cloudflare Workers + Workers Static Assets + GitHub Actions |
@@ -114,8 +114,8 @@ health-project/
 | Secret 名称 | 说明 |
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API Token（Dashboard → My Profile → API Tokens 创建，权限选 `Cloudflare Workers:Edit`）|
-| `KV_USERS_ID` | Cloudflare KV 命名空间 `USERS` 的 ID |
 | `KV_AUTH_TOKENS_ID` | Cloudflare KV 命名空间 `AUTH_TOKENS` 的 ID |
+| `KV_VERIFICATION_CODES_ID` | Cloudflare KV 命名空间 `VERIFICATION_CODES` 的 ID |
 | `TURNSTILE_SITE_KEY` | Cloudflare Turnstile 站点密钥（客户端公开）|
 | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile 服务端密钥 |
 
@@ -176,11 +176,16 @@ AI_MODEL=gpt-4o
 #### 4. 创建 KV 命名空间
 
 ```bash
-npx wrangler kv namespace create USERS
 npx wrangler kv namespace create AUTH_TOKENS
+npx wrangler kv namespace create VERIFICATION_CODES
 ```
 
-创建后，将返回的 ID 填入 `wrangler.toml` 中的 `KV_USERS_ID` 和 `KV_AUTH_TOKENS_ID` 占位符。
+创建后，将返回的 ID 填入 `wrangler.toml` 中的对应占位符。
+
+> **D1 数据库**：首次部署前需执行迁移创建 users 表：
+> ```bash
+> npx wrangler d1 migrations apply health-project-db --local
+> ```
 
 #### 5. 启动开发服务器
 

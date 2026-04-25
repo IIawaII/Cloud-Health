@@ -1,6 +1,8 @@
 import { verifyToken } from '../lib/auth';
-import { jsonResponse, errorResponse, parseLLMResult } from '../lib/response';
+import { jsonResponse, errorResponse, parseLLMResult, safeErrorResponse } from '../lib/response';
 import { checkRateLimit } from '../lib/rateLimit';
+import { callLLM, createStreamResponse } from '../lib/llm';
+import { SYSTEM_PROMPTS, USER_PROMPTS } from '../lib/prompts';
 import type { Env } from '../lib/env';
 
 const MAX_FILE_SIZE_MB = 5;
@@ -29,14 +31,17 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse('请提供完整的文件信息', 400);
     }
 
-    // 校验 fileData 格式（必须是 data: 开头的 base64，禁止外部 URL）
-    if (!fileData.startsWith('data:')) {
-      return errorResponse('无效的文件数据格式', 400);
+    // 校验文件大小
+    let dataSizeMB: number;
+    if (fileData.startsWith('data:')) {
+      // base64 格式：剔除前缀后按 4/3 估算原始大小
+      const base64Content = fileData.split(',')[1] || '';
+      dataSizeMB = (base64Content.length * 3) / 4 / 1024 / 1024;
+    } else {
+      // 纯文本格式（如 text/plain）直接按字符长度计算
+      dataSizeMB = new Blob([fileData]).size / 1024 / 1024;
     }
-
-    // 校验文件大小（base64 长度约为原始大小的 4/3）
-    const base64SizeMB = (fileData.length * 3) / 4 / 1024 / 1024;
-    if (base64SizeMB > MAX_FILE_SIZE_MB) {
+    if (dataSizeMB > MAX_FILE_SIZE_MB) {
       return errorResponse(`文件大小超过 ${MAX_FILE_SIZE_MB}MB 限制`, 413);
     }
 
@@ -52,45 +57,18 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     }
 
     const isImage = fileType.startsWith('image/');
-    const isPdf = fileType === 'application/pdf';
+    const isText = fileType === 'application/pdf' || fileType === 'text/plain';
 
-    let messages: Array<Record<string, unknown>> = [];
-
-    if (isImage) {
-      messages = [
-        {
-          role: 'system',
-          content:
-            '你是一位专业的健康管理顾问和医学分析师。请仔细分析用户上传的医疗健康相关图像，提供结构化的分析结果。请使用中文回答。',
-        },
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `请分析这份名为"${fileName}"的健康报告/检测图像。请从以下几个方面进行分析：\n1. 报告概述：这份报告/检测的主要内容是什么\n2. 关键指标：列出关键健康指标及其数值\n3. 异常分析：指出任何异常或需要关注的指标\n4. 健康建议：基于分析结果给出具体的健康改善建议\n5. 后续行动：建议下一步需要做什么（如复查、就医等）\n\n请以 Markdown 格式输出，结构清晰。`,
-            },
-            {
-              type: 'image_url',
-              image_url: { url: fileData },
-            },
-          ],
-        },
-      ];
-    } else if (isPdf || fileType === 'text/plain') {
-      messages = [
-        {
-          role: 'system',
-          content:
-            '你是一位专业的健康管理顾问和医学分析师。请仔细分析用户上传的健康报告文本内容，提供结构化的分析结果。请使用中文回答。',
-        },
-        {
-          role: 'user',
-          content: `请分析这份名为"${fileName}"的健康报告。报告内容如下：\n\n${fileData}\n\n请从以下几个方面进行分析：\n1. 报告概述：这份报告的主要内容是什么\n2. 关键指标：列出关键健康指标及其数值\n3. 异常分析：指出任何异常或需要关注的指标\n4. 健康建议：基于分析结果给出具体的健康改善建议\n5. 后续行动：建议下一步需要做什么（如复查、就医等）\n\n请以 Markdown 格式输出，结构清晰。`,
-        },
-      ];
-    } else {
+    if (!isImage && !isText) {
       return errorResponse('不支持的文件类型', 400);
+    }
+
+    // 校验 fileType 与 fileData 内容是否匹配，防止伪造类型
+    if (isImage && !fileData.startsWith('data:image/')) {
+      return errorResponse('文件内容与声明的图片类型不匹配', 400);
+    }
+    if (fileType === 'text/plain' && fileData.startsWith('data:')) {
+      return errorResponse('文本文件不应为 base64 编码', 400);
     }
 
     const userBaseUrl = request.headers.get('X-AI-Base-URL');
@@ -105,50 +83,30 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse('未配置 AI API，请在设置中填写或联系管理员', 503);
     }
 
-    // 流式输出
-    if (stream) {
-      const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature: 0.5,
-          max_tokens: 4000,
-          stream: true,
-        }),
-      });
+    const messages = isImage
+      ? [
+          { role: 'system', content: SYSTEM_PROMPTS.REPORT_ANALYZER_IMAGE },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: USER_PROMPTS.analyzeImage(fileName) },
+              { type: 'image_url', image_url: { url: fileData } },
+            ],
+          },
+        ]
+      : [
+          { role: 'system', content: SYSTEM_PROMPTS.REPORT_ANALYZER_TEXT },
+          { role: 'user', content: USER_PROMPTS.analyzeText(fileName, fileData) },
+        ];
 
-      if (!response.ok) {
-        const err = await response.text();
-        return errorResponse(`模型请求失败: ${err}`, 502);
-      }
-
-      return new Response(response.body, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive',
-        },
-      });
-    }
-
-    // 非流式输出
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.5,
-        max_tokens: 4000,
-      }),
+    const response = await callLLM({
+      baseUrl,
+      apiKey,
+      model,
+      messages,
+      stream: stream ?? false,
+      temperature: 0.5,
+      max_tokens: 4000,
     });
 
     if (!response.ok) {
@@ -156,12 +114,15 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse(`模型请求失败: ${err}`, 502);
     }
 
-    const data = await response.json()
-    const result = parseLLMResult(data)
+    if (stream) {
+      return createStreamResponse(response);
+    }
+
+    const data = await response.json();
+    const result = parseLLMResult(data);
 
     return jsonResponse({ result }, 200);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return errorResponse(msg, 500);
+    return safeErrorResponse(err);
   }
 };

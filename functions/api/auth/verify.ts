@@ -1,12 +1,7 @@
 import { jsonResponse, errorResponse } from '../../lib/response';
+import { findUserById } from '../../lib/db';
 import type { Env } from '../../lib/env';
-
-interface TokenData {
-  userId: string;
-  username: string;
-  email: string;
-  createdAt: string;
-}
+import type { TokenData } from '../../lib/auth';
 
 export const onRequestGet = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   try {
@@ -26,18 +21,14 @@ export const onRequestGet = async (context: EventContext<Env, string, Record<str
 
     const tokenData: TokenData = JSON.parse(tokenDataStr);
 
-    // 从 USERS KV 获取完整用户信息（包括头像和邮箱）
-    const userKey = `user:${tokenData.userId}`;
-    const userDataStr = await context.env.USERS.get(userKey);
+    // 从 D1 获取完整用户信息（包括头像和邮箱）
+    const dbUser = await findUserById(context.env.DB, tokenData.userId);
 
     let avatar: string | undefined;
     let email = tokenData.email;
-    if (userDataStr) {
-      const userData = JSON.parse(userDataStr) as Record<string, unknown>;
-      avatar = typeof userData.avatar === 'string' ? userData.avatar : undefined;
-      if (typeof userData.email === 'string') {
-        email = userData.email;
-      }
+    if (dbUser) {
+      avatar = dbUser.avatar ?? undefined;
+      email = dbUser.email;
     }
 
     return jsonResponse({

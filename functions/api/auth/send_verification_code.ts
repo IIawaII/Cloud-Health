@@ -1,5 +1,8 @@
 import { jsonResponse, errorResponse } from '../../lib/response';
-import { verifyTurnstile } from '../../lib/turnstile';
+import { verifyToken } from '../../lib/auth';
+import { validateTurnstile } from '../../lib/turnstile';
+import { checkRateLimit } from '../../lib/rateLimit';
+import { emailExists, findUserById } from '../../lib/db';
 import type { Env } from '../../lib/env';
 
 interface SendCodeRequest {
@@ -12,7 +15,7 @@ interface SendCodeRequest {
 function generateCode(): string {
   const array = new Uint8Array(4);
   crypto.getRandomValues(array);
-  const num = array[0] * 256 * 256 + array[1] * 256 + array[2];
+  const num = new DataView(array.buffer).getUint32(0, false);
   return String(100000 + (num % 900000));
 }
 
@@ -73,26 +76,31 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       if (!turnstileToken) {
         return errorResponse('请完成人机验证', 400);
       }
-      const clientIP = context.request.headers.get('CF-Connecting-IP') || undefined;
-      const isValid = await verifyTurnstile(
-        turnstileToken,
-        context.env.TURNSTILE_SECRET_KEY,
-        clientIP || undefined
-      );
-      if (!isValid) {
-        return errorResponse('人机验证失败，请重试', 400);
-      }
+      const turnstileError = await validateTurnstile(context, turnstileToken);
+      if (turnstileError) return errorResponse(turnstileError, 400);
     } else if (type === 'update_email') {
-      // 验证 Bearer Token
-      const authHeader = context.request.headers.get('Authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return errorResponse('未登录', 401);
-      }
-      const token = authHeader.substring(7);
-      const tokenDataStr = await context.env.AUTH_TOKENS.get(`token:${token}`);
-      if (!tokenDataStr) {
+      // 验证 Bearer Token（复用 lib/auth 中的逻辑）
+      const tokenData = await verifyToken(context);
+      if (!tokenData) {
         return errorResponse('登录已过期', 401);
       }
+      // 校验 currentEmail 是否属于当前登录用户
+      const dbUser = await findUserById(context.env.DB, tokenData.userId);
+      if (!dbUser || dbUser.email !== currentEmail) {
+        return errorResponse('当前邮箱信息不匹配', 403);
+      }
+    }
+
+    // IP 级别速率限制：每个 IP 每小时最多发送 10 次验证码（防止多邮箱滥发）
+    const clientIP = context.request.headers.get('CF-Connecting-IP') || 'unknown';
+    const ipRateLimit = await checkRateLimit({
+      kv: context.env.VERIFICATION_CODES,
+      key: `ip:${clientIP}:send_code`,
+      limit: 10,
+      windowSeconds: 3600,
+    });
+    if (!ipRateLimit.allowed) {
+      return errorResponse('发送过于频繁，请稍后再试', 429);
     }
 
     // 检查发送频率限制（60秒冷却）
@@ -104,16 +112,16 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
 
     // 注册类型：检查邮箱是否已被注册
     if (type === 'register') {
-      const existingUser = await context.env.USERS.get(`email:${email}`);
-      if (existingUser) {
+      const exists = await emailExists(context.env.DB, email);
+      if (exists) {
         return errorResponse('该邮箱已被注册', 409);
       }
     }
 
     // 修改邮箱类型：检查新邮箱是否已被使用（排除当前用户自己的邮箱）
     if (type === 'update_email') {
-      const existingUser = await context.env.USERS.get(`email:${email}`);
-      if (existingUser) {
+      const exists = await emailExists(context.env.DB, email);
+      if (exists) {
         return errorResponse('该邮箱已被使用', 409);
       }
       if (!currentEmail) {

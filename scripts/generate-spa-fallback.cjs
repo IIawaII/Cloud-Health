@@ -11,8 +11,11 @@ if (!fs.existsSync(distIndexPath)) {
 
 const html = fs.readFileSync(distIndexPath, 'utf-8');
 
+// Keep hashed asset paths as-is so that env.ASSETS can serve the exact files.
+const normalized = html;
+
 // Escape template literals and backslashes for TypeScript string
-const escaped = html
+const escaped = normalized
   .replace(/\\/g, '\\\\')
   .replace(/`/g, '\\`')
   .replace(/\\\$/g, '\\$');
@@ -26,4 +29,4 @@ if (existing === tsContent) {
 }
 
 fs.writeFileSync(outputPath, tsContent);
-console.log('src/spa-fallback-html.ts updated with latest dist/index.html content.');
+console.log('src/spa-fallback-html.ts updated with normalized dist/index.html content.');

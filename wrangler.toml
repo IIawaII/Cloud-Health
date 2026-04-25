@@ -9,9 +9,10 @@ directory = "./dist"
 command = "npm run build"
 watch_dir = ["src", "functions", "worker.ts"]
 
-[[kv_namespaces]]
-binding = "USERS"
-id = "KV_USERS_ID"
+[[d1_databases]]
+binding = "DB"
+database_name = "health-project-db"
+database_id = "D1_DATABASE_ID"
 
 [[kv_namespaces]]
 binding = "AUTH_TOKENS"
@@ -21,8 +22,10 @@ id = "KV_AUTH_TOKENS_ID"
 binding = "VERIFICATION_CODES"
 id = "KV_VERIFICATION_CODES_ID"
 
+# D1 Database:
+#   - DB (users table)
+#
 # KV Namespaces:
-#   - USERS
 #   - AUTH_TOKENS
 #   - VERIFICATION_CODES
 #

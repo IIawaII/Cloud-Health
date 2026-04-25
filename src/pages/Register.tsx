@@ -1,21 +1,21 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { TurnstileWidget } from '@/components/TurnstileWidget';
 import { TURNSTILE_SITE_KEY } from '@/lib/config';
 import { 
-  User, 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  Loader2,
-  ShieldCheck,
-  CheckCircle2,
-  XCircle,
-  ArrowRight,
-  MessageSquare
-} from 'lucide-react';
+  FiUser, 
+  FiMail, 
+  FiLock, 
+  FiEye, 
+  FiEyeOff, 
+  FiLoader,
+  FiShield,
+  FiCheckCircle,
+  FiXCircle,
+  FiArrowRight,
+  FiMessageSquare
+} from 'react-icons/fi';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -40,6 +40,7 @@ export default function Register() {
   const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
   const [countdown, setCountdown] = useState(0);
   const [isSendingCode, setIsSendingCode] = useState(false);
+  const checkAbortRef = useRef<AbortController | null>(null);
 
   // 密码强度验证
   const passwordChecks = {
@@ -66,7 +67,10 @@ export default function Register() {
     statusSetter('checking');
     errorSetter('');
 
+    // 取消之前的请求，避免竞态条件
+    checkAbortRef.current?.abort();
     const controller = new AbortController();
+    checkAbortRef.current = controller;
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     try {
@@ -88,9 +92,18 @@ export default function Register() {
       }
     } catch (err) {
       clearTimeout(timeoutId);
-      statusSetter('idle');
       if (err instanceof DOMException && err.name === 'AbortError') {
-        errorSetter('检查超时，请检查网络或稍后重试');
+        // 如果是当前请求被主动取消，不重置状态（新请求会覆盖）
+        if (controller.signal.reason !== 'next-check') {
+          statusSetter('idle');
+          errorSetter('检查超时，请检查网络或稍后重试');
+        }
+      } else {
+        statusSetter('idle');
+      }
+    } finally {
+      if (checkAbortRef.current === controller) {
+        checkAbortRef.current = null;
       }
     }
   };
@@ -279,7 +292,7 @@ export default function Register() {
         {/* Logo */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl shadow-lg mb-4">
-            <ShieldCheck className="w-8 h-8 text-white" />
+            <FiShield className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">Health Project</h1>
           <p className="text-slate-500 mt-1">智能健康诊断平台</p>
@@ -304,7 +317,7 @@ export default function Register() {
                   用户名
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <input
                     type="text"
                     name="username"
@@ -318,13 +331,13 @@ export default function Register() {
                     disabled={isLoading}
                   />
                   {usernameStatus === 'checking' && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />
+                    <FiLoader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />
                   )}
                   {usernameStatus === 'available' && (
-                    <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
+                    <FiCheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
                   )}
                   {usernameStatus === 'taken' && (
-                    <XCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
+                    <FiXCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
                   )}
                 </div>
                 {usernameError && (
@@ -338,7 +351,7 @@ export default function Register() {
                   邮箱
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <input
                     type="email"
                     name="email"
@@ -352,13 +365,13 @@ export default function Register() {
                     disabled={isLoading}
                   />
                   {emailStatus === 'checking' && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />
+                    <FiLoader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />
                   )}
                   {emailStatus === 'available' && (
-                    <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
+                    <FiCheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
                   )}
                   {emailStatus === 'taken' && (
-                    <XCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
+                    <FiXCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
                   )}
                 </div>
                 {emailError && (
@@ -373,7 +386,7 @@ export default function Register() {
                 </label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <FiMessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
                       type="text"
                       name="verificationCode"
@@ -392,7 +405,7 @@ export default function Register() {
                     className="px-4 py-2.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-sm font-medium hover:bg-blue-100 focus:ring-2 focus:ring-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     {isSendingCode ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <FiLoader className="w-4 h-4 animate-spin" />
                     ) : countdown > 0 ? (
                       `${countdown}s后重发`
                     ) : (
@@ -408,7 +421,7 @@ export default function Register() {
                   密码
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     name="password"
@@ -423,7 +436,7 @@ export default function Register() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
                   </button>
                 </div>
                 
@@ -448,19 +461,19 @@ export default function Register() {
                     </div>
                     <div className="grid grid-cols-2 gap-1 text-xs">
                       <div className={`flex items-center gap-1 ${passwordChecks.length ? 'text-green-600' : 'text-slate-400'}`}>
-                        {passwordChecks.length ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        {passwordChecks.length ? <FiCheckCircle className="w-3 h-3" /> : <FiXCircle className="w-3 h-3" />}
                         至少8位
                       </div>
                       <div className={`flex items-center gap-1 ${passwordChecks.hasNumber ? 'text-green-600' : 'text-slate-400'}`}>
-                        {passwordChecks.hasNumber ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        {passwordChecks.hasNumber ? <FiCheckCircle className="w-3 h-3" /> : <FiXCircle className="w-3 h-3" />}
                         包含数字
                       </div>
                       <div className={`flex items-center gap-1 ${passwordChecks.hasLetter ? 'text-green-600' : 'text-slate-400'}`}>
-                        {passwordChecks.hasLetter ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        {passwordChecks.hasLetter ? <FiCheckCircle className="w-3 h-3" /> : <FiXCircle className="w-3 h-3" />}
                         包含字母
                       </div>
                       <div className={`flex items-center gap-1 ${passwordChecks.hasSpecial ? 'text-green-600' : 'text-slate-400'}`}>
-                        {passwordChecks.hasSpecial ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        {passwordChecks.hasSpecial ? <FiCheckCircle className="w-3 h-3" /> : <FiXCircle className="w-3 h-3" />}
                         特殊字符
                       </div>
                     </div>
@@ -474,7 +487,7 @@ export default function Register() {
                   确认密码
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     name="confirmPassword"
@@ -489,7 +502,7 @@ export default function Register() {
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                   >
-                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showConfirmPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
                   </button>
                 </div>
                 {formData.confirmPassword && formData.password !== formData.confirmPassword && (
@@ -516,13 +529,13 @@ export default function Register() {
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <FiLoader className="w-5 h-5 animate-spin" />
                     注册中...
                   </>
                 ) : (
                   <>
                     注册
-                    <ArrowRight className="w-5 h-5" />
+                    <FiArrowRight className="w-5 h-5" />
                   </>
                 )}
               </button>

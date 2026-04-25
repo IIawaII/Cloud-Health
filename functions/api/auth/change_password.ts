@@ -1,11 +1,15 @@
+import { z } from 'zod';
 import { hashPassword, verifyPassword } from '../../lib/crypto';
 import { verifyToken, revokeAllUserTokens } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
+import { checkRateLimit } from '../../lib/rateLimit';
+import { findUserById, updateUserPassword } from '../../lib/db';
+import type { Env } from '../../lib/env';
 
-interface Env {
-  USERS: KVNamespace;
-  AUTH_TOKENS: KVNamespace;
-}
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, '请填写当前密码'),
+  newPassword: z.string().min(8, '新密码至少8位').regex(/(?=.*[A-Za-z])(?=.*\d)/, '新密码必须同时包含字母和数字'),
+});
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   try {
@@ -15,38 +19,42 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse('登录已过期', 401);
     }
 
-    const userId = tokenData.userId;
-    const userData = await context.env.USERS.get(`user:${userId}`);
+    // 速率限制：每个用户每小时最多 5 次修改密码尝试
+    const rateLimit = await checkRateLimit({
+      kv: context.env.AUTH_TOKENS,
+      key: `${tokenData.userId}:change_password`,
+      limit: 5,
+      windowSeconds: 3600,
+    });
+    if (!rateLimit.allowed) {
+      return errorResponse('修改密码尝试过于频繁，请稍后再试', 429);
+    }
 
-    if (!userData) {
+    const userId = tokenData.userId;
+    const dbUser = await findUserById(context.env.DB, userId);
+
+    if (!dbUser) {
       return errorResponse('用户不存在', 404);
     }
 
-    const user = JSON.parse(userData);
-    const body = await context.request.json<{ currentPassword: string; newPassword: string }>();
-
-    if (!body.currentPassword || !body.newPassword) {
-      return errorResponse('请填写完整信息', 400);
+    const body = await context.request.json<unknown>();
+    const parseResult = changePasswordSchema.safeParse(body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0]?.message || '请求参数错误';
+      return errorResponse(firstError, 400);
     }
-
-    if (body.newPassword.length < 8) {
-      return errorResponse('新密码至少8位', 400);
-    }
-    if (!/(?=.*[A-Za-z])(?=.*\d)/.test(body.newPassword)) {
-      return errorResponse('新密码必须同时包含字母和数字', 400);
-    }
+    const { currentPassword, newPassword } = parseResult.data;
 
     // 验证当前密码
-    const isPasswordValid = await verifyPassword(body.currentPassword, user.passwordHash);
+    const isPasswordValid = await verifyPassword(currentPassword, dbUser.password_hash);
 
     if (!isPasswordValid) {
       return errorResponse('当前密码不正确', 400);
     }
 
     // 哈希新密码并更新
-    user.passwordHash = await hashPassword(body.newPassword);
-    user.updatedAt = new Date().toISOString();
-    await context.env.USERS.put(`user:${userId}`, JSON.stringify(user));
+    const newPasswordHash = await hashPassword(newPassword);
+    await updateUserPassword(context.env.DB, userId, newPasswordHash);
 
     // 修改密码后使该用户的所有 token 失效（强制重新登录）
     await revokeAllUserTokens(context.env.AUTH_TOKENS, userId);

@@ -15,6 +15,15 @@ export function errorResponse(error: string, status = 500): Response {
   return jsonResponse({ error }, status)
 }
 
+/**
+ * 安全的错误响应：生产环境隐藏内部异常细节，仅记录服务端日志
+ */
+export function safeErrorResponse(err: unknown): Response {
+  const msg = err instanceof Error ? err.message : String(err)
+  console.error('[Server Error]', msg)
+  return errorResponse('服务器内部错误，请稍后重试', 500)
+}
+
 export function parseLLMResult(data: unknown): string {
   if (typeof data !== 'object' || data === null) return ''
   const choices = (data as Record<string, unknown>).choices

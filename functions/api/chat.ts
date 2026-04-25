@@ -1,7 +1,20 @@
+import { z } from 'zod';
 import { verifyToken } from '../lib/auth';
-import { jsonResponse, errorResponse, parseLLMResult } from '../lib/response';
+import { jsonResponse, errorResponse, parseLLMResult, safeErrorResponse } from '../lib/response';
 import { checkRateLimit } from '../lib/rateLimit';
+import { callLLM, createStreamResponse } from '../lib/llm';
+import { SYSTEM_PROMPTS } from '../lib/prompts';
 import type { Env } from '../lib/env';
+
+const chatSchema = z.object({
+  messages: z.array(
+    z.object({
+      role: z.string().min(1, '消息角色不能为空'),
+      content: z.string().min(1, '消息内容不能为空'),
+    })
+  ).min(1, '消息列表不能为空'),
+  stream: z.boolean().optional(),
+});
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   const { request } = context;
@@ -24,12 +37,13 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse('AI 请求过于频繁，请稍后再试', 429);
     }
 
-    const body = await request.json<{
-      messages: Array<{ role: string; content: string }>;
-      stream?: boolean;
-    }>();
-
-    const { messages, stream } = body;
+    const body = await request.json<unknown>();
+    const parseResult = chatSchema.safeParse(body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0]?.message || '请求参数错误';
+      return errorResponse(firstError, 400);
+    }
+    const { messages, stream } = parseResult.data;
 
     const userBaseUrl = request.headers.get('X-AI-Base-URL');
     const userApiKey = request.headers.get('X-AI-API-Key');
@@ -43,27 +57,14 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse('未配置 AI API，请在设置中填写或联系管理员', 503);
     }
 
-    const systemMessage = {
-      role: 'system',
-      content:
-        '你是一位专业的健康管理顾问，拥有丰富的医学和营养学知识。你可以回答用户的健康问题，提供科学的健康建议。回答时请保持专业、友善，并提醒用户严重健康问题应咨询医生。请使用中文回答。',
-    };
-
-    const allMessages = [systemMessage, ...messages];
-
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: allMessages,
-        temperature: 0.7,
-        max_tokens: 3000,
-        stream: stream ?? false,
-      }),
+    const response = await callLLM({
+      baseUrl,
+      apiKey,
+      model,
+      messages: [{ role: 'system', content: SYSTEM_PROMPTS.HEALTH_ADVISOR }, ...messages],
+      stream: stream ?? false,
+      temperature: 0.7,
+      max_tokens: 3000,
     });
 
     if (!response.ok) {
@@ -72,21 +73,14 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     }
 
     if (stream) {
-      return new Response(response.body, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive',
-        },
-      });
+      return createStreamResponse(response);
     }
 
-    const data = await response.json()
-    const result = parseLLMResult(data)
+    const data = await response.json();
+    const resultText = parseLLMResult(data);
 
-    return jsonResponse({ result }, 200);
+    return jsonResponse({ result: resultText }, 200);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return errorResponse(msg, 500);
+    return safeErrorResponse(err);
   }
 };

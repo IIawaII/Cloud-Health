@@ -34,6 +34,10 @@ export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<T | null>(null)
 
+  // 使用 ref 保存 options 引用，避免 options 对象变化导致 execute 频繁重建
+  const optionsRef = useRef(options)
+  optionsRef.current = options
+
   const execute = useCallback(
     async (payload: Record<string, unknown>) => {
       if (!token) {
@@ -45,14 +49,22 @@ export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
       setError(null)
       setResult(null)
 
+      const currentOptions = optionsRef.current
+
       try {
-        const response = await fetch(options.endpoint, {
+        const response = await fetch(currentOptions.endpoint, {
           method: 'POST',
           headers: buildHeaders(token),
           body: JSON.stringify(payload),
         })
 
-        const data = await response.json()
+        const text = await response.text()
+        let data: unknown
+        try {
+          data = JSON.parse(text)
+        } catch {
+          data = { error: text || `请求失败: ${response.status}` }
+        }
 
         if (!response.ok || getApiError(data)) {
           throw new Error(getApiError(data) || `请求失败: ${response.status}`)
@@ -60,16 +72,16 @@ export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
 
         const result = data as T
         setResult(result)
-        options.onSuccess?.(result)
+        currentOptions.onSuccess?.(result)
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         setError(msg)
-        options.onError?.(msg)
+        currentOptions.onError?.(msg)
       } finally {
         setLoading(false)
       }
     },
-    [token, options]
+    [token]
   )
 
   return { loading, error, result, execute }
@@ -96,6 +108,10 @@ export function useAIStream(options: {
     abortControllerRef.current?.abort()
   }, [])
 
+  // 使用 ref 保存 options 引用，避免 options 对象变化导致 execute 频繁重建
+  const optionsRef = useRef(options)
+  optionsRef.current = options
+
   const execute = useCallback(
     async (payload: Record<string, unknown>) => {
       if (!token) {
@@ -111,8 +127,10 @@ export function useAIStream(options: {
       setLoading(true)
       setError(null)
 
+      const currentOptions = optionsRef.current
+
       try {
-        const response = await fetch(options.endpoint, {
+        const response = await fetch(currentOptions.endpoint, {
           method: 'POST',
           headers: buildHeaders(token),
           body: JSON.stringify({ ...payload, stream: true }),
@@ -120,8 +138,15 @@ export function useAIStream(options: {
         })
 
         if (!response.ok) {
-          const data = await response.json()
-          throw new Error(getApiError(data) || `请求失败: ${response.status}`)
+          const text = await response.text()
+          let errMsg: string
+          try {
+            const data = JSON.parse(text)
+            errMsg = getApiError(data) || `请求失败: ${response.status}`
+          } catch {
+            errMsg = text || `请求失败: ${response.status}`
+          }
+          throw new Error(errMsg)
         }
 
         const reader = response.body?.getReader()
@@ -148,7 +173,7 @@ export function useAIStream(options: {
                 const json: unknown = JSON.parse(trimmed.slice(6))
                 const content = parseStreamChunk(json)
                 if (content) {
-                  options.onChunk(content)
+                  currentOptions.onChunk(content)
                 }
               } catch {
                 // ignore malformed JSON
@@ -157,14 +182,14 @@ export function useAIStream(options: {
           }
         }
 
-        options.onDone?.()
+        currentOptions.onDone?.()
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') {
           return
         }
         const msg = err instanceof Error ? err.message : String(err)
         setError(msg)
-        options.onError?.(msg)
+        currentOptions.onError?.(msg)
       } finally {
         setLoading(false)
         if (abortControllerRef.current === controller) {
@@ -172,7 +197,7 @@ export function useAIStream(options: {
         }
       }
     },
-    [token, options]
+    [token]
   )
 
   return { loading, error, execute, abort }

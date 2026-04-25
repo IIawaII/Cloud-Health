@@ -4,7 +4,7 @@
  */
 
 export interface Env {
-  USERS: KVNamespace
+  DB: D1Database
   AUTH_TOKENS: KVNamespace
   VERIFICATION_CODES: KVNamespace
   TURNSTILE_SITE_KEY?: string

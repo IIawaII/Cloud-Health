@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 declare global {
   interface Window {
@@ -26,143 +26,129 @@ interface TurnstileWidgetProps {
   siteKey: string;
 }
 
+const SCRIPT_ID = 'turnstile-script';
+const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+
+/** 全局脚本加载 Promise，多个组件实例共享，避免重复请求 */
+let scriptLoadPromise: Promise<void> | null = null;
+
+function loadTurnstileScript(): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  if (window.turnstile) return Promise.resolve();
+  if (scriptLoadPromise) return scriptLoadPromise;
+
+  scriptLoadPromise = new Promise((resolve, reject) => {
+    const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
+    if (existing) {
+      if (window.turnstile) { resolve(); return; }
+      const onLoad = () => { cleanup(); resolve(); };
+      const onError = () => { cleanup(); reject(new Error('Turnstile script load failed')); };
+      const cleanup = () => {
+        existing.removeEventListener('load', onLoad);
+        existing.removeEventListener('error', onError);
+      };
+      existing.addEventListener('load', onLoad);
+      existing.addEventListener('error', onError);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = SCRIPT_ID;
+    script.src = SCRIPT_SRC;
+    script.async = true;
+    const onLoad = () => { cleanup(); resolve(); };
+    const onError = () => { cleanup(); reject(new Error('Turnstile script load failed')); };
+    const cleanup = () => {
+      script.removeEventListener('load', onLoad);
+      script.removeEventListener('error', onError);
+    };
+    script.addEventListener('load', onLoad);
+    script.addEventListener('error', onError);
+    document.head.appendChild(script);
+  });
+
+  return scriptLoadPromise;
+}
+
 function getTurnstileSize(): 'normal' | 'compact' {
   if (typeof window === 'undefined') return 'normal';
   return window.innerWidth < 640 ? 'compact' : 'normal';
 }
 
-const SCRIPT_ID = 'turnstile-script';
-const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-const MAX_RETRIES = 50; // 最多重试 5 秒 (50 * 100ms)
-
-export function TurnstileWidget({
-  onVerify,
-  onError,
-  onExpire,
-  siteKey,
-}: TurnstileWidgetProps) {
+export function TurnstileWidget({ onVerify, onError, onExpire, siteKey }: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
+  const callbacksRef = useRef({ onVerify, onError, onExpire });
   const [size, setSize] = useState<'normal' | 'compact'>(getTurnstileSize);
   const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
-    const handleResize = () => {
-      const newSize = getTurnstileSize();
-      setSize((prev) => {
-        if (prev !== newSize) {
-          return newSize;
-        }
-        return prev;
-      });
-    };
+  // 保持回调引用最新，避免 effect 因回调变化而频繁重建
+  callbacksRef.current = { onVerify, onError, onExpire };
 
+  useEffect(() => {
+    const handleResize = () => setSize((prev) => (prev !== getTurnstileSize() ? getTurnstileSize() : prev));
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const renderWidget = useCallback(() => {
+    if (!window.turnstile || !containerRef.current) return;
+    try {
+      const { onVerify: v, onError: e, onExpire: ex } = callbacksRef.current;
+      widgetIdRef.current = window.turnstile.render(containerRef.current, {
+        sitekey: siteKey,
+        callback: (token: string) => v(token),
+        'error-callback': () => e?.(),
+        'expired-callback': () => ex?.(),
+        theme: 'light',
+        size,
+      });
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
+      callbacksRef.current.onError?.();
+    }
+  }, [siteKey, size]);
+
   useEffect(() => {
-    // siteKey 无效时不尝试渲染，避免抛出异常导致白屏
     if (!siteKey) {
       setLoadError(true);
       return;
     }
 
     let cancelled = false;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
-    let retryCount = 0;
+    let renderTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const initWidget = () => {
-      if (cancelled) return;
-      if (window.turnstile && containerRef.current) {
-        // 移除旧 widget 避免重复渲染
+    loadTurnstileScript()
+      .then(() => {
+        if (cancelled) return;
+        // 先移除旧 widget，然后延迟渲染新 widget
+        // 延迟是为了避免 React StrictMode 双重挂载时的 remove/render 竞态
         if (widgetIdRef.current) {
-          try {
-            window.turnstile.remove(widgetIdRef.current);
-          } catch {
-            // 忽略移除失败
-          }
+          try { window.turnstile?.remove(widgetIdRef.current); } catch { /* ignore */ }
           widgetIdRef.current = null;
         }
-        try {
-          widgetIdRef.current = window.turnstile.render(containerRef.current, {
-            sitekey: siteKey,
-            callback: onVerify,
-            'error-callback': onError,
-            'expired-callback': onExpire,
-            theme: 'light',
-            size,
-          });
-          setLoadError(false);
-        } catch {
-          // render 调用失败（如 sitekey 无效），通知父组件并停止重试
-          if (!cancelled) {
-            setLoadError(true);
-            onError?.();
-          }
-        }
-      } else {
-        retryCount++;
-        if (retryCount > MAX_RETRIES) {
-          // 超过最大重试次数，认为加载失败
-          if (!cancelled) {
-            setLoadError(true);
-            onError?.();
-          }
-          return;
-        }
-        // window.turnstile 尚未就绪（脚本还在加载中），100ms 后重试
-        retryTimer = setTimeout(initWidget, 100);
-      }
-    };
-
-    const ensureScript = () => {
-      const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
-      if (existing) {
-        // 脚本标签已存在，如果已经加载完成则直接初始化
-        if (window.turnstile) {
-          initWidget();
-        } else {
-          // 脚本还在加载中，等待 onload
-          const prevOnload = existing.onload;
-          existing.onload = () => {
-            if (typeof prevOnload === 'function') prevOnload.call(existing, new Event('load'));
-            initWidget();
-          };
-        }
-        return;
-      }
-
-      // 创建新的脚本标签
-      const newScript = document.createElement('script');
-      newScript.id = SCRIPT_ID;
-      newScript.src = SCRIPT_SRC;
-      newScript.async = true;
-      newScript.onload = initWidget;
-      newScript.onerror = () => {
+        if (renderTimer) clearTimeout(renderTimer);
+        renderTimer = setTimeout(() => {
+          if (!cancelled) renderWidget();
+        }, 50);
+      })
+      .catch(() => {
         if (!cancelled) {
           setLoadError(true);
-          onError?.();
+          callbacksRef.current.onError?.();
         }
-      };
-      document.head.appendChild(newScript);
-    };
-
-    ensureScript();
+      });
 
     return () => {
       cancelled = true;
-      if (retryTimer) clearTimeout(retryTimer);
+      if (renderTimer) clearTimeout(renderTimer);
       if (window.turnstile && widgetIdRef.current) {
-        try {
-          window.turnstile.remove(widgetIdRef.current);
-        } catch {
-          // 忽略移除失败
-        }
+        try { window.turnstile.remove(widgetIdRef.current); } catch { /* ignore */ }
         widgetIdRef.current = null;
       }
     };
-  }, [onVerify, onError, onExpire, siteKey, size]);
+  }, [siteKey, size, renderWidget]);
 
   if (loadError) {
     return (
@@ -172,13 +158,7 @@ export function TurnstileWidget({
     );
   }
 
-  return (
-    <div
-      ref={containerRef}
-      className="flex justify-center"
-      data-turnstile-widget
-    />
-  );
+  return <div ref={containerRef} className="flex justify-center" data-turnstile-widget />;
 }
 
 

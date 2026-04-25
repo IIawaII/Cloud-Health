@@ -215,8 +215,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (credentials: RegisterCredentials): Promise<AuthResponse> => {
     try {
-      const { confirmPassword, ...registerData } = credentials;
-      
       const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: {

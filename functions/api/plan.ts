@@ -1,6 +1,5 @@
 import { verifyToken } from '../lib/auth';
 import { jsonResponse, errorResponse, parseLLMResult } from '../lib/response';
-import { checkRateLimit } from '../lib/rateLimit';
 import type { Env } from '../lib/env';
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {

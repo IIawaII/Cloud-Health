@@ -2,7 +2,7 @@ import { verifyPassword, generateToken } from '../../lib/crypto';
 import { saveToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { verifyTurnstile } from '../../lib/turnstile';
-import { checkRateLimit, buildRateLimitKey } from '../../lib/rateLimit';
+import { checkRateLimit } from '../../lib/rateLimit';
 import type { Env } from '../../lib/env';
 
 interface LoginRequest {
@@ -41,6 +41,18 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
 
     if (!isValid) {
       return errorResponse('人机验证失败，请重试', 400);
+    }
+
+    // 速率限制：每个 IP 每分钟最多 10 次登录尝试
+    const rateIP = context.request.headers.get('CF-Connecting-IP') || 'unknown';
+    const rateLimit = await checkRateLimit({
+      kv: context.env.AUTH_TOKENS,
+      key: `${rateIP}:login`,
+      limit: 10,
+      windowSeconds: 60,
+    });
+    if (!rateLimit.allowed) {
+      return errorResponse('登录尝试过于频繁，请稍后再试', 429);
     }
 
     // 判断是用户名还是邮箱

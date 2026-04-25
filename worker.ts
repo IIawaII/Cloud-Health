@@ -137,6 +137,8 @@ function addCorsHeaders(response: Response, corsOrigin: string): Response {
 
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    void _ctx;
     try {
       const url = new URL(request.url)
       const corsOrigin = getCorsOrigin(request, env)

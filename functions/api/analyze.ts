@@ -1,12 +1,9 @@
 import { verifyToken } from '../lib/auth';
 import { jsonResponse, errorResponse, parseLLMResult } from '../lib/response';
+import { checkRateLimit } from '../lib/rateLimit';
+import type { Env } from '../lib/env';
 
-interface Env {
-  AUTH_TOKENS: KVNamespace;
-  AI_API_KEY: string;
-  AI_BASE_URL: string;
-  AI_MODEL: string;
-}
+const MAX_FILE_SIZE_MB = 5;
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   const { request } = context;
@@ -71,7 +68,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
           content: [
             {
               type: 'text',
-              text: `请分析这份名为\"${fileName}\"的健康报告/检测图像。请从以下几个方面进行分析：\n1. 报告概述：这份报告/检测的主要内容是什么\n2. 关键指标：列出关键健康指标及其数值\n3. 异常分析：指出任何异常或需要关注的指标\n4. 健康建议：基于分析结果给出具体的健康改善建议\n5. 后续行动：建议下一步需要做什么（如复查、就医等）\n\n请以 Markdown 格式输出，结构清晰。`,
+              text: `请分析这份名为"${fileName}"的健康报告/检测图像。请从以下几个方面进行分析：\n1. 报告概述：这份报告/检测的主要内容是什么\n2. 关键指标：列出关键健康指标及其数值\n3. 异常分析：指出任何异常或需要关注的指标\n4. 健康建议：基于分析结果给出具体的健康改善建议\n5. 后续行动：建议下一步需要做什么（如复查、就医等）\n\n请以 Markdown 格式输出，结构清晰。`,
             },
             {
               type: 'image_url',
@@ -89,7 +86,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
         },
         {
           role: 'user',
-          content: `请分析这份名为\"${fileName}\"的健康报告。报告内容如下：\n\n${fileData}\n\n请从以下几个方面进行分析：\n1. 报告概述：这份报告的主要内容是什么\n2. 关键指标：列出关键健康指标及其数值\n3. 异常分析：指出任何异常或需要关注的指标\n4. 健康建议：基于分析结果给出具体的健康改善建议\n5. 后续行动：建议下一步需要做什么（如复查、就医等）\n\n请以 Markdown 格式输出，结构清晰。`,
+          content: `请分析这份名为"${fileName}"的健康报告。报告内容如下：\n\n${fileData}\n\n请从以下几个方面进行分析：\n1. 报告概述：这份报告的主要内容是什么\n2. 关键指标：列出关键健康指标及其数值\n3. 异常分析：指出任何异常或需要关注的指标\n4. 健康建议：基于分析结果给出具体的健康改善建议\n5. 后续行动：建议下一步需要做什么（如复查、就医等）\n\n请以 Markdown 格式输出，结构清晰。`,
         },
       ];
     } else {

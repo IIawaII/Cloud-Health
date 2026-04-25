@@ -29,334 +29,45 @@ import { onRequestGet as statsHandler } from '../functions/api/admin/stats'
 import { onRequestGet as logsHandler } from '../functions/api/admin/logs'
 import { onRequestGet as configGetHandler } from '../functions/api/admin/config'
 import { onRequestPut as configPutHandler } from '../functions/api/admin/config'
-
-// ==================== Mock D1 ====================
-class MockD1 {
-  private tables = new Map<string, Map<string, Record<string, unknown>>>()
-
-  prepare(sql: string): MockD1PreparedStatement {
-    return new MockD1PreparedStatement(this, sql)
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  batch(statements: MockD1PreparedStatement[]): Promise<any> {
-    return Promise.all(statements.map((s) => s.execute()))
-  }
-
-  exec(): Promise<{ count: number; duration: number }> {
-    return Promise.resolve({ count: 0, duration: 0 })
-  }
-
-  dump(): Promise<ArrayBuffer> {
-    return Promise.resolve(new ArrayBuffer(0))
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  withSession(_session: unknown | null): any {
-    return this
-  }
-
-  getTable(name: string): Map<string, Record<string, unknown>> {
-    if (!this.tables.has(name)) {
-      this.tables.set(name, new Map())
-    }
-    return this.tables.get(name)!
-  }
-
-  clear(): void {
-    this.tables.clear()
-  }
-}
-
-class MockD1PreparedStatement {
-  private db: MockD1
-  private sql: string
-  private bindings: unknown[] = []
-
-  constructor(db: MockD1, sql: string) {
-    this.db = db
-    this.sql = sql
-  }
-
-  bind(...values: unknown[]): MockD1PreparedStatement {
-    this.bindings = values
-    return this
-  }
-
-  async first<T = unknown>(): Promise<T | null> {
-    const result = await this.execute()
-    return (result.results?.[0] as T) || null
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async run(): Promise<any> {
-    return this.execute()
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async all(): Promise<any> {
-    return this.execute()
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async raw(): Promise<any> {
-    const result = (await this.execute()) as { results: unknown[] }
-    return result.results
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async execute(): Promise<any> {
-    const sql = this.sql.trim()
-    const bindings = this.bindings
-
-    // DELETE
-    if (sql.startsWith('DELETE')) {
-      const tableName = this.extractTableName(sql)
-      const table = this.db.getTable(tableName)
-      let changes = 0
-
-      if (sql.includes('WHERE id = ?')) {
-        const [id] = bindings as string[]
-        if (table.has(id)) {
-          table.delete(id)
-          changes = 1
-        }
-      }
-
-      return { success: true, results: [], meta: { changes } }
-    }
-
-    // UPDATE users
-    if (sql.startsWith('UPDATE users')) {
-      const table = this.db.getTable('users')
-      const id = bindings[bindings.length - 1] as string
-      const record = table.get(id)
-      if (record) {
-        const setMatch = sql.match(/SET\s+(.+?)\s+WHERE/i)
-        if (setMatch) {
-          const setParts = setMatch[1].split(',').map((f) => f.trim())
-          const valueBindings = bindings.slice(0, setParts.length)
-          setParts.forEach((field, idx) => {
-            const fieldName = field.split('=')[0].trim()
-            record[fieldName] = valueBindings[idx]
-          })
-        }
-        return { success: true, results: [], meta: { changes: 1 } }
-      }
-      return { success: true, results: [], meta: { changes: 0 } }
-    }
-
-    // SELECT COUNT
-    if (sql.includes('COUNT(*)')) {
-      const tableName = this.extractTableName(sql)
-      const table = this.db.getTable(tableName)
-      return { success: true, results: [{ total: table.size }], meta: { changes: 0 } }
-    }
-
-    // SELECT with WHERE id = ?
-    if (sql.includes('WHERE id = ?')) {
-      const [id] = bindings as string[]
-      const tableName = this.extractTableName(sql)
-      const table = this.db.getTable(tableName)
-      const record = table.get(id)
-      if (record) {
-        return { success: true, results: [record], meta: { changes: 0 } }
-      }
-      return { success: true, results: [], meta: { changes: 0 } }
-    }
-
-    // SELECT from users with username/email LIKE (OR 组合)
-    if (sql.includes('username LIKE ?') || sql.includes('email LIKE ?')) {
-      const table = this.db.getTable('users')
-      const results: Record<string, unknown>[] = []
-
-      for (const [, record] of table) {
-        const usernameMatch = sql.includes('username LIKE ?') &&
-          (record.username as string).toLowerCase().includes((bindings[0] as string).replace(/%/g, '').toLowerCase())
-        const emailMatch = sql.includes('email LIKE ?') &&
-          (record.email as string).toLowerCase().includes((bindings[1] as string).replace(/%/g, '').toLowerCase())
-
-        if (usernameMatch || emailMatch) {
-          results.push(record)
-        }
-      }
-
-      // LIMIT/OFFSET: likesearch 查询 bindings = [searchPattern1, searchPattern2, limit, offset]
-      const limitMatch = sql.match(/LIMIT\s+\?/i)
-      const offsetMatch = sql.match(/OFFSET\s+\?/i)
-      let limit = results.length
-      let offset = 0
-      if (limitMatch && offsetMatch) {
-        limit = bindings[2] as number
-        offset = bindings[3] as number
-      } else if (limitMatch) {
-        limit = bindings[2] as number
-      }
-
-      return { success: true, results: results.slice(offset, offset + limit), meta: { changes: 0 } }
-    }
-
-    // SELECT from users (list) — 必须在 WHERE id 之后，避免误匹配
-    if (sql.startsWith('SELECT') && sql.includes('FROM users') && !sql.includes('WHERE id = ?')) {
-      const table = this.db.getTable('users')
-      let results = Array.from(table.values())
-
-      // list 查询结构: `... FROM users ... LIMIT ? OFFSET ?`
-      // bindings: [...other params, limit, offset]
-      const limitMatch = sql.match(/LIMIT\s+\?/i)
-      const offsetMatch = sql.match(/OFFSET\s+\?/i)
-      if (limitMatch && offsetMatch) {
-        const limit = bindings[bindings.length - 2] as number
-        const offset = bindings[bindings.length - 1] as number
-        results = results.slice(offset, offset + limit)
-      } else if (limitMatch) {
-        const limit = bindings[bindings.length - 1] as number
-        results = results.slice(0, limit)
-      }
-
-      return { success: true, results, meta: { changes: 0 } }
-    }
-
-    // SELECT from usage_logs / audit_logs / system_configs
-    if (sql.startsWith('SELECT') && (sql.includes('usage_logs') || sql.includes('audit_logs') || sql.includes('system_configs'))) {
-      const tableName = this.extractTableName(sql)
-      const table = this.db.getTable(tableName)
-      let results = Array.from(table.values())
-
-      const limitMatch = sql.match(/LIMIT\s+\?/i)
-      const offsetMatch = sql.match(/OFFSET\s+\?/i)
-      if (limitMatch && offsetMatch) {
-        const limit = bindings[bindings.length - 2] as number
-        const offset = bindings[bindings.length - 1] as number
-        results = results.slice(offset, offset + limit)
-      } else if (limitMatch) {
-        const limit = bindings[bindings.length - 1] as number
-        results = results.slice(0, limit)
-      }
-
-      return { success: true, results, meta: { changes: 0 } }
-    }
-
-    // SELECT with DATE aggregation
-    if (sql.includes("DATE(created_at)")) {
-      const table = this.db.getTable('users')
-      const dateGroups = new Map<string, number>()
-
-      for (const [, record] of table) {
-        const date = new Date(record.created_at as string).toISOString().split('T')[0]
-        dateGroups.set(date, (dateGroups.get(date) || 0) + 1)
-      }
-
-      const results = Array.from(dateGroups.entries()).map(([date, count]) => ({ date, count }))
-      return { success: true, results, meta: { changes: 0 } }
-    }
-
-    // SELECT with action GROUP BY
-    if (sql.includes('GROUP BY action')) {
-      const table = this.db.getTable('usage_logs')
-      const actionGroups = new Map<string, number>()
-
-      for (const [, record] of table) {
-        const action = record.action as string
-        actionGroups.set(action, (actionGroups.get(action) || 0) + 1)
-      }
-
-      const results = Array.from(actionGroups.entries()).map(([action, count]) => ({ action, count }))
-      return { success: true, results, meta: { changes: 0 } }
-    }
-
-    // SELECT with DATE = 'now'
-    if (sql.includes("= DATE('now')") || sql.includes("= DATE('now'")) {
-      const tableName = this.extractTableName(sql)
-      const table = this.db.getTable(tableName)
-      const today = new Date().toISOString().split('T')[0]
-      let count = 0
-
-      for (const [, record] of table) {
-        const createdDate = new Date(record.created_at as string).toISOString().split('T')[0]
-        if (createdDate === today) {
-          count++
-        }
-      }
-
-      return { success: true, results: [{ count }], meta: { changes: 0 } }
-    }
-
-    // INSERT / ON CONFLICT (upsert)
-    if (sql.startsWith('INSERT') || sql.includes('ON CONFLICT')) {
-      const tableName = this.extractTableName(sql)
-      const table = this.db.getTable(tableName)
-
-      if (tableName === 'usage_logs') {
-        const [id, user_id, action, metadata, created_at] = bindings as string[]
-        table.set(id, { id, user_id, action, metadata, created_at })
-      } else if (tableName === 'audit_logs') {
-        const [id, admin_id, action, target_type, target_id, details, created_at] = bindings as (string | null)[]
-        table.set(id, { id, admin_id, action, target_type, target_id, details, created_at })
-      } else if (tableName === 'system_configs') {
-        const [key, value, updated_at] = bindings as string[]
-        table.set(key, { key, value, updated_at })
-      }
-
-      return { success: true, results: [], meta: { changes: 1 } }
-    }
-
-    return { success: true, results: [], meta: { changes: 0 } }
-  }
-
-  private extractTableName(sql: string): string {
-    const fromMatch = sql.match(/FROM\s+(\w+)/i)
-    const intoMatch = sql.match(/INTO\s+(\w+)/i)
-    const updateMatch = sql.match(/UPDATE\s+(\w+)/i)
-    return fromMatch?.[1] || intoMatch?.[1] || updateMatch?.[1] || 'unknown'
-  }
-}
-
-// ==================== Mock KV ====================
-function createMockKV(): KVNamespace {
-  const store = new Map<string, { value: string; ttl?: number }>()
-  return {
-    get: vi.fn(async (key: string) => store.get(key)?.value ?? null),
-    put: vi.fn(async (key: string, value: string, options?: { expirationTtl?: number }) => {
-      store.set(key, { value, ttl: options?.expirationTtl })
-    }),
-    delete: vi.fn(async (key: string) => {
-      store.delete(key)
-    }),
-    list: vi.fn(async ({ prefix }: { prefix: string }) => {
-      const keys = Array.from(store.keys())
-        .filter((k) => k.startsWith(prefix))
-        .map((name) => ({ name }))
-      return { keys, list_complete: true, cursor: '' }
-    }),
-  } as unknown as KVNamespace
-}
+import { MockD1 } from './mocks/mock-d1'
+import { MockKV } from './mocks/mock-kv'
 
 // ==================== 辅助函数 ====================
 function createMockContext(
   kv: KVNamespace,
   db: MockD1,
-  adminToken?: string,
-  userToken?: string
+  options?: {
+    adminToken?: string
+    userToken?: string
+    request?: Request
+    params?: Record<string, string>
+  } | string
 ) {
-  const token = adminToken || userToken || ''
-  const headers: Record<string, string> = {}
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
+  let opts: { adminToken?: string; userToken?: string; request?: Request; params?: Record<string, string> }
+  if (typeof options === 'string') {
+    opts = { adminToken: options }
+  } else {
+    opts = options || {}
   }
-  const request = new Request('http://localhost', {
+  const token = opts.adminToken || opts.userToken || ''
+  const rawRequest = opts.request || new Request('http://localhost', {
     method: 'GET',
-    headers,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
 
   return {
-    request,
+    req: {
+      raw: rawRequest,
+      header: (name: string) => rawRequest.headers.get(name) || undefined,
+      json: async <T>() => rawRequest.json() as Promise<T>,
+      url: rawRequest.url,
+      param: (name?: string) => (name && opts.params?.[name]) || undefined,
+    },
     env: {
       DB: db,
       AUTH_TOKENS: kv,
     },
-    params: {},
-  }
+  } as unknown as import('../functions/lib/handler').AppContext
 }
 
 // ==================== 测试：requireAdmin 中间件 ====================
@@ -364,7 +75,7 @@ describe('requireAdmin 中间件', () => {
   let kv: KVNamespace
 
   beforeEach(() => {
-    kv = createMockKV()
+    kv = new MockKV()
   })
 
   it('有效 admin token 应通过校验', async () => {
@@ -414,7 +125,7 @@ describe('withAdmin 包装器', () => {
   let kv: KVNamespace
 
   beforeEach(() => {
-    kv = createMockKV()
+    kv = new MockKV()
   })
 
   it('admin 请求应调用 handler 并返回结果', async () => {
@@ -630,7 +341,7 @@ describe('admin API handlers', () => {
   let db: MockD1
 
   beforeEach(() => {
-    kv = createMockKV()
+    kv = new MockKV()
     db = new MockD1()
   })
 
@@ -713,11 +424,11 @@ describe('admin API handlers', () => {
         body: JSON.stringify({ role: 'admin' }),
       })
 
-      const context = {
+      const context = createMockContext(kv, db, {
+        adminToken: 'admin-token',
         request,
-        env: { DB: db, AUTH_TOKENS: kv },
         params: { id: 'user-1' },
-      }
+      })
       const response = await apiUpdateUserRole(context as never)
       expect(response.status).toBe(200)
     })
@@ -729,11 +440,11 @@ describe('admin API handlers', () => {
         headers: { Authorization: 'Bearer admin-token', 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'admin' }),
       })
-      const context = {
+      const context = createMockContext(kv, db, {
+        adminToken: 'admin-token',
         request,
-        env: { DB: db, AUTH_TOKENS: kv },
         params: {},
-      }
+      })
       const response = await apiUpdateUserRole(context as never)
       expect(response.status).toBe(400)
     })
@@ -745,11 +456,11 @@ describe('admin API handlers', () => {
         headers: { Authorization: 'Bearer user-token', 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'admin' }),
       })
-      const context = {
+      const context = createMockContext(kv, db, {
+        userToken: 'user-token',
         request,
-        env: { DB: db, AUTH_TOKENS: kv },
         params: { id: 'user-1' },
-      }
+      })
       const response = await apiUpdateUserRole(context as never)
       expect(response.status).toBe(403)
     })
@@ -773,11 +484,11 @@ describe('admin API handlers', () => {
         method: 'DELETE',
         headers: { Authorization: 'Bearer admin-token' },
       })
-      const context = {
+      const context = createMockContext(kv, db, {
+        adminToken: 'admin-token',
         request,
-        env: { DB: db, AUTH_TOKENS: kv },
         params: { id: 'user-1' },
-      }
+      })
       const response = await apiDeleteUserById(context as never)
       expect(response.status).toBe(200)
     })
@@ -820,11 +531,11 @@ describe('admin API handlers', () => {
         headers: { Authorization: 'Bearer admin-token', 'Content-Type': 'application/json' },
         body: JSON.stringify({ site_name: 'New Health Project' }),
       })
-      const context = {
+      const context = createMockContext(kv, db, {
+        adminToken: 'admin-token',
         request,
-        env: { DB: db, AUTH_TOKENS: kv },
         params: {},
-      }
+      })
       const response = await configPutHandler(context as never)
       expect(response.status).toBe(200)
     })

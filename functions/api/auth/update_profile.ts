@@ -1,16 +1,16 @@
 import { verifyToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { findUserById, updateUser, usernameExists, emailExists, consumeVerificationCode } from '../../lib/db';
-import type { Env } from '../../lib/env';
+import type { AppContext } from '../../lib/handler';
 
 function isUniqueConstraintError(error: unknown): boolean {
   return error instanceof Error && /unique constraint failed/i.test(error.message);
 }
 
-export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestPost = async (context: AppContext) => {
   try {
     // 验证 token（复用 lib/auth 中的逻辑）
-    const tokenData = await verifyToken(context);
+    const tokenData = await verifyToken({ request: context.req.raw, env: context.env });
     if (!tokenData) {
       return errorResponse('登录已过期', 401);
     }
@@ -24,7 +24,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse('用户不存在', 404);
     }
 
-    const body = await context.request.json<{ username?: string; email?: string; avatar?: string; verificationCode?: string }>();
+    const body = await context.req.json<{ username?: string; email?: string; avatar?: string; verificationCode?: string }>();
 
     const updates: { username?: string; email?: string; avatar?: string } = {};
 

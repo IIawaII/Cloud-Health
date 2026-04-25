@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
+import { MockKV } from './mocks/mock-kv'
+import { MockD1 } from './mocks/mock-d1'
+import type { AppContext } from '../functions/lib/handler'
 
 /**
  * 本地高并发压力测试
@@ -10,145 +13,23 @@ import { describe, it, expect, beforeAll } from 'vitest'
  * 注意：这些测试会真实调用外部 LLM API，请在本地开发环境谨慎运行
  */
 
-// ==================== 模拟 Cloudflare Workers 运行时环境 ====================
+function createMockContext(env: Record<string, unknown>): AppContext {
+  const rawRequest = new Request('http://localhost/api/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  })
 
-class MockKVNamespace implements KVNamespace {
-  private store = new Map<string, { value: string; expiration?: number }>()
-
-  async get(key: string, _options?: Partial<KVNamespaceGetOptions<undefined>> | undefined): Promise<string | null> {
-    const item = this.store.get(key)
-    if (!item) return null
-    if (item.expiration && item.expiration < Date.now() / 1000) {
-      this.store.delete(key)
-      return null
-    }
-    return item.value
-  }
-
-  async put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void> {
-    const expiration = options?.expirationTtl ? Math.floor(Date.now() / 1000) + options.expirationTtl : undefined
-    this.store.set(key, { value, expiration })
-  }
-
-  async delete(key: string): Promise<void> {
-    this.store.delete(key)
-  }
-
-  async list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<{
-    keys: { name: string; expiration?: number; metadata?: unknown }[]
-    list_complete: boolean
-    cursor: string
-  }> {
-    const prefix = options?.prefix || ''
-    const keys = Array.from(this.store.entries())
-      .filter(([k]) => k.startsWith(prefix))
-      .map(([name, item]) => ({ name, expiration: item.expiration }))
-    return { keys, list_complete: true, cursor: '' }
-  }
-
-  async getWithMetadata<Metadata = unknown>(_key: string, _options?: Partial<KVNamespaceGetOptions<undefined>> | undefined): Promise<{ value: string | null; metadata: Metadata | null }> {
-    throw new Error('Not implemented')
-  }
-}
-
-class MockD1Database implements D1Database {
-  private data = new Map<string, Record<string, unknown>[]>()
-
-  constructor(initialData?: Record<string, Record<string, unknown>[]>) {
-    if (initialData) {
-      Object.entries(initialData).forEach(([table, rows]) => {
-        this.data.set(table, [...rows])
-      })
-    }
-  }
-
-  prepare(sql: string): D1PreparedStatement {
-    return new MockD1PreparedStatement(sql, this.data)
-  }
-
-  async dump(): Promise<ArrayBuffer> {
-    return new ArrayBuffer(0)
-  }
-
-  async batch<T = unknown>(_statements: D1PreparedStatement[]): Promise<D1Result<T>[]> {
-    throw new Error('Not implemented')
-  }
-
-  async exec(_query: string): Promise<D1ExecResult> {
-    throw new Error('Not implemented')
-  }
-
-  withSession(_session: unknown | null): D1Database {
-    return this
-  }
-}
-
-class MockD1PreparedStatement implements D1PreparedStatement {
-  private sql: string
-  private data: Map<string, Record<string, unknown>[]>
-  private bindings: unknown[] = []
-
-  constructor(sql: string, data: Map<string, Record<string, unknown>[]>) {
-    this.sql = sql
-    this.data = data
-  }
-
-  bind(...values: unknown[]): D1PreparedStatement {
-    this.bindings = values
-    return this
-  }
-
-  async first<T = unknown>(): Promise<T | null> {
-    const results = await this.all<T>()
-    return results.results[0] || null
-  }
-
-  async run<T = unknown>(): Promise<D1Result<T>> {
-    return { results: [], success: true, meta: { changes: 0, last_row_id: 0, duration: 0, served_by: 'mock', rows_read: 0, rows_written: 0, size_after: 0 } as D1Meta }
-  }
-
-  async all<T = unknown>(): Promise<D1Result<T>> {
-    // 简单模拟：根据 SQL 中的表名和 WHERE 条件返回数据
-    const tableMatch = this.sql.match(/FROM\s+(\w+)/i)
-    const table = tableMatch ? tableMatch[1] : ''
-    let rows = this.data.get(table) || []
-
-    // 处理 email = ? 条件过滤（用于 emailExists 查询）
-    if (this.sql.includes('email = ?') && this.bindings.length > 0) {
-      const emailIndex = this.sql.toLowerCase().split('?').findIndex((part) => part.includes('email ='))
-      if (emailIndex >= 0 && emailIndex < this.bindings.length) {
-        const targetEmail = String(this.bindings[emailIndex])
-        rows = rows.filter((r) => (r as Record<string, unknown>).email === targetEmail)
-      }
-    }
-
-    return { results: rows as T[], success: true, meta: { changes: 0, last_row_id: 0, duration: 0, served_by: 'mock', rows_read: 0, rows_written: 0, size_after: 0 } as D1Meta }
-  }
-
-  async raw<T = unknown>(options?: { columnNames?: boolean }): Promise<T[]> {
-    if (options?.columnNames) {
-      return [] as unknown as T[]
-    }
-    return []
-  }
-}
-
-function createMockContext(env: Record<string, unknown>): EventContext<Env, string, Record<string, unknown>> {
   return {
-    request: new Request('http://localhost/api/test', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    }),
-    env: env as unknown as Env,
-    params: {},
-    data: {},
-    next: () => Promise.resolve(new Response('Not Found', { status: 404 })),
-    waitUntil: () => {},
-    passThroughOnException: () => {},
-    functionPath: '',
-    props: {},
-  } as unknown as EventContext<Env, string, Record<string, unknown>>
+    req: {
+      raw: rawRequest,
+      header: (_name: string) => undefined,
+      json: async <T>() => rawRequest.json() as Promise<T>,
+      url: rawRequest.url,
+      param: () => undefined,
+    },
+    env: env as unknown as AppContext['env'],
+  } as unknown as AppContext
 }
 
 // ==================== 并发测试工具 ====================
@@ -215,28 +96,24 @@ function printResult(name: string, result: LoadTestResult) {
 // ==================== 测试用例 ====================
 
 describe('高并发压力测试', () => {
-  let authTokens: MockKVNamespace
-  let verificationCodes: MockKVNamespace
-  let db: MockD1Database
+  let authTokens: MockKV
+  let verificationCodes: MockKV
+  let db: MockD1
   let env: Record<string, unknown>
 
   beforeAll(() => {
-    authTokens = new MockKVNamespace()
-    verificationCodes = new MockKVNamespace()
-    db = new MockD1Database({
-      users: [
-        {
-          id: 'user-1',
-          username: 'testuser',
-          email: 'test@example.com',
-          password_hash: '100000:abc123:def456', // 模拟哈希格式
-          avatar: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ],
-      verification_codes: [],
-      verification_code_cooldowns: [],
+    authTokens = new MockKV()
+    verificationCodes = new MockKV()
+    db = new MockD1()
+    const usersTable = db.getTable('users')
+    usersTable.set('user-1', {
+      id: 'user-1',
+      username: 'testuser',
+      email: 'test@example.com',
+      password_hash: '100000:abc123:def456',
+      avatar: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
 
     env = {
@@ -261,7 +138,7 @@ describe('高并发压力测试', () => {
       const result = await runConcurrent(50, 10, async (_i) => {
         const context = createMockContext(env)
         // 修改 request body
-        Object.defineProperty(context.request, 'json', {
+        Object.defineProperty(context.req.raw, 'json', {
           value: async () => ({
             usernameOrEmail: 'testuser',
             password: 'wrongpassword',
@@ -289,7 +166,7 @@ describe('高并发压力测试', () => {
 
     const result = await runConcurrent(30, 5, async (i) => {
       const context = createMockContext(env)
-      Object.defineProperty(context.request, 'json', {
+      Object.defineProperty(context.req.raw, 'json', {
         value: async () => ({
           email: `user${i}@example.com`,
           type: 'register',
@@ -327,13 +204,13 @@ describe('高并发压力测试', () => {
         ...env,
       })
       // 添加认证头
-      Object.defineProperty(context.request, 'headers', {
+      Object.defineProperty(context.req.raw, 'headers', {
         value: new Headers({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${testToken}`,
         }),
       })
-      Object.defineProperty(context.request, 'json', {
+      Object.defineProperty(context.req.raw, 'json', {
         value: async () => ({
           fileData: 'data:text/plain;base64,SGVsbG8gV29ybGQ=', // 小文本文件
           fileType: 'text/plain',
@@ -358,7 +235,7 @@ describe('高并发压力测试', () => {
 
   it('KV 竞态条件测试 - 并发计数', async () => {
     const { checkRateLimit } = await import('../functions/lib/rateLimit')
-    const kv = new MockKVNamespace()
+    const kv = new MockKV()
     const key = 'test:concurrent'
     const limit = 10
 

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { getUsageLogs } from '../../lib/db';
 import { withAdmin } from '../../middleware/admin';
-import type { Env } from '../../lib/env';
+import type { AppContext } from '../../lib/handler';
 
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -12,9 +12,9 @@ const querySchema = z.object({
   endDate: z.string().optional(),
 });
 
-export const onRequestGet = withAdmin(async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestGet = withAdmin(async (context: AppContext) => {
   try {
-    const url = new URL(context.request.url);
+    const url = new URL(context.req.url);
     const parseResult = querySchema.safeParse({
       page: url.searchParams.get('page') ?? '1',
       pageSize: url.searchParams.get('pageSize') ?? '20',

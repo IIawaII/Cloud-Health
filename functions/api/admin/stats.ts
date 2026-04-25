@@ -1,9 +1,9 @@
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { getStats, getDailyUserStats, getUsageStats } from '../../lib/db';
 import { withAdmin } from '../../middleware/admin';
-import type { Env } from '../../lib/env';
+import type { AppContext } from '../../lib/handler';
 
-export const onRequestGet = withAdmin(async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestGet = withAdmin(async (context: AppContext) => {
   try {
     const stats = await getStats(context.env.DB);
     const dailyUserStats = await getDailyUserStats(context.env.DB, 30);

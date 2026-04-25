@@ -5,7 +5,7 @@ import { createAuditLog } from '../../lib/db';
 import { revokeAllUserTokens } from '../../lib/auth';
 import { withAdmin } from '../../middleware/admin';
 import { verifyToken } from '../../lib/auth';
-import type { Env } from '../../lib/env';
+import type { AppContext } from '../../lib/handler';
 
 const listSchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -17,9 +17,9 @@ const updateRoleSchema = z.object({
   role: z.enum(['user', 'admin']),
 });
 
-export const onRequestGet = withAdmin(async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestGet = withAdmin(async (context: AppContext) => {
   try {
-    const url = new URL(context.request.url);
+    const url = new URL(context.req.url);
     const parseResult = listSchema.safeParse({
       page: url.searchParams.get('page') ?? '1',
       pageSize: url.searchParams.get('pageSize') ?? '20',
@@ -53,14 +53,14 @@ export const onRequestGet = withAdmin(async (context: EventContext<Env, string, 
   }
 });
 
-export const onRequestPatch = withAdmin(async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestPatch = withAdmin(async (context: AppContext) => {
   try {
-    const id = context.params?.id as string | undefined;
+    const id = context.req.param('id');
     if (!id) {
       return errorResponse('缺少用户ID', 400);
     }
 
-    const body = await context.request.json<unknown>();
+    const body = await context.req.json<unknown>();
     const parseResult = updateRoleSchema.safeParse(body);
     if (!parseResult.success) {
       return errorResponse(parseResult.error.errors[0]?.message || '参数错误', 400);
@@ -73,7 +73,7 @@ export const onRequestPatch = withAdmin(async (context: EventContext<Env, string
 
     await updateUserRole(context.env.DB, id, parseResult.data.role);
 
-    const tokenData = await verifyToken(context);
+    const tokenData = await verifyToken({ request: context.req.raw, env: context.env });
     await createAuditLog(context.env.DB, {
       id: crypto.randomUUID(),
       admin_id: tokenData?.userId ?? 'unknown',
@@ -90,9 +90,9 @@ export const onRequestPatch = withAdmin(async (context: EventContext<Env, string
   }
 });
 
-export const onRequestDelete = withAdmin(async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestDelete = withAdmin(async (context: AppContext) => {
   try {
-    const id = context.params?.id as string | undefined;
+    const id = context.req.param('id');
     if (!id) {
       return errorResponse('缺少用户ID', 400);
     }
@@ -105,7 +105,7 @@ export const onRequestDelete = withAdmin(async (context: EventContext<Env, strin
     await deleteUserById(context.env.DB, id);
     await revokeAllUserTokens(context.env.AUTH_TOKENS, id);
 
-    const tokenData = await verifyToken(context);
+    const tokenData = await verifyToken({ request: context.req.raw, env: context.env });
     await createAuditLog(context.env.DB, {
       id: crypto.randomUUID(),
       admin_id: tokenData?.userId ?? 'unknown',

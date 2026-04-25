@@ -2,14 +2,14 @@ import { generateToken } from '../../lib/crypto';
 import { saveToken, saveRefreshToken, verifyRefreshToken, deleteRefreshToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { getCookie, serializeCookie, getSecureCookieOptions, getAccessTokenCookieMaxAge, getRefreshTokenCookieMaxAge } from '../../lib/cookie';
-import type { Env } from '../../lib/env';
+import type { AppContext } from '../../lib/handler';
 
-export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestPost = async (context: AppContext) => {
   try {
     // 优先从 Cookie 读取 refresh token，fallback 到 body（向后兼容）
-    let refreshToken = getCookie(context.request, 'auth_refresh_token');
+    let refreshToken = getCookie(context.req.raw, 'auth_refresh_token');
     if (!refreshToken) {
-    const body = await context.request.json<{ refreshToken?: string }>().catch(() => ({} as { refreshToken?: string }));
+    const body = await context.req.json<{ refreshToken?: string }>().catch(() => ({} as { refreshToken?: string }));
     refreshToken = body.refreshToken;
     }
 
@@ -49,7 +49,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     // 使旧的 Refresh Token 失效
     await deleteRefreshToken(context.env.AUTH_TOKENS, refreshToken, refreshData.userId);
 
-    const cookieOptions = getSecureCookieOptions(context.request);
+    const cookieOptions = getSecureCookieOptions(context.req.raw);
     return jsonResponse({
       success: true,
       message: '令牌刷新成功',

@@ -270,6 +270,25 @@ export async function setSystemConfig(db: D1Database, key: string, value: string
 }
 
 /**
+ * 获取用户当日使用次数
+ */
+export async function getUserDailyUsageCount(
+  db: D1Database,
+  userId: string,
+  action?: string
+): Promise<number> {
+  let sql = "SELECT COUNT(*) as count FROM usage_logs WHERE user_id = ? AND DATE(created_at) = DATE('now')"
+  const params: (string | number)[] = [userId]
+  if (action) {
+    sql += ' AND action = ?'
+    params.push(action)
+  }
+  const stmt = db.prepare(sql)
+  const result = await stmt.bind(...params).first<{ count: number }>()
+  return result?.count ?? 0
+}
+
+/**
  * 创建审计日志
  */
 export async function createAuditLog(

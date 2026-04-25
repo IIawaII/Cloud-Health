@@ -1,11 +1,11 @@
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { findUserByIdPublic } from '../../lib/db';
 import { verifyToken } from '../../lib/auth';
-import type { Env } from '../../lib/env';
+import type { AppContext } from '../../lib/handler';
 
-export const onRequestGet = async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestGet = async (context: AppContext) => {
   try {
-    const tokenData = await verifyToken(context);
+    const tokenData = await verifyToken({ request: context.req.raw, env: context.env });
     if (!tokenData) {
       return errorResponse('令牌已过期或无效', 401);
     }

@@ -1,16 +1,16 @@
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { checkRateLimit, buildRateLimitKey } from '../../lib/rateLimit';
 import { usernameExists, emailExists } from '../../lib/db';
-import type { Env } from '../../lib/env';
+import type { AppContext } from '../../lib/handler';
 
 interface CheckRequest {
   username?: string;
   email?: string;
 }
 
-export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestPost = async (context: AppContext) => {
   try {
-    const body = await context.request.json<CheckRequest>();
+    const body = await context.req.json<CheckRequest>();
     const { username, email } = body;
 
     if (username === undefined && email === undefined) {
@@ -22,7 +22,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     try {
       const rateLimit = await checkRateLimit({
         kv: context.env.AUTH_TOKENS,
-        key: buildRateLimitKey(context, 'check'),
+        key: buildRateLimitKey({ request: context.req.raw }, 'check'),
         limit: 10,
         windowSeconds: 60,
       });

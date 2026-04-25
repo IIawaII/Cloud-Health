@@ -1,23 +1,15 @@
-import { z } from 'zod';
 import { hashPassword, verifyPassword } from '../../lib/crypto';
 import { verifyToken, revokeAllUserTokens } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { checkRateLimit } from '../../lib/rateLimit';
 import { findUserById, updateUserPassword } from '../../lib/db';
-import type { Env } from '../../lib/env';
+import type { AppContext } from '../../lib/handler';
+import { changePasswordSchema } from '../../../shared/schemas';
 
-const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, '请填写当前密码').max(128, '密码长度不能超过128位'),
-  newPassword: z.string().min(8, '新密码至少8位').max(128, '密码长度不能超过128位').regex(/(?=.*[A-Za-z])(?=.*\d)/, '新密码必须同时包含字母和数字'),
-}).refine((data) => data.currentPassword !== data.newPassword, {
-  message: '新密码不能与当前密码相同',
-  path: ['newPassword'],
-});
-
-export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestPost = async (context: AppContext) => {
   try {
     // 验证 token（复用 lib/auth 中的逻辑）
-    const tokenData = await verifyToken(context);
+    const tokenData = await verifyToken({ request: context.req.raw, env: context.env });
     if (!tokenData) {
       return errorResponse('登录已过期', 401);
     }
@@ -40,7 +32,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse('用户不存在', 404);
     }
 
-    const body = await context.request.json<unknown>();
+    const body = await context.req.json<unknown>();
     const parseResult = changePasswordSchema.safeParse(body);
     if (!parseResult.success) {
       const firstError = parseResult.error.errors[0]?.message || '请求参数错误';

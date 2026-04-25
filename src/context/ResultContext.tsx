@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useRef, useEffect, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import type { ChatMessage } from '../types';
+import { getAnonymousId } from '@/lib/anonymousId';
+import { trimChatMessages } from '@/lib/trimMessages';
 
 interface ResultContextType {
   analysisResult: string;
@@ -29,18 +31,6 @@ function loadFromStorage(storageKey: string) {
   return { analysisResult: '', planResult: '', chatMessages: [] };
 }
 
-function trimChatMessages(messages: ChatMessage[], maxChars: number): ChatMessage[] {
-  let total = 0;
-  const trimmed: ChatMessage[] = [];
-  // 保留最近的消息
-  for (let i = messages.length - 1; i >= 0; i--) {
-    total += messages[i].content.length;
-    if (total > maxChars && trimmed.length > 0) break;
-    trimmed.unshift(messages[i]);
-  }
-  return trimmed;
-}
-
 function saveToStorage(storageKey: string, data: { analysisResult: string; planResult: string; chatMessages: ChatMessage[] }) {
   try {
     const serialized = JSON.stringify(data);
@@ -58,24 +48,6 @@ function saveToStorage(storageKey: string, data: { analysisResult: string; planR
     // ignore storage error (e.g. quota exceeded)
     console.error('[ResultContext] Failed to save to localStorage');
   }
-}
-
-function getAnonymousId(): string {
-  let id = localStorage.getItem('health_project_anonymous_id')
-  if (!id) {
-    // crypto.randomUUID() 在旧浏览器或 http 环境下可能不可用，提供增强降级方案
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      id = crypto.randomUUID()
-    } else {
-      const time = Date.now().toString(36)
-      const random1 = Math.random().toString(36).slice(2, 8)
-      const random2 = Math.random().toString(36).slice(2, 8)
-      const perf = typeof performance !== 'undefined' ? performance.now().toString(36).slice(0, 4) : ''
-      id = `anon-${time}-${random1}-${random2}${perf ? '-' + perf : ''}`
-    }
-    localStorage.setItem('health_project_anonymous_id', id)
-  }
-  return id
 }
 
 export function ResultProvider({ children }: { children: ReactNode }) {

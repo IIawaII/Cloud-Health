@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import type { User } from '@/types/auth'
 import { AVATAR_LIST, getUserAvatarUrl } from '@/lib/avatar'
+import { usernameSchema, emailSchema, changePasswordSchema } from '../../shared/schemas'
 import { FiX, FiMail, FiLock, FiUser, FiCheck, FiAlertCircle, FiMessageSquare } from 'react-icons/fi'
 
 interface SettingsModalProps {
@@ -102,16 +103,21 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   const handleUpdateProfile = async () => {
     // 用户名格式验证
-    if (username && !/^[a-zA-Z0-9_]{3,10}$/.test(username)) {
-      showMessage('error', '用户名只能包含字母、数字和下划线，长度3-10位')
-      return
+    if (username) {
+      const uResult = usernameSchema.safeParse(username)
+      if (!uResult.success) {
+        showMessage('error', uResult.error.errors[0]?.message || '用户名格式不正确')
+        return
+      }
     }
 
     // 邮箱格式验证
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (email && !emailRegex.test(email)) {
-      showMessage('error', '请输入有效的邮箱地址')
-      return
+    if (email) {
+      const eResult = emailSchema.safeParse(email)
+      if (!eResult.success) {
+        showMessage('error', eResult.error.errors[0]?.message || '请输入有效的邮箱地址')
+        return
+      }
     }
 
     // 如果修改了邮箱，需要验证码
@@ -157,16 +163,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   }
 
   const handleChangePassword = async () => {
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      showMessage('error', '请填写所有密码字段')
-      return
-    }
-    if (newPassword.length < 8) {
-      showMessage('error', '新密码至少8位')
-      return
-    }
-    if (!/(?=.*[A-Za-z])(?=.*\d)/.test(newPassword)) {
-      showMessage('error', '新密码必须同时包含字母和数字')
+    const parseResult = changePasswordSchema.safeParse({ currentPassword, newPassword })
+    if (!parseResult.success) {
+      showMessage('error', parseResult.error.errors[0]?.message || '请求参数错误')
       return
     }
     if (newPassword !== confirmPassword) {

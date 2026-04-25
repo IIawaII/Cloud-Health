@@ -3,7 +3,7 @@
  * 支持结果缓存，避免对同一 token 重复调用 Cloudflare API
  */
 
-import type { Env } from './env';
+import type { AppContext } from './handler';
 
 interface TurnstileResult {
   success: boolean;
@@ -75,10 +75,10 @@ export async function verifyTurnstile(
  * 返回 null 表示验证通过，返回 string 表示错误信息
  */
 export async function validateTurnstile(
-  context: EventContext<Env, string, Record<string, unknown>>,
+  context: AppContext,
   token: string
 ): Promise<string | null> {
-  const clientIP = context.request.headers.get('CF-Connecting-IP') || undefined;
+  const clientIP = context.req.header('CF-Connecting-IP') || undefined;
   const result = await verifyTurnstile(token, context.env.TURNSTILE_SECRET_KEY, clientIP);
   if (result.success) return null;
   return result.error ? `人机验证失败: ${result.error}` : '人机验证失败，请重试';

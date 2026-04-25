@@ -4,6 +4,7 @@
 
 import { addSecurityHeaders } from './security'
 import { NO_CACHE } from './cache'
+import { getSystemConfig } from '../lib/db'
 import type { Env } from '../lib/env'
 
 function addNonceToScripts(html: string, nonce?: string): string {
@@ -16,11 +17,14 @@ function addNonceToScripts(html: string, nonce?: string): string {
   )
 }
 
-export function injectClientConfig(html: string, env: Env, nonce?: string): string {
+export function injectClientConfig(html: string, env: Env, nonce?: string, extraConfig?: Record<string, string>): string {
   const htmlWithNonce = addNonceToScripts(html, nonce)
   const config: Record<string, string> = {}
   if (env.TURNSTILE_SITE_KEY) {
     config.TURNSTILE_SITE_KEY = env.TURNSTILE_SITE_KEY
+  }
+  if (extraConfig) {
+    Object.assign(config, extraConfig)
   }
   if (Object.keys(config).length === 0) return htmlWithNonce
 
@@ -47,7 +51,29 @@ export function injectClientConfig(html: string, env: Env, nonce?: string): stri
 
 export async function renderSpaHtml(response: Response, env: Env, nonce: string): Promise<Response> {
   const html = await response.text()
-  const injected = injectClientConfig(html, env, nonce)
+
+  // 查询系统配置并注入到 HTML
+  const extraConfig: Record<string, string> = {}
+  try {
+    const [siteName, welcomeMessage, maintenanceMode] = await Promise.all([
+      getSystemConfig(env.DB, 'site_name'),
+      getSystemConfig(env.DB, 'welcome_message'),
+      getSystemConfig(env.DB, 'maintenance_mode'),
+    ])
+    if (siteName) extraConfig.SITE_NAME = siteName.value
+    if (welcomeMessage) extraConfig.WELCOME_MESSAGE = welcomeMessage.value
+    if (maintenanceMode) extraConfig.MAINTENANCE_MODE = maintenanceMode.value
+  } catch {
+    // 配置查询失败时静默降级，不影响页面渲染
+  }
+
+  let injected = injectClientConfig(html, env, nonce, extraConfig)
+
+  // 如果有站点名称配置，替换 <title>
+  if (extraConfig.SITE_NAME) {
+    injected = injected.replace(/<title>.*?<\/title>/, `<title>${extraConfig.SITE_NAME}</title>`)
+  }
+
   const headers = new Headers(response.headers)
   headers.set('Cache-Control', NO_CACHE)
   const res = new Response(injected, {

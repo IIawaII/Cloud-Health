@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { TurnstileWidget } from '@/components/TurnstileWidget';
 import { TURNSTILE_SITE_KEY } from '@/lib/config';
+import { registerSchema } from '../../shared/schemas';
 import { 
   FiUser, 
   FiMail, 
@@ -237,33 +238,20 @@ export default function Register() {
   }, []);
 
   const validateForm = (): boolean => {
-    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword || !formData.verificationCode) {
-      setError('请填写所有必填字段');
-      return false;
-    }
-
-      if (!/^[a-zA-Z0-9_]{3,10}$/.test(formData.username)) {
-        setError('用户名只能包含字母、数字和下划线，长度3-10位');
-        return false;
-      }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setError('请输入有效的邮箱地址');
-      return false;
-    }
-
-    if (formData.password.length < 8 || formData.password.length > 128) {
-      setError('密码长度应在8-128位之间');
+    const result = registerSchema.safeParse({
+      username: formData.username,
+      email: formData.email,
+      password: formData.password,
+      turnstileToken: turnstileToken || '',
+      verificationCode: formData.verificationCode,
+    });
+    if (!result.success) {
+      setError(result.error.errors[0]?.message || '请求参数错误');
       return false;
     }
 
     if (formData.password !== formData.confirmPassword) {
       setError('两次输入的密码不一致');
-      return false;
-    }
-
-    if (!/^\d{6}$/.test(formData.verificationCode)) {
-      setError('请输入6位数字验证码');
       return false;
     }
 

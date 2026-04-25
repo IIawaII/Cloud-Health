@@ -1,6 +1,6 @@
 import { verifyToken } from '../lib/auth';
 import { errorResponse } from '../lib/response';
-import type { Env } from '../lib/env';
+import type { AppContext } from '../lib/handler';
 
 /**
  * 管理员权限校验中间件
@@ -8,9 +8,9 @@ import type { Env } from '../lib/env';
  * 返回 null 表示通过，返回 Response 表示拒绝
  */
 export async function requireAdmin(
-  context: EventContext<Env, string, Record<string, unknown>>
+  context: AppContext
 ): Promise<Response | null> {
-  const tokenData = await verifyToken(context);
+  const tokenData = await verifyToken({ request: context.req.raw, env: context.env });
   if (!tokenData) {
     return errorResponse('未授权，请先登录', 401);
   }
@@ -23,8 +23,8 @@ export async function requireAdmin(
 /**
  * 包装 admin API handler，自动执行权限校验
  */
-export function withAdmin(handler: (context: EventContext<Env, string, Record<string, unknown>>) => Promise<Response>) {
-  return async (context: EventContext<Env, string, Record<string, unknown>>): Promise<Response> => {
+export function withAdmin(handler: (context: AppContext) => Promise<Response>) {
+  return async (context: AppContext): Promise<Response> => {
     const denied = await requireAdmin(context);
     if (denied) return denied;
     return handler(context);

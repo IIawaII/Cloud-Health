@@ -1,6 +1,5 @@
 // API handlers
 import { Hono } from 'hono'
-import type { Context } from 'hono'
 import { FALLBACK_HTML } from './src/spa-fallback-html'
 import * as authRegister from './functions/api/auth/register'
 import * as authLogin from './functions/api/auth/login'
@@ -21,54 +20,40 @@ import * as adminLogs from './functions/api/admin/logs'
 import * as adminAudit from './functions/api/admin/audit'
 import * as adminConfig from './functions/api/admin/config'
 
+import { getSystemConfig } from './functions/lib/db'
 import { generateNonce, addSecurityHeaders } from './functions/middleware/security'
 import { getCorsOrigin, addCorsHeaders, createCorsPreflightResponse } from './functions/middleware/cors'
 import { applyCacheHeaders } from './functions/middleware/cache'
 import { injectClientConfig, renderSpaHtml } from './functions/middleware/spa'
-import { createContext } from './functions/middleware/context'
 import type { Env } from './functions/lib/env'
 
-type PagesHandler = (context: EventContext<Env, string, Record<string, unknown>>) => Promise<Response>
 type AppEnv = { Bindings: Env }
-
-function asHonoHandler(handler: PagesHandler) {
-  return (context: Context<AppEnv>) => {
-    const execCtx = (context as unknown as { executionCtx?: ExecutionContext }).executionCtx
-    const evtCtx = createContext(context.req.raw, context.env, execCtx)
-    // 将 Hono 路由参数合并到 EventContext params 中
-    const honoParams = context.req.param()
-    if (Object.keys(honoParams).length > 0) {
-      Object.assign(evtCtx.params, honoParams)
-    }
-    return handler(evtCtx)
-  }
-}
 
 const api = new Hono<AppEnv>()
 
-api.post('/api/auth/register', asHonoHandler(authRegister.onRequestPost as PagesHandler))
-api.post('/api/auth/login', asHonoHandler(authLogin.onRequestPost as PagesHandler))
-api.post('/api/auth/logout', asHonoHandler(authLogout.onRequestPost as PagesHandler))
-api.get('/api/auth/verify', asHonoHandler(authVerify.onRequestGet as PagesHandler))
-api.post('/api/auth/change_password', asHonoHandler(authChangePassword.onRequestPost as PagesHandler))
-api.post('/api/auth/update_profile', asHonoHandler(authUpdateProfile.onRequestPost as PagesHandler))
-api.post('/api/auth/check', asHonoHandler(authCheck.onRequestPost as PagesHandler))
-api.post('/api/auth/send_verification_code', asHonoHandler(authSendVerificationCode.onRequestPost as PagesHandler))
-api.post('/api/auth/refresh', asHonoHandler(authRefresh.onRequestPost as PagesHandler))
-api.post('/api/chat', asHonoHandler(chatHandler.onRequestPost as PagesHandler))
-api.post('/api/analyze', asHonoHandler(analyzeHandler.onRequestPost as PagesHandler))
-api.post('/api/plan', asHonoHandler(planHandler.onRequestPost as PagesHandler))
-api.post('/api/quiz', asHonoHandler(quizHandler.onRequestPost as PagesHandler))
+api.post('/api/auth/register', authRegister.onRequestPost)
+api.post('/api/auth/login', authLogin.onRequestPost)
+api.post('/api/auth/logout', authLogout.onRequestPost)
+api.get('/api/auth/verify', authVerify.onRequestGet)
+api.post('/api/auth/change_password', authChangePassword.onRequestPost)
+api.post('/api/auth/update_profile', authUpdateProfile.onRequestPost)
+api.post('/api/auth/check', authCheck.onRequestPost)
+api.post('/api/auth/send_verification_code', authSendVerificationCode.onRequestPost)
+api.post('/api/auth/refresh', authRefresh.onRequestPost)
+api.post('/api/chat', chatHandler.onRequestPost)
+api.post('/api/analyze', analyzeHandler.onRequestPost)
+api.post('/api/plan', planHandler.onRequestPost)
+api.post('/api/quiz', quizHandler.onRequestPost)
 
 // Admin API routes
-api.get('/api/admin/stats', asHonoHandler(adminStats.onRequestGet as PagesHandler))
-api.get('/api/admin/users', asHonoHandler(adminUsers.onRequestGet as PagesHandler))
-api.patch('/api/admin/users/:id', asHonoHandler(adminUsers.onRequestPatch as PagesHandler))
-api.delete('/api/admin/users/:id', asHonoHandler(adminUsers.onRequestDelete as PagesHandler))
-api.get('/api/admin/logs', asHonoHandler(adminLogs.onRequestGet as PagesHandler))
-api.get('/api/admin/audit', asHonoHandler(adminAudit.onRequestGet as PagesHandler))
-api.get('/api/admin/config', asHonoHandler(adminConfig.onRequestGet as PagesHandler))
-api.put('/api/admin/config', asHonoHandler(adminConfig.onRequestPut as PagesHandler))
+api.get('/api/admin/stats', adminStats.onRequestGet)
+api.get('/api/admin/users', adminUsers.onRequestGet)
+api.patch('/api/admin/users/:id', adminUsers.onRequestPatch)
+api.delete('/api/admin/users/:id', adminUsers.onRequestDelete)
+api.get('/api/admin/logs', adminLogs.onRequestGet)
+api.get('/api/admin/audit', adminAudit.onRequestGet)
+api.get('/api/admin/config', adminConfig.onRequestGet)
+api.put('/api/admin/config', adminConfig.onRequestPut)
 
 api.get('/api/health', (context) => {
   return context.json({ status: 'ok', timestamp: new Date().toISOString() })
@@ -112,6 +97,30 @@ export default {
       }
 
       if (url.pathname.startsWith('/api/')) {
+        const maintenanceConfig = await getSystemConfig(env.DB, 'maintenance_mode')
+        const isMaintenance = maintenanceConfig?.value === 'true'
+        if (isMaintenance) {
+          const isAllowed =
+            url.pathname.startsWith('/api/admin/') ||
+            url.pathname === '/api/auth/login' ||
+            url.pathname === '/api/auth/refresh' ||
+            url.pathname === '/api/auth/check' ||
+            url.pathname === '/api/auth/logout' ||
+            url.pathname === '/api/health'
+          if (!isAllowed) {
+            return addSecurityHeaders(
+              addCorsHeaders(
+                new Response(JSON.stringify({ error: '系统维护中，请稍后访问' }), {
+                  status: 503,
+                  headers: { 'Content-Type': 'application/json' },
+                }),
+                corsOrigin
+              ),
+              false
+            )
+          }
+        }
+
         const response = await api.fetch(request, env, ctx)
         return addCorsHeaders(response, corsOrigin)
       }

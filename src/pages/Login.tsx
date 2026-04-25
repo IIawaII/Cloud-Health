@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { TurnstileWidget } from '@/components/TurnstileWidget';
 import { TURNSTILE_SITE_KEY } from '@/lib/config';
+import { loginSchema } from '../../shared/schemas';
 import { 
   FiUser, 
   FiLock, 
@@ -54,14 +55,14 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.usernameOrEmail || !formData.password) {
-      setError('请填写所有必填字段');
-      return;
-    }
 
-    if (!turnstileToken) {
-      setError('请完成人机验证');
+    const parseResult = loginSchema.safeParse({
+      usernameOrEmail: formData.usernameOrEmail,
+      password: formData.password,
+      turnstileToken,
+    });
+    if (!parseResult.success) {
+      setError(parseResult.error.errors[0]?.message || '请求参数错误');
       return;
     }
 

@@ -19,6 +19,7 @@ const chatSchema = z.object({
 export const onRequestPost = createAIHandler({
   schema: chatSchema,
   rateLimit: { key: 'chat', limit: 30, windowSeconds: 60 },
+  action: 'chat',
   async handler(data, context, _tokenData) {
     let { messages } = data;
     const { stream } = data;
@@ -33,7 +34,7 @@ export const onRequestPost = createAIHandler({
       return errorResponse('消息总长度超出限制，请缩短后重试', 413);
     }
 
-    const llmConfig = resolveLLMConfig(context.request, context.env);
+    const llmConfig = resolveLLMConfig(context.req.raw, context.env);
     if (!llmConfig) {
       return errorResponse('未配置 AI API，请在设置中填写或联系管理员', 503);
     }

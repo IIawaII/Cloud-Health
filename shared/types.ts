@@ -4,8 +4,17 @@
  */
 
 export interface ChatMessage {
+  id?: string
   role: 'user' | 'assistant'
   content: string
+}
+
+export function createChatMessage(role: 'user' | 'assistant', content: string): ChatMessage {
+  return {
+    id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    role,
+    content,
+  }
 }
 
 export interface QuizQuestion {

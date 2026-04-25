@@ -27,6 +27,7 @@ const quizSchema = z.object({
 
 export const onRequestPost = createAIHandler({
   schema: quizSchema,
+  action: 'quiz',
   async handler(data, context, tokenData) {
     const { mode, category, difficulty, questions, userAnswers } = data;
 
@@ -41,7 +42,7 @@ export const onRequestPost = createAIHandler({
         return errorResponse('题目生成请求过于频繁，请稍后再试', 429, { 'Retry-After': String(rateLimit.resetAt - Math.floor(Date.now() / 1000)) });
       }
 
-      const llmConfig = resolveLLMConfig(context.request, context.env);
+      const llmConfig = resolveLLMConfig(context.req.raw, context.env);
       if (!llmConfig) {
         return errorResponse('未配置 AI API，请在设置中填写或联系管理员', 503);
       }

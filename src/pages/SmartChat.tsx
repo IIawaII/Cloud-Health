@@ -3,6 +3,7 @@ import { useAIStream } from '../hooks/useAI'
 import { useResult } from '../context/ResultContext'
 import ChatInterface from '../components/ChatInterface'
 import type { ChatMessage } from '../types'
+import { createChatMessage } from '../../shared/types'
 
 export default function SmartChat() {
   const { chatMessages, setChatMessages } = useResult()
@@ -13,7 +14,7 @@ export default function SmartChat() {
       if (last && last.role === 'assistant') {
         return [...prev.slice(0, -1), { ...last, content: last.content + chunk }]
       }
-      return [...prev, { role: 'assistant', content: chunk }]
+      return [...prev, createChatMessage('assistant', chunk)]
     })
   }, [setChatMessages])
 
@@ -25,7 +26,7 @@ export default function SmartChat() {
 
   const handleSend = useCallback(
     (content: string) => {
-      const newMessages: ChatMessage[] = [...chatMessages, { role: 'user', content }]
+      const newMessages: ChatMessage[] = [...chatMessages, createChatMessage('user', content)]
       setChatMessages(newMessages)
       execute({ messages: newMessages })
     },

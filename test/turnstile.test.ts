@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { verifyTurnstile, validateTurnstile } from '../functions/lib/turnstile'
 import type { Env } from '../functions/lib/env'
+import type { AppContext } from '../functions/lib/handler'
 
 // 保存原始 fetch
 declare const globalThis: { fetch: typeof fetch }
@@ -81,11 +82,16 @@ describe('turnstile', () => {
     }) as unknown as typeof fetch
 
     const mockContext = {
-      request: new Request('http://localhost', {
-        headers: { 'CF-Connecting-IP': '1.2.3.4' },
-      }),
+      req: {
+        raw: new Request('http://localhost', {
+          headers: { 'CF-Connecting-IP': '1.2.3.4' },
+        }),
+        header: (name: string) => new Request('http://localhost', {
+          headers: { 'CF-Connecting-IP': '1.2.3.4' },
+        }).headers.get(name) || undefined,
+      },
       env: { TURNSTILE_SECRET_KEY: 'test-secret' } as Env,
-    } as EventContext<Env, string, Record<string, unknown>>
+    } as unknown as AppContext
 
     const result = await validateTurnstile(mockContext, 'valid-token')
     expect(result).toBeNull()
@@ -99,9 +105,12 @@ describe('turnstile', () => {
     }) as unknown as typeof fetch
 
     const mockContext = {
-      request: new Request('http://localhost'),
+      req: {
+        raw: new Request('http://localhost'),
+        header: (_name: string) => undefined,
+      },
       env: { TURNSTILE_SECRET_KEY: 'test-secret' } as Env,
-    } as EventContext<Env, string, Record<string, unknown>>
+    } as unknown as AppContext
 
     const result = await validateTurnstile(mockContext, 'invalid-token')
     expect(result).toContain('人机验证失败')
@@ -116,9 +125,12 @@ describe('turnstile', () => {
     }) as unknown as typeof fetch
 
     const mockContext = {
-      request: new Request('http://localhost'),
+      req: {
+        raw: new Request('http://localhost'),
+        header: (_name: string) => undefined,
+      },
       env: { TURNSTILE_SECRET_KEY: 'test-secret' } as Env,
-    } as EventContext<Env, string, Record<string, unknown>>
+    } as unknown as AppContext
 
     const result = await validateTurnstile(mockContext, 'fail-token')
     expect(result).toBe('人机验证失败，请重试')

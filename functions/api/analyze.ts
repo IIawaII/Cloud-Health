@@ -18,6 +18,7 @@ const analyzeSchema = z.object({
 export const onRequestPost = createAIHandler({
   schema: analyzeSchema,
   rateLimit: { key: 'analyze', limit: 20, windowSeconds: 3600 },
+  action: 'analyze',
   async handler(data, context, _tokenData) {
     const { fileData, fileType, fileName, stream } = data;
 
@@ -45,7 +46,7 @@ export const onRequestPost = createAIHandler({
       return errorResponse('文本文件不应为 base64 编码', 400);
     }
 
-    const llmConfig = resolveLLMConfig(context.request, context.env);
+    const llmConfig = resolveLLMConfig(context.req.raw, context.env);
     if (!llmConfig) {
       return errorResponse('未配置 AI API，请在设置中填写或联系管理员', 503);
     }

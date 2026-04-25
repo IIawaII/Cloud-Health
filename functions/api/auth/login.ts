@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { verifyPassword, generateToken } from '../../lib/crypto';
 import { saveToken, saveRefreshToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
@@ -6,17 +5,12 @@ import { validateTurnstile } from '../../lib/turnstile';
 import { checkRateLimit } from '../../lib/rateLimit';
 import { findUserByUsername, findUserByEmail } from '../../lib/db';
 import { serializeCookie, getSecureCookieOptions, getAccessTokenCookieMaxAge, getRefreshTokenCookieMaxAge } from '../../lib/cookie';
-import type { Env } from '../../lib/env';
+import type { AppContext } from '../../lib/handler';
+import { loginSchema } from '../../../shared/schemas';
 
-const loginSchema = z.object({
-  usernameOrEmail: z.string().min(1, '请填写用户名或邮箱').max(254, '输入过长'),
-  password: z.string().min(1, '请填写密码').max(128, '密码长度不能超过128位'),
-  turnstileToken: z.string().min(1, '请完成人机验证'),
-});
-
-export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestPost = async (context: AppContext) => {
   try {
-    const body = await context.request.json<unknown>();
+    const body = await context.req.json<unknown>();
     const parseResult = loginSchema.safeParse(body);
     if (!parseResult.success) {
       const firstError = parseResult.error.errors[0]?.message || '请求参数错误';
@@ -29,7 +23,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     if (turnstileError) return errorResponse(turnstileError, 400);
 
     // 速率限制：每个 IP 每分钟最多 10 次登录尝试
-    const rateIP = context.request.headers.get('CF-Connecting-IP') || 'unknown';
+    const rateIP = context.req.header('CF-Connecting-IP') || 'unknown';
     const rateLimit = await checkRateLimit({
       kv: context.env.AUTH_TOKENS,
       key: `${rateIP}:login`,
@@ -71,7 +65,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
           createdAt: now,
         }, 24 * 60 * 60);
 
-    const cookieOptions = getSecureCookieOptions(context.request);
+    const cookieOptions = getSecureCookieOptions(context.req.raw);
     return jsonResponse({
       success: true,
       message: '管理员登录成功',
@@ -130,7 +124,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       createdAt: now,
     });
 
-    const cookieOptions = getSecureCookieOptions(context.request);
+    const cookieOptions = getSecureCookieOptions(context.req.raw);
     return jsonResponse({
       success: true,
       message: '登录成功',

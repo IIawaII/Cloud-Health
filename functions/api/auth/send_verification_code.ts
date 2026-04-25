@@ -11,7 +11,7 @@ import {
   setVerificationCooldown,
   deleteVerificationCooldown,
 } from '../../lib/db';
-import type { Env } from '../../lib/env';
+import type { AppContext } from '../../lib/handler';
 
 interface SendCodeRequest {
   email: string;
@@ -83,9 +83,9 @@ async function sendEmailViaResend(apiKey: string, to: string, code: string, type
   }
 }
 
-export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestPost = async (context: AppContext) => {
   try {
-    const body = await context.request.json<SendCodeRequest>();
+    const body = await context.req.json<SendCodeRequest>();
     const { email, type, turnstileToken, currentEmail } = body;
 
     // 验证输入
@@ -110,7 +110,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       if (turnstileError) return errorResponse(turnstileError, 400);
     } else if (type === 'update_email') {
       // 验证 Bearer Token（复用 lib/auth 中的逻辑）
-      const tokenData = await verifyToken(context);
+      const tokenData = await verifyToken({ request: context.req.raw, env: context.env });
       if (!tokenData) {
         return errorResponse('登录已过期', 401);
       }
@@ -122,7 +122,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     }
 
     // IP 级别速率限制：每个 IP 每小时最多发送 10 次验证码（防止多邮箱滥发）
-    const clientIP = context.request.headers.get('CF-Connecting-IP') || 'unknown';
+    const clientIP = context.req.header('CF-Connecting-IP') || 'unknown';
     const ipRateLimit = await checkRateLimit({
       kv: context.env.VERIFICATION_CODES,
       key: `ip:${clientIP}:send_code`,

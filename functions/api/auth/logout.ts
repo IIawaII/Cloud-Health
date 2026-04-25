@@ -1,14 +1,14 @@
 import { deleteToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { getCookie, serializeCookie, getSecureCookieOptions } from '../../lib/cookie';
-import type { Env } from '../../lib/env';
+import type { AppContext } from '../../lib/handler';
 
-export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestPost = async (context: AppContext) => {
   try {
     // 优先从 Cookie 读取 token，fallback 到 Authorization header
-    let token = getCookie(context.request, 'auth_token');
+    let token = getCookie(context.req.raw, 'auth_token');
     if (!token) {
-      const authHeader = context.request.headers.get('Authorization');
+      const authHeader = context.req.header('Authorization');
       if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.substring(7);
       }
@@ -19,7 +19,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       await deleteToken(context.env.AUTH_TOKENS, token);
     }
 
-    const cookieOptions = getSecureCookieOptions(context.request);
+    const cookieOptions = getSecureCookieOptions(context.req.raw);
     return jsonResponse({
       success: true,
       message: '登出成功',

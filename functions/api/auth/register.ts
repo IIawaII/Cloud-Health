@@ -1,31 +1,29 @@
-import { z } from 'zod';
 import { hashPassword, generateToken } from '../../lib/crypto';
 import { saveToken, saveRefreshToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { validateTurnstile } from '../../lib/turnstile';
 import { checkRateLimit, buildRateLimitKey } from '../../lib/rateLimit';
-import { findUserByUsername, findUserByEmail, createUser, consumeVerificationCode } from '../../lib/db';
+import { findUserByUsername, findUserByEmail, createUser, consumeVerificationCode, getSystemConfig } from '../../lib/db';
 import { serializeCookie, getSecureCookieOptions, getAccessTokenCookieMaxAge, getRefreshTokenCookieMaxAge } from '../../lib/cookie';
-import type { Env } from '../../lib/env';
-
-const registerSchema = z.object({
-  username: z.string().regex(/^[a-zA-Z0-9_]{3,10}$/, '用户名只能包含字母、数字和下划线，长度3-10位'),
-  email: z.string().email('请输入有效的邮箱地址'),
-  password: z.string().min(8, '密码长度至少8位').max(128, '密码长度不能超过128位').regex(/(?=.*[A-Za-z])(?=.*\d)/, '密码必须同时包含字母和数字'),
-  turnstileToken: z.string().min(1, '请完成人机验证'),
-  verificationCode: z.string().regex(/^\d{6}$/, '请输入6位数字验证码'),
-});
+import type { AppContext } from '../../lib/handler';
+import { registerSchema } from '../../../shared/schemas';
 
 function isUniqueConstraintError(error: unknown): boolean {
   return error instanceof Error && /unique constraint failed/i.test(error.message);
 }
 
-export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestPost = async (context: AppContext) => {
   try {
+    // 检查注册功能是否开放
+    const registrationConfig = await getSystemConfig(context.env.DB, 'enable_registration');
+    if (registrationConfig && registrationConfig.value === 'false') {
+      return errorResponse('注册功能已关闭', 403);
+    }
+
     // 速率限制：每个 IP 每分钟最多 5 次注册尝试
     const rateLimit = await checkRateLimit({
       kv: context.env.AUTH_TOKENS,
-      key: buildRateLimitKey(context, 'register'),
+      key: buildRateLimitKey({ request: context.req.raw }, 'register'),
       limit: 5,
       windowSeconds: 60,
     });
@@ -33,7 +31,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       return errorResponse('注册尝试过于频繁，请稍后再试', 429);
     }
 
-    const body = await context.request.json<unknown>();
+    const body = await context.req.json<unknown>();
     const parseResult = registerSchema.safeParse(body);
     if (!parseResult.success) {
       const firstError = parseResult.error.errors[0]?.message || '请求参数错误';
@@ -130,7 +128,7 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       );
     }
 
-    const cookieOptions = getSecureCookieOptions(context.request);
+    const cookieOptions = getSecureCookieOptions(context.req.raw);
     return jsonResponse({
       success: true,
       message: '注册成功',

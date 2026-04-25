@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import type { User, AuthState, LoginCredentials, RegisterCredentials, AuthResponse } from '@/types/auth';
 import { getApiError, getStringField, getObjectField } from '@/lib/utils';
 import { fetchWithTimeout } from '@/lib/fetch';
+import { persistUser, clearUserCache, loadCachedUser, buildUserWithCache } from '@/lib/userCache';
+import { broadcastAuthChange, useAuthSync } from '@/hooks/useAuthSync';
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<AuthResponse>;
@@ -16,7 +18,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const API_BASE_URL = '';
 const REFRESH_LOCK_KEY = 'auth_refresh_lock';
-const AUTH_SYNC_CHANNEL = 'auth_sync';
 
 function extractUser(data: unknown): User | null {
   const userData = getObjectField(data, 'user');
@@ -30,39 +31,6 @@ function extractUser(data: unknown): User | null {
   };
 }
 
-function clearUserCache() {
-  localStorage.removeItem('user_avatar');
-  localStorage.removeItem('user_username');
-  localStorage.removeItem('user_email');
-  localStorage.removeItem('user_role');
-}
-
-function persistUser(user: User | null) {
-  if (user?.avatar) {
-    localStorage.setItem('user_avatar', user.avatar);
-  }
-  if (user?.username) {
-    localStorage.setItem('user_username', user.username);
-  }
-  if (user?.email) {
-    localStorage.setItem('user_email', user.email);
-  }
-  if (user?.role) {
-    localStorage.setItem('user_role', user.role);
-  }
-}
-
-function broadcastAuthChange(action: 'login' | 'logout') {
-  try {
-    const bc = new BroadcastChannel(AUTH_SYNC_CHANNEL);
-    bc.postMessage({ action, timestamp: Date.now() });
-    bc.close();
-  } catch {
-    // BroadcastChannel 不支持时的降级：使用 localStorage 事件触发
-    localStorage.setItem('auth_sync_event', JSON.stringify({ action, timestamp: Date.now() }));
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     isAuthenticated: false,
@@ -72,64 +40,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 页面加载时：优先用缓存用户信息减少闪烁，再异步验证 Cookie 中的会话
   useEffect(() => {
-    const cachedUsername = localStorage.getItem('user_username');
-    if (cachedUsername) {
-      const cachedEmail = localStorage.getItem('user_email');
-      const cachedAvatar = localStorage.getItem('user_avatar');
-      const cachedRole = localStorage.getItem('user_role') as 'user' | 'admin' | null;
+    const cached = loadCachedUser();
+    if (cached?.username) {
       setState(prev => ({
         ...prev,
         isAuthenticated: true,
-        user: {
-          id: '',
-          username: cachedUsername,
-          email: cachedEmail || '',
-          avatar: cachedAvatar || undefined,
-          role: cachedRole || 'user',
-        },
+        user: cached as User,
       }));
     }
     checkAuth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 多标签页同步：监听登出/登录事件
-  useEffect(() => {
-    let bc: BroadcastChannel | null = null;
-    try {
-      bc = new BroadcastChannel(AUTH_SYNC_CHANNEL);
-      bc.onmessage = (e) => {
-        if (e.data?.action === 'logout') {
-          setState({ isAuthenticated: false, user: null, isLoading: false });
-        } else if (e.data?.action === 'login') {
-          window.location.reload();
-        }
-      };
-    } catch {
-      // 降级到 localStorage 事件
-    }
-
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'auth_sync_event' && e.newValue) {
-        try {
-          const evt = JSON.parse(e.newValue) as { action: string };
-          if (evt.action === 'logout') {
-            setState({ isAuthenticated: false, user: null, isLoading: false });
-          } else if (evt.action === 'login') {
-            window.location.reload();
-          }
-        } catch {
-          // ignore
-        }
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-
-    return () => {
-      bc?.close();
-      window.removeEventListener('storage', handleStorage);
-    };
-  }, []);
+  // 多标签页同步
+  useAuthSync(
+    useCallback(() => setState({ isAuthenticated: false, user: null, isLoading: false }), []),
+    useCallback(() => window.location.reload(), [])
+  );
 
   /**
    * 刷新会话（通过 httpOnly Cookie 自动携带 refresh token）
@@ -166,18 +93,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return false;
   }, []);
 
-  // 辅助函数：从 verify 响应构建用户（自动恢复缓存头像）
-  function buildUser(data: unknown): User | null {
-    const user = extractUser(data);
-    if (user) {
-      const cachedAvatar = localStorage.getItem('user_avatar');
-      if (cachedAvatar && !user.avatar) {
-        user.avatar = cachedAvatar;
-      }
-    }
-    return user;
-  }
-
   // 辅助函数：设置已认证状态
   function setAuthenticated(user: User | null) {
     persistUser(user);
@@ -186,15 +101,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 辅助函数：设置离线/异常状态（保留缓存用户名和头像，避免闪烁）
   function setOfflineState() {
-    const cachedUsername = localStorage.getItem('user_username');
-    const cachedEmail = localStorage.getItem('user_email');
-    const cachedAvatar = localStorage.getItem('user_avatar');
-    const cachedRole = localStorage.getItem('user_role') as 'user' | 'admin' | null;
+    const cached = loadCachedUser();
     setState({
       isAuthenticated: false,
-      user: cachedUsername
-        ? { id: '', username: cachedUsername, email: cachedEmail || '', avatar: cachedAvatar || undefined, role: cachedRole || 'user' }
-        : null,
+      user: cached ? (cached as User) : null,
       isLoading: false,
     });
   }
@@ -210,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await doVerify();
 
       if (response.ok) {
-        setAuthenticated(buildUser(await response.json()));
+        setAuthenticated(buildUserWithCache(extractUser(await response.json())));
         return;
       }
 
@@ -231,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const retryResponse = await doVerify();
       if (retryResponse.ok) {
-        setAuthenticated(buildUser(await retryResponse.json()));
+        setAuthenticated(buildUserWithCache(extractUser(await retryResponse.json())));
         return;
       }
 

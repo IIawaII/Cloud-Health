@@ -157,7 +157,7 @@ export default function ChatInterface({ messages, onSend, loading, error, onClea
 
         {messages.map((msg, idx) => (
           <div
-            key={idx}
+            key={msg.id ?? idx}
             className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''} animate-fade-in`}
           >
             <div

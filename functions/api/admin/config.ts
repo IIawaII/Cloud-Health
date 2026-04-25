@@ -4,11 +4,11 @@ import { getAllSystemConfigs, getSystemConfig, setSystemConfig } from '../../lib
 import { createAuditLog } from '../../lib/db';
 import { verifyToken } from '../../lib/auth';
 import { withAdmin } from '../../middleware/admin';
-import type { Env } from '../../lib/env';
+import type { AppContext } from '../../lib/handler';
 
-export const onRequestGet = withAdmin(async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestGet = withAdmin(async (context: AppContext) => {
   try {
-    const url = new URL(context.request.url);
+    const url = new URL(context.req.url);
     const key = url.searchParams.get('key');
 
     if (key) {
@@ -26,9 +26,9 @@ export const onRequestGet = withAdmin(async (context: EventContext<Env, string, 
 
 const updateSchema = z.record(z.string().min(1).max(2000));
 
-export const onRequestPut = withAdmin(async (context: EventContext<Env, string, Record<string, unknown>>) => {
+export const onRequestPut = withAdmin(async (context: AppContext) => {
   try {
-    const body = await context.request.json<unknown>();
+    const body = await context.req.json<unknown>();
     const parseResult = updateSchema.safeParse(body);
     if (!parseResult.success) {
       return errorResponse(parseResult.error.errors[0]?.message || '参数错误', 400);
@@ -39,7 +39,7 @@ export const onRequestPut = withAdmin(async (context: EventContext<Env, string, 
       await setSystemConfig(context.env.DB, key, value);
     }
 
-    const tokenData = await verifyToken(context);
+    const tokenData = await verifyToken({ request: context.req.raw, env: context.env });
     await createAuditLog(context.env.DB, {
       id: crypto.randomUUID(),
       admin_id: tokenData?.userId ?? 'unknown',

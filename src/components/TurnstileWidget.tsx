@@ -126,7 +126,7 @@ export function TurnstileWidget({
           // 脚本还在加载中，等待 onload
           const prevOnload = existing.onload;
           existing.onload = () => {
-            if (typeof prevOnload === 'function') prevOnload.call(existing);
+            if (typeof prevOnload === 'function') prevOnload.call(existing, new Event('load'));
             initWidget();
           };
         }

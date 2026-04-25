@@ -2,7 +2,7 @@ import { jsonResponse, errorResponse } from '../../lib/response';
 import { verifyToken } from '../../lib/auth';
 import { validateTurnstile } from '../../lib/turnstile';
 import { checkRateLimit } from '../../lib/rateLimit';
-import { emailExists, findUserById } from '../../lib/db';
+import { emailExists, findUserById, upsertVerificationCode, deleteVerificationCode } from '../../lib/db';
 import type { Env } from '../../lib/env';
 
 interface SendCodeRequest {
@@ -11,6 +11,9 @@ interface SendCodeRequest {
   turnstileToken?: string;
   currentEmail?: string;
 }
+
+const VERIFICATION_CODE_TTL_SECONDS = 180;
+const SEND_CODE_COOLDOWN_SECONDS = 60;
 
 function generateCode(): string {
   const array = new Uint8Array(4);
@@ -28,7 +31,7 @@ async function sendEmailViaResend(apiKey: string, to: string, code: string, type
       <div style="font-size: 32px; font-weight: bold; color: #3b82f6; letter-spacing: 4px; margin: 20px 0; padding: 15px; background: #f0f9ff; border-radius: 8px; text-align: center;">
         ${code}
       </div>
-      <p>验证码有效期为 <strong>5 分钟</strong>，请勿泄露给他人。</p>
+      <p>验证码有效期为 <strong>3 分钟</strong>，请勿泄露给他人。</p>
       <p style="color: #999; font-size: 12px; margin-top: 30px;">如非本人操作，请忽略此邮件。</p>
     </div>
   `;
@@ -139,21 +142,38 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
 
     // 生成验证码
     const code = generateCode();
-    const codeKey = `verify_code:${type}:${email}`;
-    const now = Date.now();
+    const createdAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_SECONDS * 1000).toISOString();
+    let codePersisted = false;
+    let cooldownPersisted = false;
 
-    // 存储验证码（5分钟有效期）
-    await context.env.VERIFICATION_CODES.put(codeKey, JSON.stringify({ code, createdAt: now }), {
-      expirationTtl: 300,
-    });
+    try {
+      await upsertVerificationCode(context.env.DB, {
+        purpose: type,
+        email,
+        code,
+        createdAt,
+        expiresAt,
+      });
+      codePersisted = true;
 
-    // 设置发送频率限制（60秒）
-    await context.env.VERIFICATION_CODES.put(rateLimitKey, '1', {
-      expirationTtl: 60,
-    });
+      await context.env.VERIFICATION_CODES.put(rateLimitKey, '1', {
+        expirationTtl: SEND_CODE_COOLDOWN_SECONDS,
+      });
+      cooldownPersisted = true;
 
-    // 发送邮件
-    await sendEmailViaResend(context.env.RESEND_API_KEY, email, code, type);
+      await sendEmailViaResend(context.env.RESEND_API_KEY, email, code, type);
+    } catch (sendError) {
+      const rollbackTasks: Promise<unknown>[] = [];
+      if (codePersisted) {
+        rollbackTasks.push(deleteVerificationCode(context.env.DB, type, email));
+      }
+      if (cooldownPersisted) {
+        rollbackTasks.push(context.env.VERIFICATION_CODES.delete(rateLimitKey));
+      }
+      await Promise.allSettled(rollbackTasks);
+      throw sendError;
+    }
 
     return jsonResponse({
       success: true,

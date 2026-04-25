@@ -1,4 +1,6 @@
 // API handlers
+import { Hono } from 'hono'
+import type { Context } from 'hono'
 import { FALLBACK_HTML } from './src/spa-fallback-html'
 import * as authRegister from './functions/api/auth/register'
 import * as authLogin from './functions/api/auth/login'
@@ -21,27 +23,31 @@ import { injectClientConfig, renderSpaHtml } from './functions/middleware/spa'
 import { createContext } from './functions/middleware/context'
 import type { Env } from './functions/lib/env'
 
-type Handler = (context: EventContext<Env, string, Record<string, unknown>>) => Promise<Response>
+type PagesHandler = (context: EventContext<Env, string, Record<string, unknown>>) => Promise<Response>
+type AppEnv = { Bindings: Env }
 
-const routes: Array<{
-  method: string
-  path: string
-  handler: Handler
-}> = [
-  { method: 'POST', path: '/api/auth/register', handler: authRegister.onRequestPost as Handler },
-  { method: 'POST', path: '/api/auth/login', handler: authLogin.onRequestPost as Handler },
-  { method: 'POST', path: '/api/auth/logout', handler: authLogout.onRequestPost as Handler },
-  { method: 'GET', path: '/api/auth/verify', handler: authVerify.onRequestGet as Handler },
-  { method: 'POST', path: '/api/auth/change_password', handler: authChangePassword.onRequestPost as Handler },
-  { method: 'POST', path: '/api/auth/update_profile', handler: authUpdateProfile.onRequestPost as Handler },
-  { method: 'POST', path: '/api/auth/check', handler: authCheck.onRequestPost as Handler },
-  { method: 'POST', path: '/api/auth/send_verification_code', handler: authSendVerificationCode.onRequestPost as Handler },
-  { method: 'POST', path: '/api/auth/refresh', handler: authRefresh.onRequestPost as Handler },
-  { method: 'POST', path: '/api/chat', handler: chatHandler.onRequestPost as Handler },
-  { method: 'POST', path: '/api/analyze', handler: analyzeHandler.onRequestPost as Handler },
-  { method: 'POST', path: '/api/plan', handler: planHandler.onRequestPost as Handler },
-  { method: 'POST', path: '/api/quiz', handler: quizHandler.onRequestPost as Handler },
-]
+function asHonoHandler(handler: PagesHandler) {
+  return (context: Context<AppEnv>) => handler(createContext(context.req.raw, context.env))
+}
+
+const api = new Hono<AppEnv>()
+
+api.post('/api/auth/register', asHonoHandler(authRegister.onRequestPost as PagesHandler))
+api.post('/api/auth/login', asHonoHandler(authLogin.onRequestPost as PagesHandler))
+api.post('/api/auth/logout', asHonoHandler(authLogout.onRequestPost as PagesHandler))
+api.get('/api/auth/verify', asHonoHandler(authVerify.onRequestGet as PagesHandler))
+api.post('/api/auth/change_password', asHonoHandler(authChangePassword.onRequestPost as PagesHandler))
+api.post('/api/auth/update_profile', asHonoHandler(authUpdateProfile.onRequestPost as PagesHandler))
+api.post('/api/auth/check', asHonoHandler(authCheck.onRequestPost as PagesHandler))
+api.post('/api/auth/send_verification_code', asHonoHandler(authSendVerificationCode.onRequestPost as PagesHandler))
+api.post('/api/auth/refresh', asHonoHandler(authRefresh.onRequestPost as PagesHandler))
+api.post('/api/chat', asHonoHandler(chatHandler.onRequestPost as PagesHandler))
+api.post('/api/analyze', asHonoHandler(analyzeHandler.onRequestPost as PagesHandler))
+api.post('/api/plan', asHonoHandler(planHandler.onRequestPost as PagesHandler))
+api.post('/api/quiz', asHonoHandler(quizHandler.onRequestPost as PagesHandler))
+api.get('/api/health', (context) => {
+  return context.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
 
 function isStaticAsset(pathname: string): boolean {
   return (
@@ -59,33 +65,17 @@ function isStaticAsset(pathname: string): boolean {
 }
 
 export default {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
       const url = new URL(request.url)
       const corsOrigin = getCorsOrigin(request, env)
 
-      // CORS preflight
       if (request.method === 'OPTIONS') {
         return createCorsPreflightResponse(corsOrigin)
       }
 
-      // Health check endpoint
-      if (request.method === 'GET' && url.pathname === '/api/health') {
-        return addCorsHeaders(
-          new Response(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-          corsOrigin
-        )
-      }
-
-      // API routes
-      const route = routes.find((r) => r.method === request.method && r.path === url.pathname)
-
-      if (route) {
-        const response = await route.handler(createContext(request, env))
+      if (url.pathname.startsWith('/api/')) {
+        const response = await api.fetch(request, env, ctx)
         return addCorsHeaders(response, corsOrigin)
       }
 

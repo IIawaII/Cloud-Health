@@ -81,7 +81,13 @@ export default function Register() {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      const data = await res.json() as { available: boolean };
+      const data = await res.json() as { available?: boolean; error?: string };
+
+      if (!res.ok) {
+        statusSetter('idle');
+        errorSetter(data.error || '检查失败，请稍后重试');
+        return;
+      }
 
       if (data.available) {
         statusSetter('available');

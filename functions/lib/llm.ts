@@ -15,6 +15,70 @@ export interface CallLLMOptions {
   max_tokens?: number
 }
 
+function isIPv4Address(value: string): boolean {
+  const parts = value.split('.')
+  return parts.length === 4 && parts.every((part) => /^\d+$/.test(part) && Number(part) >= 0 && Number(part) <= 255)
+}
+
+function isDisallowedIPv4(value: string): boolean {
+  if (!isIPv4Address(value)) return true
+
+  const [a, b, c] = value.split('.').map((part) => Number(part))
+
+  if (a === 0) return true
+  if (a === 10) return true
+  if (a === 127) return true
+  if (a === 169 && b === 254) return true
+  if (a === 172 && b >= 16 && b <= 31) return true
+  if (a === 192 && b === 168) return true
+  if (a === 100 && b >= 64 && b <= 127) return true
+  if (a === 192 && b === 0 && (c === 0 || c === 2)) return true
+  if (a === 198 && (b === 18 || b === 19)) return true
+  if (a === 198 && b === 51 && c === 100) return true
+  if (a === 203 && b === 0 && c === 113) return true
+  if (a >= 224) return true
+
+  return false
+}
+
+function isDisallowedIPv6(value: string): boolean {
+  const lower = value.toLowerCase()
+
+  if (lower === '::' || lower === '::1') return true
+  if (lower === '0:0:0:0:0:0:0:0' || lower === '0:0:0:0:0:0:0:1') return true
+  if (/^fe[89ab]/.test(lower)) return true
+  if (lower.startsWith('fc') || lower.startsWith('fd')) return true
+  if (lower.startsWith('ff')) return true
+  if (lower.startsWith('2001:db8')) return true
+
+  const mappedIpv4Match = lower.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/)
+  if (mappedIpv4Match) {
+    return isDisallowedIPv4(mappedIpv4Match[1])
+  }
+
+  return false
+}
+
+async function queryDnsRecords(hostname: string, type: 'A' | 'AAAA'): Promise<string[]> {
+  const dohResponse = await fetch(
+    `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=${type}`,
+    {
+      headers: { Accept: 'application/dns-json' },
+    }
+  )
+
+  if (!dohResponse.ok) {
+    throw new Error(`DNS 查询失败: ${type}`)
+  }
+
+  const dohData = (await dohResponse.json()) as { Answer?: Array<{ data: string }> }
+  const answers = dohData.Answer ?? []
+
+  return answers
+    .map((answer) => answer.data)
+    .filter((value) => (type === 'A' ? isIPv4Address(value) : value.includes(':')))
+}
+
 /**
  * 校验 AI Base URL 是否合法，防止 SSRF
  * - 仅允许 http/https 协议
@@ -25,71 +89,41 @@ async function isValidLLMUrl(url: string): Promise<boolean> {
   try {
     const parsed = new URL(url)
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false
+
     const hostname = parsed.hostname
+    if (!hostname) return false
     if (hostname === 'localhost' || hostname.endsWith('.local')) return false
 
-    // IPv4 检查
-    const ipMatch = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
-    if (ipMatch) {
-      const [a, b] = [parseInt(ipMatch[1], 10), parseInt(ipMatch[2], 10)]
-      if (a === 127) return false
-      if (a === 10) return false
-      if (a === 172 && b >= 16 && b <= 31) return false
-      if (a === 192 && b === 168) return false
-      if (a === 169 && b === 254) return false
-      if (a >= 224) return false
-      return true
+    if (isIPv4Address(hostname)) {
+      return !isDisallowedIPv4(hostname)
     }
 
-    // IPv6 检查
     if (hostname.includes(':')) {
-      const lower = hostname.toLowerCase()
-      if (lower === '::1' || lower === '0:0:0:0:0:0:0:1') return false
-      if (lower.startsWith('fe80:')) return false
-      if (lower.startsWith('fc') || lower.startsWith('fd')) return false
-      if (lower.startsWith('ff')) return false
-      if (lower.includes('::ffff:127.') || lower.includes('::ffff:7f')) return false
-      return true
+      return !isDisallowedIPv6(hostname)
     }
 
-    // 域名：通过 Cloudflare DoH 解析并验证解析结果（同时查询 A 和 AAAA 记录）
-    async function queryDNS(type: 'A' | 'AAAA'): Promise<Array<{ data: string }>> {
-      const dohResponse = await fetch(
-        `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=${type}`,
-        {
-          headers: { Accept: 'application/dns-json' },
-        }
-      )
-      if (!dohResponse.ok) return []
-      const dohData = (await dohResponse.json()) as { Answer?: Array<{ data: string }> }
-      return dohData.Answer ?? []
+    const [aRecords, aaaaRecords] = await Promise.all([
+      queryDnsRecords(hostname, 'A'),
+      queryDnsRecords(hostname, 'AAAA'),
+    ])
+
+    const resolvedIps = [...aRecords, ...aaaaRecords]
+    if (resolvedIps.length === 0) {
+      return false
     }
 
-    const [aAnswers, aaaaAnswers] = await Promise.all([queryDNS('A'), queryDNS('AAAA')])
-    const answers = [...aAnswers, ...aaaaAnswers]
-
-    for (const answer of answers) {
-      const ip = answer.data
-      // IPv4
-      const parts = ip.split('.').map((p) => parseInt(p, 10))
-      if (parts.length === 4) {
-        const [a, b] = parts
-        if (a === 127) return false
-        if (a === 10) return false
-        if (a === 172 && b >= 16 && b <= 31) return false
-        if (a === 192 && b === 168) return false
-        if (a === 169 && b === 254) return false
-        if (a >= 224) return false
+    for (const ip of resolvedIps) {
+      if (isIPv4Address(ip)) {
+        if (isDisallowedIPv4(ip)) return false
+        continue
       }
-      // IPv6
+
       if (ip.includes(':')) {
-        const lower = ip.toLowerCase()
-        if (lower === '::1' || lower === '0:0:0:0:0:0:0:1') return false
-        if (lower.startsWith('fe80:')) return false
-        if (lower.startsWith('fc') || lower.startsWith('fd')) return false
-        if (lower.startsWith('ff')) return false
-        if (lower.includes('::ffff:127.') || lower.includes('::ffff:7f')) return false
+        if (isDisallowedIPv6(ip)) return false
+        continue
       }
+
+      return false
     }
 
     return true

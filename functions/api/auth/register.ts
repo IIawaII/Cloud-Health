@@ -4,7 +4,7 @@ import { saveToken, saveRefreshToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { validateTurnstile } from '../../lib/turnstile';
 import { checkRateLimit, buildRateLimitKey } from '../../lib/rateLimit';
-import { findUserByUsername, findUserByEmail, createUser } from '../../lib/db';
+import { findUserByUsername, findUserByEmail, createUser, consumeVerificationCode } from '../../lib/db';
 import type { Env } from '../../lib/env';
 
 const registerSchema = z.object({
@@ -14,6 +14,10 @@ const registerSchema = z.object({
   turnstileToken: z.string().min(1, '请完成人机验证'),
   verificationCode: z.string().min(1, '请输入验证码'),
 });
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Error && /unique constraint failed/i.test(error.message);
+}
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   try {
@@ -40,29 +44,30 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
     const turnstileError = await validateTurnstile(context, turnstileToken);
     if (turnstileError) return errorResponse(turnstileError, 400);
 
-    // 验证邮箱验证码
-    const codeKey = `verify_code:register:${email}`;
-    const storedCodeData = await context.env.VERIFICATION_CODES.get(codeKey);
-    if (!storedCodeData) {
-      return errorResponse('验证码已过期，请重新获取', 400);
-    }
-    const storedCode = JSON.parse(storedCodeData) as { code: string };
-    if (storedCode.code !== verificationCode) {
-      return errorResponse('验证码错误', 400);
-    }
-    // 验证成功后删除验证码
-    await context.env.VERIFICATION_CODES.delete(codeKey);
-
-    // 检查用户名是否已存在
+    // 先做用户唯一性检查，避免无谓消耗验证码
     const existingUserByUsername = await findUserByUsername(context.env.DB, username);
     if (existingUserByUsername) {
       return errorResponse('用户名已被注册', 409);
     }
 
-    // 检查邮箱是否已存在
     const existingUserByEmail = await findUserByEmail(context.env.DB, email);
     if (existingUserByEmail) {
       return errorResponse('邮箱已被注册', 409);
+    }
+
+    // 原子消费邮箱验证码，避免并发重复注册
+    const verificationStatus = await consumeVerificationCode(
+      context.env.DB,
+      'register',
+      email,
+      verificationCode,
+      new Date().toISOString()
+    );
+    if (verificationStatus === 'expired') {
+      return errorResponse('验证码已过期，请重新获取', 400);
+    }
+    if (verificationStatus === 'invalid') {
+      return errorResponse('验证码错误', 400);
     }
 
     // 创建用户
@@ -81,6 +86,9 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       });
     } catch (dbError) {
       console.error('Registration D1 write failed:', dbError);
+      if (isUniqueConstraintError(dbError)) {
+        return errorResponse('用户名或邮箱已被注册', 409);
+      }
       return errorResponse('注册失败，数据写入异常，请稍后重试', 500);
     }
 

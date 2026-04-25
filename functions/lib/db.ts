@@ -13,6 +13,16 @@ export interface DbUser {
   updated_at: string
 }
 
+export type VerificationCodePurpose = 'register' | 'update_email'
+
+export interface VerificationCodeRecord {
+  purpose: VerificationCodePurpose
+  email: string
+  code: string
+  createdAt: string
+  expiresAt: string
+}
+
 /**
  * 通过用户名查找用户
  */
@@ -129,4 +139,66 @@ export async function emailExists(db: D1Database, email: string, excludeId?: str
   const stmt = db.prepare('SELECT 1 as found FROM users WHERE email = ? COLLATE NOCASE')
   const result = await stmt.bind(email).first<{ found: number }>()
   return !!result
+}
+
+/**
+ * 保存或覆盖验证码
+ */
+export async function upsertVerificationCode(db: D1Database, record: VerificationCodeRecord): Promise<void> {
+  const stmt = db.prepare(
+    `INSERT INTO verification_codes (purpose, email, code, created_at, expires_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(purpose, email) DO UPDATE SET
+       code = excluded.code,
+       created_at = excluded.created_at,
+       expires_at = excluded.expires_at`
+  )
+
+  await stmt.bind(record.purpose, record.email, record.code, record.createdAt, record.expiresAt).run()
+}
+
+/**
+ * 删除指定验证码
+ */
+export async function deleteVerificationCode(
+  db: D1Database,
+  purpose: VerificationCodePurpose,
+  email: string
+): Promise<void> {
+  const stmt = db.prepare('DELETE FROM verification_codes WHERE purpose = ? AND email = ?')
+  await stmt.bind(purpose, email).run()
+}
+
+/**
+ * 原子消费验证码，成功时直接删除，避免并发重复使用
+ */
+export async function consumeVerificationCode(
+  db: D1Database,
+  purpose: VerificationCodePurpose,
+  email: string,
+  code: string,
+  now: string = new Date().toISOString()
+): Promise<'consumed' | 'expired' | 'invalid'> {
+  const deleteStmt = db.prepare(
+    'DELETE FROM verification_codes WHERE purpose = ? AND email = ? AND code = ? AND expires_at > ?'
+  )
+  const deleteResult = await deleteStmt.bind(purpose, email, code, now).run()
+
+  if (deleteResult.meta.changes > 0) {
+    return 'consumed'
+  }
+
+  const lookupStmt = db.prepare('SELECT code, expires_at FROM verification_codes WHERE purpose = ? AND email = ?')
+  const record = await lookupStmt.bind(purpose, email).first<{ code: string; expires_at: string }>()
+
+  if (!record) {
+    return 'expired'
+  }
+
+  if (record.expires_at <= now) {
+    await deleteVerificationCode(db, purpose, email)
+    return 'expired'
+  }
+
+  return record.code === code ? 'expired' : 'invalid'
 }

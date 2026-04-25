@@ -1,7 +1,11 @@
 import { verifyToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
-import { findUserById, updateUser, usernameExists, emailExists } from '../../lib/db';
+import { findUserById, updateUser, usernameExists, emailExists, consumeVerificationCode } from '../../lib/db';
 import type { Env } from '../../lib/env';
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Error && /unique constraint failed/i.test(error.message);
+}
 
 export const onRequestPost = async (context: EventContext<Env, string, Record<string, unknown>>) => {
   try {
@@ -44,23 +48,27 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
       if (!body.verificationCode) {
         return errorResponse('请输入验证码', 400);
       }
-      const codeKey = `verify_code:update_email:${body.email}`;
-      const storedCodeData = await context.env.VERIFICATION_CODES.get(codeKey);
-      if (!storedCodeData) {
-        return errorResponse('验证码已过期，请重新获取', 400);
-      }
-      const storedCode = JSON.parse(storedCodeData) as { code: string };
-      if (storedCode.code !== body.verificationCode) {
-        return errorResponse('验证码错误', 400);
-      }
-      // 验证成功后删除验证码
-      await context.env.VERIFICATION_CODES.delete(codeKey);
 
-      // 检查新邮箱是否已被使用
+      // 先检查新邮箱是否已被使用，避免无谓消耗验证码
       const exists = await emailExists(context.env.DB, body.email, userId);
       if (exists) {
         return errorResponse('该邮箱已被使用', 400);
       }
+
+      const verificationStatus = await consumeVerificationCode(
+        context.env.DB,
+        'update_email',
+        body.email,
+        body.verificationCode,
+        new Date().toISOString()
+      );
+      if (verificationStatus === 'expired') {
+        return errorResponse('验证码已过期，请重新获取', 400);
+      }
+      if (verificationStatus === 'invalid') {
+        return errorResponse('验证码错误', 400);
+      }
+
       updates.email = body.email;
     }
 
@@ -75,7 +83,14 @@ export const onRequestPost = async (context: EventContext<Env, string, Record<st
 
     // 执行更新
     if (Object.keys(updates).length > 0) {
-      await updateUser(context.env.DB, userId, updates);
+      try {
+        await updateUser(context.env.DB, userId, updates);
+      } catch (dbError) {
+        if (isUniqueConstraintError(dbError)) {
+          return errorResponse('用户名或邮箱已被使用', 409);
+        }
+        throw dbError;
+      }
     }
 
     return jsonResponse({

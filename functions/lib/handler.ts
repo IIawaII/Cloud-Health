@@ -15,7 +15,7 @@ import type { TokenData } from './auth'
 export type AppContext = Context<{ Bindings: Env }>
 
 function waitUntil(context: AppContext, promise: Promise<unknown>): void {
-  const execCtx = (context as unknown as { executionCtx?: ExecutionContext }).executionCtx
+  const execCtx = context.executionCtx
   if (execCtx) {
     execCtx.waitUntil(promise)
   }

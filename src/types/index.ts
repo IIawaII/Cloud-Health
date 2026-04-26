@@ -19,3 +19,6 @@ export interface HealthPlanFormData {
   medicalConditions: string
   allergies: string
 }
+
+/** @deprecated 使用 HealthPlanFormData，保留别名以兼容旧代码 */
+export type PlanFormData = HealthPlanFormData

@@ -6,6 +6,15 @@ import { verifyToken } from '../../lib/auth';
 import { withAdmin } from '../../middleware/admin';
 import type { AppContext } from '../../lib/handler';
 
+/** 允许管理员通过 API 修改的系统配置键白名单 */
+const ALLOWED_CONFIG_KEYS = new Set([
+  'site_name',
+  'welcome_message',
+  'max_requests_per_day',
+  'maintenance_mode',
+  'enable_registration',
+]);
+
 export const onRequestGet = withAdmin(async (context: AppContext) => {
   try {
     const url = new URL(context.req.url);
@@ -24,7 +33,7 @@ export const onRequestGet = withAdmin(async (context: AppContext) => {
   }
 });
 
-const updateSchema = z.record(z.string().min(1).max(2000));
+const updateSchema = z.record(z.string().min(1).max(500));
 
 export const onRequestPut = withAdmin(async (context: AppContext) => {
   try {
@@ -35,6 +44,11 @@ export const onRequestPut = withAdmin(async (context: AppContext) => {
     }
 
     const updates = parseResult.data;
+    const invalidKeys = Object.keys(updates).filter(k => !ALLOWED_CONFIG_KEYS.has(k));
+    if (invalidKeys.length > 0) {
+      return errorResponse(`不允许修改的配置项: ${invalidKeys.join(', ')}`, 400);
+    }
+
     for (const [key, value] of Object.entries(updates)) {
       await setSystemConfig(context.env.DB, key, value);
     }

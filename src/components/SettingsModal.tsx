@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import type { User } from '@/types/auth'
 import { AVATAR_LIST, getUserAvatarUrl } from '@/lib/avatar'
@@ -11,7 +12,8 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const { user, updateUser } = useAuth()
+  const { user, updateUser, logout } = useAuth()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile')
   const [username, setUsername] = useState(user?.username || '')
   const [email, setEmail] = useState(user?.email || '')
@@ -182,12 +184,19 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         credentials: 'include',
         body: JSON.stringify({ currentPassword, newPassword }),
       })
-      const data = await response.json() as { error?: string }
+      const data = await response.json() as { error?: string; requireReLogin?: boolean }
       if (response.ok) {
-        showMessage('success', '密码修改成功')
+        showMessage('success', '密码修改成功，请使用新密码重新登录')
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
+        // 如果后端要求重新登录，自动执行登出并跳转
+        if (data.requireReLogin) {
+          setTimeout(async () => {
+            await logout()
+            navigate('/login', { replace: true })
+          }, 1500)
+        }
       } else {
         showMessage('error', data.error || '修改失败')
       }

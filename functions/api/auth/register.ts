@@ -20,6 +20,18 @@ export const onRequestPost = async (context: AppContext) => {
       return errorResponse('注册功能已关闭', 403);
     }
 
+    const body = await context.req.json<unknown>();
+    const parseResult = registerSchema.safeParse(body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0]?.message || '请求参数错误';
+      return errorResponse(firstError, 400);
+    }
+    const { username, email, password, turnstileToken, verificationCode } = parseResult.data;
+
+    // 验证 Turnstile（人机验证优先于速率限制，防止机器人无成本消耗配额）
+    const turnstileError = await validateTurnstile(context, turnstileToken);
+    if (turnstileError) return errorResponse(turnstileError, 400);
+
     // 速率限制：每个 IP 每分钟最多 5 次注册尝试
     const rateLimit = await checkRateLimit({
       kv: context.env.AUTH_TOKENS,
@@ -30,18 +42,6 @@ export const onRequestPost = async (context: AppContext) => {
     if (!rateLimit.allowed) {
       return errorResponse('注册尝试过于频繁，请稍后再试', 429);
     }
-
-    const body = await context.req.json<unknown>();
-    const parseResult = registerSchema.safeParse(body);
-    if (!parseResult.success) {
-      const firstError = parseResult.error.errors[0]?.message || '请求参数错误';
-      return errorResponse(firstError, 400);
-    }
-    const { username, email, password, turnstileToken, verificationCode } = parseResult.data;
-
-    // 验证 Turnstile
-    const turnstileError = await validateTurnstile(context, turnstileToken);
-    if (turnstileError) return errorResponse(turnstileError, 400);
 
     // 先做用户唯一性检查，避免无谓消耗验证码
     // 禁止注册与管理员用户名相同的账号

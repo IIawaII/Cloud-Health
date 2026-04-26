@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { FiCheck, FiFileText, FiActivity, FiClock } from 'react-icons/fi'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import rehypeSanitize from 'rehype-sanitize'
+import MarkdownRenderer from './MarkdownRenderer'
 
 interface ResultCardProps {
   title: string
@@ -115,14 +113,10 @@ export default function ResultCard({ title, content, isStreaming, loading }: Res
         )}
       </div>
       <div className="p-6">
-        <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground-muted prose-strong:text-foreground prose-li:text-foreground-muted">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-            {content}
-          </ReactMarkdown>
-          {isStreaming && (
-            <span className="inline-block w-2 h-4 bg-primary ml-1 animate-pulse" />
-          )}
-        </div>
+        <MarkdownRenderer content={content} />
+        {isStreaming && (
+          <span className="inline-block w-2 h-4 bg-primary ml-1 animate-pulse" />
+        )}
       </div>
     </div>
   )

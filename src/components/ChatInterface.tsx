@@ -172,12 +172,22 @@ export default function ChatInterface({ messages, onSend, loading, error, onClea
                   src={getAvatarDisplayUrl(user?.avatar || localStorage.getItem('user_avatar') || undefined)}
                   alt="avatar"
                   className="w-full h-full"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    target.onerror = null;
+                    target.src = '/User/default.svg';
+                  }}
                 />
               ) : (
                 <img
                   src="/Doctor.svg"
                   alt="AI"
                   className="w-full h-full"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    target.onerror = null;
+                    target.style.display = 'none';
+                  }}
                 />
               )}
             </div>

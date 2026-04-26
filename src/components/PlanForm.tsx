@@ -1,21 +1,7 @@
 import { useState } from 'react'
 import { isFutureDate } from '../lib/utils'
 import { FiAlertCircle, FiChevronRight, FiChevronLeft } from 'react-icons/fi'
-
-export interface PlanFormData {
-  name: string
-  age: string
-  gender: string
-  height: string
-  weight: string
-  goal: string
-  dietaryPreference: string
-  exerciseHabit: string
-  sleepQuality: string
-  targetDate: string
-  medicalConditions: string
-  allergies: string
-}
+import type { PlanFormData } from '../types'
 
 interface PlanFormProps {
   onSubmit: (data: PlanFormData) => void

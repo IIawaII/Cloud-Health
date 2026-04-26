@@ -64,10 +64,26 @@ export const onRequestPost = createAIHandler({
       try {
         parsed = JSON.parse(content);
       } catch {
-        // 使用更严格的 JSON 提取：匹配最外层花括号对，避免截断或跨对象匹配
-        const jsonMatch = content.match(/\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}/);
-        if (jsonMatch) {
-          parsed = JSON.parse(jsonMatch[0]);
+        // 使用递归方式提取最外层 JSON 对象，支持任意嵌套深度
+        function extractJsonObject(str: string): string | null {
+          let depth = 0;
+          let start = -1;
+          for (let i = 0; i < str.length; i++) {
+            if (str[i] === '{') {
+              if (depth === 0) start = i;
+              depth++;
+            } else if (str[i] === '}') {
+              depth--;
+              if (depth === 0 && start !== -1) {
+                return str.slice(start, i + 1);
+              }
+            }
+          }
+          return null;
+        }
+        const jsonStr = extractJsonObject(content);
+        if (jsonStr) {
+          parsed = JSON.parse(jsonStr);
         } else {
           throw new Error('无法解析题目数据');
         }

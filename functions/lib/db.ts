@@ -119,37 +119,32 @@ export async function updateUserPassword(db: D1Database, id: string, passwordHas
 /**
  * 更新用户信息（用户名、邮箱、头像）
  *
- * 安全说明：本函数使用动态 SQL 拼接，但 fields 数组完全由代码内部硬编码分支控制，
- * 不存在用户输入直接进入 SQL 语句的风险。values 通过参数化绑定传入。
+ * 安全说明：setClause 由内部字段白名单映射构建，用户输入仅通过参数化绑定传入，
+ * 不会直接进入 SQL 语句。
  */
 export async function updateUser(
   db: D1Database,
   id: string,
   updates: { username?: string; email?: string; avatar?: string }
 ): Promise<void> {
-  const fields: string[] = []
-  const values: (string | null)[] = []
+  const fieldMap: { column: string; value: string | null }[] = []
 
   if (updates.username !== undefined) {
-    fields.push('username = ?')
-    values.push(updates.username)
+    fieldMap.push({ column: 'username', value: updates.username })
   }
   if (updates.email !== undefined) {
-    fields.push('email = ?')
-    values.push(updates.email)
+    fieldMap.push({ column: 'email', value: updates.email })
   }
   if (updates.avatar !== undefined) {
-    fields.push('avatar = ?')
-    values.push(updates.avatar)
+    fieldMap.push({ column: 'avatar', value: updates.avatar })
   }
 
-  if (fields.length === 0) return
+  if (fieldMap.length === 0) return
 
-  fields.push('updated_at = ?')
-  values.push(new Date().toISOString())
-  values.push(id)
+  const setClause = fieldMap.map((f) => `${f.column} = ?`).join(', ')
+  const values = [...fieldMap.map((f) => f.value), new Date().toISOString(), id]
 
-  const stmt = db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`)
+  const stmt = db.prepare(`UPDATE users SET ${setClause}, updated_at = ? WHERE id = ?`)
   await stmt.bind(...values).run()
 }
 
@@ -168,6 +163,7 @@ export async function createUsageLog(
 
 /**
  * 获取使用日志列表（支持分页）
+ * 使用 D1 batch 原子执行 COUNT 与 SELECT，避免并发下总数与列表不一致
  */
 export async function getUsageLogs(
   db: D1Database,
@@ -191,19 +187,19 @@ export async function getUsageLogs(
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
-  const countStmt = db.prepare(`SELECT COUNT(*) as total FROM usage_logs ${whereClause}`)
-  const countResult = await countStmt.bind(...values).first<{ total: number }>()
-
   const limit = options.limit ?? 20
   const offset = options.offset ?? 0
-  const stmt = db.prepare(
-    `SELECT id, user_id, action, metadata, created_at FROM usage_logs ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
-  )
-  const logs = await stmt.bind(...values, limit, offset).all<UsageLog>()
+
+  const [countResult, logsResult] = await db.batch([
+    db.prepare(`SELECT COUNT(*) as total FROM usage_logs ${whereClause}`).bind(...values),
+    db.prepare(
+      `SELECT id, user_id, action, metadata, created_at FROM usage_logs ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+    ).bind(...values, limit, offset),
+  ])
 
   return {
-    logs: logs.results ?? [],
-    total: countResult?.total ?? 0,
+    logs: (logsResult as D1Result<UsageLog>).results ?? [],
+    total: (countResult as D1Result<{ total: number }>).results?.[0]?.total ?? 0,
   }
 }
 
@@ -307,29 +303,31 @@ export async function createAuditLog(
 
 /**
  * 获取审计日志列表
+ * 使用 D1 batch 原子执行 COUNT 与 SELECT
  */
 export async function getAuditLogs(
   db: D1Database,
   options: { limit?: number; offset?: number } = {}
 ): Promise<{ logs: AuditLog[]; total: number }> {
-  const countStmt = db.prepare('SELECT COUNT(*) as total FROM audit_logs')
-  const countResult = await countStmt.first<{ total: number }>()
-
   const limit = options.limit ?? 20
   const offset = options.offset ?? 0
-  const stmt = db.prepare(
-    'SELECT id, admin_id, action, target_type, target_id, details, created_at FROM audit_logs ORDER BY created_at DESC LIMIT ? OFFSET ?'
-  )
-  const logs = await stmt.bind(limit, offset).all<AuditLog>()
+
+  const [countResult, logsResult] = await db.batch([
+    db.prepare('SELECT COUNT(*) as total FROM audit_logs'),
+    db.prepare(
+      'SELECT id, admin_id, action, target_type, target_id, details, created_at FROM audit_logs ORDER BY created_at DESC LIMIT ? OFFSET ?'
+    ).bind(limit, offset),
+  ])
 
   return {
-    logs: logs.results ?? [],
-    total: countResult?.total ?? 0,
+    logs: (logsResult as D1Result<AuditLog>).results ?? [],
+    total: (countResult as D1Result<{ total: number }>).results?.[0]?.total ?? 0,
   }
 }
 
 /**
  * 获取用户列表（支持分页和搜索）
+ * 使用 D1 batch 原子执行 COUNT 与 SELECT，避免并发下总数与列表不一致
  */
 export async function getUserList(
   db: D1Database,
@@ -339,25 +337,29 @@ export async function getUserList(
   const values: (string | number)[] = []
 
   if (options.search) {
-    conditions.push('(username LIKE ? OR email LIKE ?)')
-    values.push(`%${options.search}%`, `%${options.search}%`)
+    // 限制搜索长度，避免超长输入导致 SQL 语句过大
+    const searchTerm = options.search.slice(0, 100)
+    // 转义 LIKE 特殊字符 % 和 _，防止意外匹配
+    const escaped = searchTerm.replace(/[%_]/g, '\\$&')
+    conditions.push(`(username LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\')`)
+    values.push(`%${escaped}%`, `%${escaped}%`)
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
-  const countStmt = db.prepare(`SELECT COUNT(*) as total FROM users ${whereClause}`)
-  const countResult = await countStmt.bind(...values).first<{ total: number }>()
-
   const limit = options.limit ?? 20
   const offset = options.offset ?? 0
-  const stmt = db.prepare(
-    `SELECT id, username, email, avatar, role, created_at, updated_at FROM users ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
-  )
-  const users = await stmt.bind(...values, limit, offset).all<DbUserPublic>()
+
+  const [countResult, usersResult] = await db.batch([
+    db.prepare(`SELECT COUNT(*) as total FROM users ${whereClause}`).bind(...values),
+    db.prepare(
+      `SELECT id, username, email, avatar, role, created_at, updated_at FROM users ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+    ).bind(...values, limit, offset),
+  ])
 
   return {
-    users: users.results ?? [],
-    total: countResult?.total ?? 0,
+    users: (usersResult as D1Result<DbUserPublic>).results ?? [],
+    total: (countResult as D1Result<{ total: number }>).results?.[0]?.total ?? 0,
   }
 }
 

@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { FiClipboard, FiCheck, FiClock, FiActivity } from 'react-icons/fi'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import rehypeSanitize from 'rehype-sanitize'
+import MarkdownRenderer from './MarkdownRenderer'
 
 interface AnalysisResultProps {
   result: string
@@ -50,11 +48,7 @@ export default function AnalysisResult({ result }: AnalysisResultProps) {
         </button>
       </div>
       <div className="p-6">
-        <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground-muted prose-strong:text-foreground prose-li:text-foreground-muted">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-            {result}
-          </ReactMarkdown>
-        </div>
+        <MarkdownRenderer content={result} />
       </div>
     </div>
   )

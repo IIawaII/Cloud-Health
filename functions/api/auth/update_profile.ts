@@ -65,6 +65,9 @@ export const onRequestPost = async (context: AppContext) => {
       if (verificationStatus === 'expired') {
         return errorResponse('验证码已过期，请重新获取', 400);
       }
+      if (verificationStatus === 'not_found') {
+        return errorResponse('验证码不存在，请重新获取', 400);
+      }
       if (verificationStatus === 'invalid') {
         return errorResponse('验证码错误', 400);
       }
@@ -77,6 +80,10 @@ export const onRequestPost = async (context: AppContext) => {
       const MAX_AVATAR_SIZE = 100 * 1024 * 4 / 3; // base64 约 133KB 对应 100KB 原始数据
       if (body.avatar.length > MAX_AVATAR_SIZE) {
         return errorResponse('头像过大，请压缩后重试', 400);
+      }
+      // 拒绝非图片 data URL，防止 XSS
+      if (body.avatar && !body.avatar.startsWith('data:image/')) {
+        return errorResponse('头像格式不合法', 400);
       }
       updates.avatar = body.avatar;
     }

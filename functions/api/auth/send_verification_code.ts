@@ -38,7 +38,7 @@ class EmailSendError extends Error {
   }
 }
 
-async function sendEmailViaResend(apiKey: string, to: string, code: string, type: string): Promise<void> {
+async function sendEmailViaResend(apiKey: string, resendDomain: string | undefined, to: string, code: string, type: string): Promise<void> {
   const subject = type === 'register' ? 'Health Project - 注册验证码' : 'Health Project - 修改邮箱验证码';
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
@@ -59,7 +59,7 @@ async function sendEmailViaResend(apiKey: string, to: string, code: string, type
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Health Project <noreply@resend.dev>',
+      from: `Health Project <noreply@${resendDomain || 'resend.dev'}>`,
       to,
       subject,
       html,
@@ -187,7 +187,7 @@ export const onRequestPost = async (context: AppContext) => {
       await setVerificationCooldown(context.env.DB, type, email);
       cooldownPersisted = true;
 
-      await sendEmailViaResend(context.env.RESEND_API_KEY, email, code, type);
+      await sendEmailViaResend(context.env.RESEND_API_KEY, context.env.RESEND_DOMAIN, email, code, type);
     } catch (sendError) {
       const rollbackTasks: Promise<unknown>[] = [];
       if (codePersisted) {

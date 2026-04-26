@@ -10,7 +10,8 @@ export function getCorsOrigin(request: Request, env: Env): string {
 
   if (!allowed) {
     // 生产环境未配置 ALLOWED_ORIGINS 时，拒绝所有跨域来源
-    const isDev = env.ASSETS === undefined || request.url.includes('localhost') || request.url.includes('127.0.0.1')
+    const hostname = new URL(request.url).hostname
+    const isDev = env.ASSETS === undefined || hostname === 'localhost' || hostname === '127.0.0.1'
     if (!isDev) {
       return ''
     }
@@ -23,10 +24,8 @@ export function getCorsOrigin(request: Request, env: Env): string {
 }
 
 export function addCorsHeaders(response: Response, corsOrigin: string): Response {
-  if (response.headers.has('Access-Control-Allow-Origin')) {
-    return response
-  }
   const headers = new Headers(response.headers)
+  // 统一覆盖，防止 handler 错误设置不安全的 CORS 值
   headers.set('Access-Control-Allow-Origin', corsOrigin)
   headers.set('Access-Control-Allow-Credentials', 'true')
   headers.set('Vary', 'Origin')

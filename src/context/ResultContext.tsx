@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useRef, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useRef, useEffect, useMemo, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import type { ChatMessage } from '../types';
 import { getAnonymousId } from '@/lib/anonymousId';
@@ -23,7 +23,14 @@ function loadFromStorage(storageKey: string) {
   try {
     const raw = localStorage.getItem(storageKey);
     if (raw) {
-      return JSON.parse(raw) as { analysisResult: string; planResult: string; chatMessages: ChatMessage[] };
+      const parsed = JSON.parse(raw) as { analysisResult: string; planResult: string; chatMessages: ChatMessage[] };
+      // 为旧版本存储中缺少 id 的消息补充稳定 key，避免渲染问题
+      if (Array.isArray(parsed.chatMessages)) {
+        parsed.chatMessages = parsed.chatMessages.map((msg, idx) =>
+          msg.id ? msg : { ...msg, id: `legacy-${idx}-${Date.now().toString(36)}` }
+        );
+      }
+      return parsed;
     }
   } catch {
     // ignore parse error
@@ -53,8 +60,8 @@ function saveToStorage(storageKey: string, data: { analysisResult: string; planR
 export function ResultProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   // 已登录用户按 user.id 隔离数据；匿名用户使用独立生成的匿名 ID 隔离，避免相互覆盖
-  const userId = user?.id || getAnonymousId();
-  const STORAGE_KEY = `health_project_results_${userId}`;
+  const userId = useMemo(() => user?.id || getAnonymousId(), [user?.id]);
+  const STORAGE_KEY = useMemo(() => `health_project_results_${userId}`, [userId]);
 
   const initial = loadFromStorage(STORAGE_KEY);
   const [analysisResult, setAnalysisResultState] = useState(initial.analysisResult);
@@ -68,6 +75,12 @@ export function ResultProvider({ children }: { children: ReactNode }) {
     setAnalysisResultState(data.analysisResult);
     setPlanResultState(data.planResult);
     setChatMessagesState(data.chatMessages);
+
+    // 取消可能属于旧用户的待保存任务，防止数据串写
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
   }, [STORAGE_KEY]);
 
   // 防抖写入 localStorage，避免频繁状态更新导致性能问题

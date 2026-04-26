@@ -11,6 +11,7 @@ import {
   FiX,
 } from 'react-icons/fi'
 import { useAdminUsers } from '@/hooks/useAdmin'
+import { getAvatarDisplayUrl } from '@/lib/avatar'
 
 const roleBadge = (role: string) => {
   if (role === 'admin') {
@@ -36,6 +37,7 @@ export default function Users() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editRole, setEditRole] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const pageSize = 10
 
   const { data, loading, error, refetch, updateUserRole, deleteUser } = useAdminUsers(page, pageSize, search)
@@ -46,18 +48,24 @@ export default function Users() {
   }
 
   const handleUpdateRole = async (id: string) => {
+    setActionError(null)
     const ok = await updateUserRole(id, editRole)
     if (ok) {
       setEditingId(null)
       refetch()
+    } else {
+      setActionError('更新用户角色失败，请稍后重试')
     }
   }
 
   const handleDelete = async (id: string) => {
+    setActionError(null)
     const ok = await deleteUser(id)
     if (ok) {
       setDeletingId(null)
       refetch()
+    } else {
+      setActionError('删除用户失败，请稍后重试')
     }
   }
 
@@ -97,6 +105,18 @@ export default function Users() {
         </div>
       )}
 
+      {actionError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 text-sm flex items-center justify-between">
+          <span>{actionError}</span>
+          <button
+            onClick={() => setActionError(null)}
+            className="text-red-400 hover:text-red-600 transition-colors"
+          >
+            <FiX className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Users table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -128,9 +148,17 @@ export default function Users() {
                   <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white text-xs font-bold">
-                          {user.username[0]?.toUpperCase()}
-                        </div>
+                        {user.avatar ? (
+                          <img
+                            src={getAvatarDisplayUrl(user.avatar)}
+                            alt={user.username}
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white text-xs font-bold">
+                            {user.username[0]?.toUpperCase()}
+                          </div>
+                        )}
                         <span className="font-medium text-slate-800">{user.username}</span>
                       </div>
                     </td>

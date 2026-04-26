@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { getStoredApiConfig } from '../lib/aiConfig'
 import { getApiError, parseStreamChunk, resolveErrorMessage } from '../lib/utils'
+import { useAIBase } from './useAIBase'
 
 interface UseAIOptions<T> {
   endpoint: string
@@ -28,9 +29,8 @@ function buildHeaders(): Record<string, string> {
 }
 
 export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
-  const { isAuthenticated } = useAuth()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { refreshSession } = useAuth()
+  const { loading, error, isMountedRef, startRequest, finishRequest, handleError } = useAIBase()
   const [result, setResult] = useState<T | null>(null)
 
   // 使用 ref 保存 options 引用，避免 options 对象变化导致 execute 频繁重建
@@ -39,25 +39,36 @@ export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
 
   const execute = useCallback(
     async (payload: Record<string, unknown>) => {
-      if (!isAuthenticated) {
-        setLoading(false)
-        setResult(null)
-        setError('请先登录')
-        return
-      }
+      const controller = startRequest()
+      if (!controller) return
 
-      setLoading(true)
-      setError(null)
-      setResult(null)
+      if (isMountedRef.current) {
+        setResult(null)
+      }
 
       const currentOptions = optionsRef.current
 
-      try {
-        const response = await fetch(currentOptions.endpoint, {
+      async function doFetch() {
+        return fetch(currentOptions.endpoint, {
           method: 'POST',
           headers: buildHeaders(),
           body: JSON.stringify(payload),
+          signal: controller!.signal,
         })
+      }
+
+      try {
+        let response = await doFetch()
+
+        // 401 时尝试自动刷新会话并重试一次，与 useAIStream 行为保持一致
+        if (response.status === 401) {
+          const refreshed = await refreshSession()
+          if (refreshed) {
+            response = await doFetch()
+          } else {
+            throw new Error('登录已过期，请重新登录')
+          }
+        }
 
         // 优先尝试直接解析 JSON，避免先转 text 再 parse 的内存开销
         let data: unknown
@@ -83,17 +94,17 @@ export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
         }
 
         const result = data as T
-        setResult(result)
-        currentOptions.onSuccess?.(result)
+        if (isMountedRef.current) {
+          setResult(result)
+          currentOptions.onSuccess?.(result)
+        }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        setError(msg)
-        currentOptions.onError?.(msg)
+        handleError(err, currentOptions.onError)
       } finally {
-        setLoading(false)
+        finishRequest(controller)
       }
     },
-    [isAuthenticated]
+    [startRequest, finishRequest, handleError, isMountedRef, refreshSession]
   )
 
   return { loading, error, result, execute }
@@ -107,9 +118,8 @@ export function useAIStream(options: {
   onError?: (error: string) => void
   onDone?: () => void
 }) {
-  const { isAuthenticated, refreshSession } = useAuth()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { refreshSession } = useAuth()
+  const { loading, error, isMountedRef, startRequest, finishRequest, handleError } = useAIBase()
   const abortControllerRef = useRef<AbortController | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -134,24 +144,13 @@ export function useAIStream(options: {
 
   const execute = useCallback(
     async (payload: Record<string, unknown>) => {
-      if (!isAuthenticated) {
-        setLoading(false)
-        setError('请先登录')
-        return
-      }
+      const controller = startRequest()
+      if (!controller) return
 
-      // 取消上一个未完成的请求
-      abortControllerRef.current?.abort()
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
-
-      const controller = new AbortController()
       abortControllerRef.current = controller
       timeoutRef.current = setTimeout(() => {
         controller.abort()
       }, STREAM_TIMEOUT_MS)
-
-      setLoading(true)
-      setError(null)
 
       const currentOptions = optionsRef.current
 
@@ -160,7 +159,7 @@ export function useAIStream(options: {
           method: 'POST',
           headers: buildHeaders(),
           body: JSON.stringify({ ...payload, stream: true }),
-          signal: controller.signal,
+          signal: controller!.signal,
         })
       }
 
@@ -215,16 +214,12 @@ export function useAIStream(options: {
           }
         }
 
-        currentOptions.onDone?.()
-      } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') {
-          return
+        if (isMountedRef.current) {
+          currentOptions.onDone?.()
         }
-        const msg = err instanceof Error ? err.message : String(err)
-        setError(msg)
-        currentOptions.onError?.(msg)
+      } catch (err) {
+        handleError(err, currentOptions.onError)
       } finally {
-        setLoading(false)
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current)
           timeoutRef.current = null
@@ -232,9 +227,10 @@ export function useAIStream(options: {
         if (abortControllerRef.current === controller) {
           abortControllerRef.current = null
         }
+        finishRequest(controller)
       }
     },
-    [isAuthenticated, refreshSession]
+    [startRequest, finishRequest, handleError, isMountedRef, refreshSession]
   )
 
   return { loading, error, execute, abort }

@@ -38,26 +38,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading: true,
   });
 
-  // 页面加载时：优先用缓存用户信息减少闪烁，再异步验证 Cookie 中的会话
-  useEffect(() => {
-    const cached = loadCachedUser();
-    if (cached?.username) {
-      setState(prev => ({
-        ...prev,
-        isAuthenticated: true,
-        user: cached as User,
-      }));
-    }
-    checkAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // 多标签页同步
-  useAuthSync(
-    useCallback(() => setState({ isAuthenticated: false, user: null, isLoading: false }), []),
-    useCallback(() => window.location.reload(), [])
-  );
-
   /**
    * 刷新会话（通过 httpOnly Cookie 自动携带 refresh token）
    */
@@ -66,8 +46,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const now = Date.now();
     const lockValue = localStorage.getItem(REFRESH_LOCK_KEY);
     if (lockValue && now - parseInt(lockValue, 10) < 10000) {
-      await new Promise(r => setTimeout(r, 1500));
-      return true;
+      // 另一标签页正在刷新，轮询等待锁释放（最多 8 秒）
+      for (let i = 0; i < 16; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        if (!localStorage.getItem(REFRESH_LOCK_KEY)) {
+          break;
+        }
+      }
+      // 锁释放后，验证当前会话是否已恢复，而非盲目返回 true
+      try {
+        const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/verify`, {
+          timeout: 10000,
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const user = extractUser(data);
+          persistUser(user);
+          return true;
+        }
+      } catch {
+        // 验证失败则继续走自己的刷新逻辑
+      }
     }
 
     try {
@@ -153,6 +152,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setOfflineState();
     }
   }, [doRefreshSession]);
+
+  // 页面加载时：优先用缓存用户信息减少闪烁，再异步验证 Cookie 中的会话
+  useEffect(() => {
+    const cached = loadCachedUser();
+    if (cached?.username) {
+      setState(prev => ({
+        ...prev,
+        isAuthenticated: true,
+        user: cached as User,
+      }));
+    }
+    checkAuth();
+  }, [checkAuth]);
+
+  // 多标签页同步
+  useAuthSync(
+    useCallback(() => setState({ isAuthenticated: false, user: null, isLoading: false }), []),
+    useCallback(() => window.location.reload(), [])
+  );
 
   const handleAuthSuccess = useCallback((data: unknown): AuthResponse => {
     const user = extractUser(data);

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useAIStream } from '../hooks/useAI'
 import { useResult } from '../context/ResultContext'
 import PlanForm from '../components/PlanForm'
-import type { PlanFormData } from '../components/PlanForm'
+import type { PlanFormData } from '../types'
 import ResultCard from '../components/ResultCard'
 import { FiAlertCircle } from 'react-icons/fi'
 

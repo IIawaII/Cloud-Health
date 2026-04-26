@@ -140,6 +140,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     src={avatarDisplay}
                     alt="avatar"
                     className="w-8 h-8 rounded-full bg-gray-100"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.onerror = null;
+                      target.src = '/User/default.svg';
+                    }}
                   />
                   <span className="hidden sm:inline max-w-[100px] truncate">
                     {user?.username}

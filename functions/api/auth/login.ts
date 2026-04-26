@@ -1,5 +1,5 @@
 import { verifyPassword, generateToken } from '../../lib/crypto';
-import { saveToken, saveRefreshToken } from '../../lib/auth';
+import { saveToken, saveRefreshToken, ADMIN_ACCESS_TOKEN_TTL, ADMIN_REFRESH_TOKEN_TTL } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { validateTurnstile } from '../../lib/turnstile';
 import { checkRateLimit } from '../../lib/rateLimit';
@@ -55,7 +55,7 @@ export const onRequestPost = async (context: AppContext) => {
           email: 'admin@system.local',
           role: 'admin',
           createdAt: now,
-        }, 60 * 60);
+        }, ADMIN_ACCESS_TOKEN_TTL);
 
         await saveRefreshToken(context.env.AUTH_TOKENS, refreshToken, {
           userId: 'system-admin',
@@ -63,29 +63,30 @@ export const onRequestPost = async (context: AppContext) => {
           email: 'admin@system.local',
           role: 'admin',
           createdAt: now,
-        }, 24 * 60 * 60);
+        }, ADMIN_REFRESH_TOKEN_TTL);
 
-    const cookieOptions = getSecureCookieOptions(context.req.raw);
-    return jsonResponse({
-      success: true,
-      message: '管理员登录成功',
-      user: {
-        id: 'system-admin',
-        username: adminUsername,
-        email: 'admin@system.local',
-        role: 'admin',
-      },
-    }, 200, {
-      'Set-Cookie': [
-        serializeCookie('auth_token', accessToken, { ...cookieOptions, maxAge: getAccessTokenCookieMaxAge() }),
-        serializeCookie('auth_refresh_token', refreshToken, { ...cookieOptions, maxAge: getRefreshTokenCookieMaxAge() }),
-      ].join(', '),
-    });
+        const cookieOptions = getSecureCookieOptions(context.req.raw);
+        return jsonResponse({
+          success: true,
+          message: '管理员登录成功',
+          user: {
+            id: 'system-admin',
+            username: adminUsername,
+            email: 'admin@system.local',
+            role: 'admin',
+          },
+        }, 200, {
+          'Set-Cookie': [
+            serializeCookie('auth_token', accessToken, { ...cookieOptions, maxAge: getAccessTokenCookieMaxAge() }),
+            serializeCookie('auth_refresh_token', refreshToken, { ...cookieOptions, maxAge: getRefreshTokenCookieMaxAge() }),
+          ].join(', '),
+        });
       }
       return errorResponse('用户名或密码错误', 401);
     }
 
     // 判断是用户名还是邮箱，直接从 D1 查询用户
+    // 使用与注册一致的邮箱校验逻辑，避免宽松正则误判
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(usernameOrEmail);
     const user = isEmail
       ? await findUserByEmail(context.env.DB, usernameOrEmail)

@@ -11,6 +11,8 @@ export interface Env {
   TURNSTILE_SITE_KEY?: string
   TURNSTILE_SECRET_KEY: string
   RESEND_API_KEY?: string
+  /** 邮件发送域名，默认为 resend.dev */
+  RESEND_DOMAIN?: string
   AI_API_KEY: string
   AI_BASE_URL: string
   AI_MODEL: string

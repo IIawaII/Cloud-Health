@@ -57,7 +57,11 @@ export const onRequestPost = createAIHandler({
     let isPdfTruncated = false;
     if (isPdf && fileData.length > 500_000) {
       // 保留 data:前缀 和 前约 300KB 的 base64 内容（约 225KB 原始数据）
-      const prefix = fileData.slice(0, fileData.indexOf(',') + 1);
+      const commaIndex = fileData.indexOf(',');
+      if (commaIndex === -1) {
+        return errorResponse('PDF 文件格式不正确，缺少 data URL 分隔符', 400);
+      }
+      const prefix = fileData.slice(0, commaIndex + 1);
       processedFileData = prefix + fileData.slice(prefix.length, prefix.length + 400_000);
       isPdfTruncated = true;
       console.warn(`[analyze] PDF truncated from ${fileData.length} to ${processedFileData.length} chars`);

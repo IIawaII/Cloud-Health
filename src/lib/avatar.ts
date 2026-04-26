@@ -18,15 +18,15 @@ const MAX_AVATAR_SIZE_KB = 100
 
 /**
  * 压缩并限制头像 base64 大小
+ * @returns 符合大小限制的头像数据，或 null（表示超出限制）
  */
-export function compressAvatarBase64(base64: string): string {
+export function compressAvatarBase64(base64: string): string | null {
   const sizeKB = (base64.length * 3) / 4 / 1024
   if (sizeKB <= MAX_AVATAR_SIZE_KB) {
     return base64
   }
-  // 如果超过限制，返回空字符串（由调用方处理回退到默认头像）
   console.warn(`[avatar] Base64 avatar too large (${sizeKB.toFixed(1)}KB), exceeding ${MAX_AVATAR_SIZE_KB}KB limit`)
-  return ''
+  return null
 }
 
 /**

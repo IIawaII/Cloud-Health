@@ -39,7 +39,48 @@ export function resolveLLMConfig(
 
 function isIPv4Address(value: string): boolean {
   const parts = value.split('.')
-  return parts.length === 4 && parts.every((part) => /^\d+$/.test(part) && Number(part) >= 0 && Number(part) <= 255)
+  return (
+    parts.length === 4 &&
+    parts.every(
+      (part) => /^\d+$/.test(part) && !/^0\d/.test(part) && Number(part) >= 0 && Number(part) <= 255
+    )
+  )
+}
+
+/**
+ * 严格校验 IPv6 地址格式
+ * 支持标准全写、压缩形式（::）及 IPv4 映射地址（::ffff:x.x.x.x）
+ */
+export function isIPv6Address(value: string): boolean {
+  // IPv4 映射地址：::ffff:x.x.x.x
+  if (/^::ffff:\d+\.\d+\.\d+\.\d+$/i.test(value)) return true
+
+  // 特殊全零压缩形式
+  if (value === '::') return true
+
+  // 确保最多只有一个 :: 压缩
+  const segments = value.split('::')
+  if (segments.length > 2) return false
+
+  const hasDoubleColon = segments.length === 2
+
+  const allParts = value.split(':')
+  const nonEmptyParts: string[] = []
+
+  for (const part of allParts) {
+    if (part !== '') {
+      if (!/^[0-9a-f]{1,4}$/i.test(part)) return false
+      nonEmptyParts.push(part)
+    }
+  }
+
+  if (hasDoubleColon) {
+    // :: 压缩时，非空组数必须在 1~7 之间（至少压缩了一组）
+    return nonEmptyParts.length > 0 && nonEmptyParts.length <= 7
+  }
+
+  // 无压缩时，必须有恰好 8 组
+  return nonEmptyParts.length === 8
 }
 
 function isDisallowedIPv4(value: string): boolean {
@@ -73,10 +114,21 @@ function isDisallowedIPv6(value: string): boolean {
   if (lower.startsWith('ff')) return true
   if (lower.startsWith('2001:db8')) return true
 
+  // 检查 IPv4 映射地址 ::ffff:x.x.x.x（支持压缩形式如 ::ffff:127.0.0.1）
   const mappedIpv4Match = lower.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/)
   if (mappedIpv4Match) {
     return isDisallowedIPv4(mappedIpv4Match[1])
   }
+
+  // 检查 IPv4 兼容地址 ::x.x.x.x（已废弃但仍可能被滥用）
+  const compatIpv4Match = lower.match(/::(\d+\.\d+\.\d+\.\d+)$/)
+  if (compatIpv4Match && !lower.includes('::ffff:')) {
+    return isDisallowedIPv4(compatIpv4Match[1])
+  }
+
+  // 检查环回地址的多种 IPv6 表示形式
+  // ::1 已在上文处理，此处处理 0:0:0:0:0:0:0:1 的变体
+  if (/^0{1,4}(:0{1,4}){0,6}:0{0,3}1$/.test(lower)) return true
 
   return false
 }
@@ -98,7 +150,7 @@ async function queryDnsRecords(hostname: string, type: 'A' | 'AAAA'): Promise<st
 
   return answers
     .map((answer) => answer.data)
-    .filter((value) => (type === 'A' ? isIPv4Address(value) : value.includes(':')))
+    .filter((value) => (type === 'A' ? isIPv4Address(value) : isIPv6Address(value)))
 }
 
 /**

@@ -6,16 +6,16 @@ export interface TokenData {
   createdAt: string
 }
 
-export interface RefreshTokenData {
-  userId: string
-  username: string
-  email: string
-  role: 'user' | 'admin'
-  createdAt: string
-}
+/** Refresh Token 数据结构与 Access Token 相同 */
+export type RefreshTokenData = TokenData
 
-const ACCESS_TOKEN_TTL = 15 * 60 // 15 分钟
-const REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60 // 30 天
+export const ACCESS_TOKEN_TTL = 15 * 60 // 15 分钟
+export const REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60 // 30 天
+
+/** 管理员 Access Token 有效期（1小时） */
+export const ADMIN_ACCESS_TOKEN_TTL = 60 * 60
+/** 管理员 Refresh Token 有效期（24小时） */
+export const ADMIN_REFRESH_TOKEN_TTL = 24 * 60 * 60
 
 function parseJsonSafely<T>(value: string | null): T | null {
   if (!value) return null

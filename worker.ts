@@ -1,25 +1,6 @@
-// API handlers
 import { Hono } from 'hono'
 import { FALLBACK_HTML } from './src/spa-fallback-html'
-import * as authRegister from './functions/api/auth/register'
-import * as authLogin from './functions/api/auth/login'
-import * as authLogout from './functions/api/auth/logout'
-import * as authVerify from './functions/api/auth/verify'
-import * as authChangePassword from './functions/api/auth/change_password'
-import * as authUpdateProfile from './functions/api/auth/update_profile'
-import * as authCheck from './functions/api/auth/check'
-import * as authSendVerificationCode from './functions/api/auth/send_verification_code'
-import * as authRefresh from './functions/api/auth/refresh'
-import * as chatHandler from './functions/api/chat'
-import * as analyzeHandler from './functions/api/analyze'
-import * as planHandler from './functions/api/plan'
-import * as quizHandler from './functions/api/quiz'
-import * as adminStats from './functions/api/admin/stats'
-import * as adminUsers from './functions/api/admin/users'
-import * as adminLogs from './functions/api/admin/logs'
-import * as adminAudit from './functions/api/admin/audit'
-import * as adminConfig from './functions/api/admin/config'
-
+import { api } from './functions/api/routes'
 import { getSystemConfig } from './functions/lib/db'
 import { generateNonce, addSecurityHeaders } from './functions/middleware/security'
 import { getCorsOrigin, addCorsHeaders, createCorsPreflightResponse } from './functions/middleware/cors'
@@ -29,35 +10,24 @@ import type { Env } from './functions/lib/env'
 
 type AppEnv = { Bindings: Env }
 
-const api = new Hono<AppEnv>()
+const app = new Hono<AppEnv>()
+// 将模块化路由挂载到 /api 前缀下
+app.route('/api', api)
 
-api.post('/api/auth/register', authRegister.onRequestPost)
-api.post('/api/auth/login', authLogin.onRequestPost)
-api.post('/api/auth/logout', authLogout.onRequestPost)
-api.get('/api/auth/verify', authVerify.onRequestGet)
-api.post('/api/auth/change_password', authChangePassword.onRequestPost)
-api.post('/api/auth/update_profile', authUpdateProfile.onRequestPost)
-api.post('/api/auth/check', authCheck.onRequestPost)
-api.post('/api/auth/send_verification_code', authSendVerificationCode.onRequestPost)
-api.post('/api/auth/refresh', authRefresh.onRequestPost)
-api.post('/api/chat', chatHandler.onRequestPost)
-api.post('/api/analyze', analyzeHandler.onRequestPost)
-api.post('/api/plan', planHandler.onRequestPost)
-api.post('/api/quiz', quizHandler.onRequestPost)
+/** 维护模式缓存，避免每个 API 请求都查询 D1 */
+let maintenanceCache: { value: boolean; expiry: number } | null = null
+const MAINTENANCE_CACHE_TTL_MS = 30_000 // 30 秒
 
-// Admin API routes
-api.get('/api/admin/stats', adminStats.onRequestGet)
-api.get('/api/admin/users', adminUsers.onRequestGet)
-api.patch('/api/admin/users/:id', adminUsers.onRequestPatch)
-api.delete('/api/admin/users/:id', adminUsers.onRequestDelete)
-api.get('/api/admin/logs', adminLogs.onRequestGet)
-api.get('/api/admin/audit', adminAudit.onRequestGet)
-api.get('/api/admin/config', adminConfig.onRequestGet)
-api.put('/api/admin/config', adminConfig.onRequestPut)
-
-api.get('/api/health', (context) => {
-  return context.json({ status: 'ok', timestamp: new Date().toISOString() })
-})
+async function checkMaintenanceMode(db: D1Database): Promise<boolean> {
+  const now = Date.now()
+  if (maintenanceCache && maintenanceCache.expiry > now) {
+    return maintenanceCache.value
+  }
+  const config = await getSystemConfig(db, 'maintenance_mode')
+  const isMaintenance = config?.value === 'true'
+  maintenanceCache = { value: isMaintenance, expiry: now + MAINTENANCE_CACHE_TTL_MS }
+  return isMaintenance
+}
 
 function handleWorkerError(err: unknown, request: Request, env: Env): Response {
   console.error('[Worker Error]', err)
@@ -97,8 +67,7 @@ export default {
       }
 
       if (url.pathname.startsWith('/api/')) {
-        const maintenanceConfig = await getSystemConfig(env.DB, 'maintenance_mode')
-        const isMaintenance = maintenanceConfig?.value === 'true'
+        const isMaintenance = await checkMaintenanceMode(env.DB)
         if (isMaintenance) {
           const isAllowed =
             url.pathname.startsWith('/api/admin/') ||
@@ -121,7 +90,7 @@ export default {
           }
         }
 
-        const response = await api.fetch(request, env, ctx)
+        const response = await app.fetch(request, env, ctx)
         return addCorsHeaders(response, corsOrigin)
       }
 

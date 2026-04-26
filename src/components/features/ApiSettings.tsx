@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getStoredApiConfig, saveApiConfig, clearApiConfig } from '@/config/ai'
-import { FiX, FiGlobe, FiKey, FiCpu, FiCheck, FiAlertCircle, FiTrash2, FiShield } from 'react-icons/fi'
+import { FiX, FiGlobe, FiKey, FiCpu, FiCheck, FiAlertCircle, FiTrash2 } from 'react-icons/fi'
 
 interface ApiSettingsProps {
   isOpen: boolean
@@ -105,10 +105,6 @@ export default function ApiSettings({ isOpen, onClose, onConfigChange }: ApiSett
             <p className="flex items-start gap-2 mt-1">
               <span className="inline-block w-1 h-1 rounded-full bg-primary mt-1.5 flex-shrink-0" />
               {t('apiConfig.info2')}
-            </p>
-            <p className="flex items-start gap-2 mt-1">
-              <FiShield className="w-3 h-3 text-warning flex-shrink-0 mt-0.5" />
-              {t('apiConfig.info3')}
             </p>
           </div>
 

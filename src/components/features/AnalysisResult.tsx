@@ -20,18 +20,18 @@ export default function AnalysisResult({ result }: AnalysisResultProps) {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-card overflow-hidden animate-fade-in">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-card dark:shadow-card-dark overflow-hidden animate-fade-in transition-colors">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-700/50">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-success" />
-          <h3 className="text-sm font-semibold text-foreground">分析结果</h3>
+          <h3 className="text-sm font-semibold text-foreground dark:text-foreground-dark">分析结果</h3>
         </div>
         <button
           onClick={handleCopy}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
             copied
               ? 'text-success bg-success/10'
-              : 'text-foreground-muted hover:text-primary hover:bg-primary-50'
+              : 'text-foreground-muted dark:text-foreground-dark-muted hover:text-primary hover:bg-primary-50 dark:hover:bg-primary-900/20'
           }`}
         >
           {copied ? (
@@ -57,13 +57,13 @@ export default function AnalysisResult({ result }: AnalysisResultProps) {
 // 加载中状态组件
 export function AnalysisResultSkeleton() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-card overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-card dark:shadow-card-dark overflow-hidden transition-colors">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-700/50">
         <div className="flex items-center gap-2">
           <FiActivity className="w-4 h-4 text-primary animate-pulse" />
-          <h3 className="text-sm font-semibold text-foreground">AI 分析中...</h3>
+          <h3 className="text-sm font-semibold text-foreground dark:text-foreground-dark">AI 分析中...</h3>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-foreground-muted">
+        <div className="flex items-center gap-1.5 text-xs text-foreground-muted dark:text-foreground-dark-muted">
           <FiClock className="w-3.5 h-3.5" />
           预计需要 10-30 秒
         </div>
@@ -74,15 +74,15 @@ export function AnalysisResultSkeleton() {
             <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground">正在分析报告内容...</p>
-            <p className="text-xs text-foreground-muted">AI 正在识别关键健康指标</p>
+            <p className="text-sm font-medium text-foreground dark:text-foreground-dark">正在分析报告内容...</p>
+            <p className="text-xs text-foreground-muted dark:text-foreground-dark-muted">AI 正在识别关键健康指标</p>
           </div>
         </div>
         <div className="space-y-2">
-          <div className="h-3 bg-gray-100 rounded animate-pulse w-3/4" />
-          <div className="h-3 bg-gray-100 rounded animate-pulse w-1/2" />
-          <div className="h-3 bg-gray-100 rounded animate-pulse w-5/6" />
-          <div className="h-3 bg-gray-100 rounded animate-pulse w-2/3" />
+          <div className="h-3 bg-gray-100 dark:bg-slate-700 rounded animate-pulse w-3/4" />
+          <div className="h-3 bg-gray-100 dark:bg-slate-700 rounded animate-pulse w-1/2" />
+          <div className="h-3 bg-gray-100 dark:bg-slate-700 rounded animate-pulse w-5/6" />
+          <div className="h-3 bg-gray-100 dark:bg-slate-700 rounded animate-pulse w-2/3" />
         </div>
       </div>
     </div>

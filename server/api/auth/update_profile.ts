@@ -10,7 +10,7 @@ function isUniqueConstraintError(error: unknown): boolean {
 
 export const onRequestPost = async (context: AppContext) => {
   try {
-    // 验证 token（复用 lib/auth 中的逻辑）
+    // 验证 token
     const tokenData = await verifyToken({ request: context.req.raw, env: context.env });
     if (!tokenData) {
       return errorResponse('登录已过期', 401);
@@ -76,17 +76,17 @@ export const onRequestPost = async (context: AppContext) => {
       updates.email = body.email;
     }
 
-    // 更新头像（独立于邮箱更新，避免同时更新时头像丢失）
+    // 更新头像
     if (body.avatar !== undefined) {
-      const MAX_AVATAR_SIZE = 100 * 1024 * 4 / 3; // base64 约 133KB 对应 100KB 原始数据
-      if (body.avatar.length > MAX_AVATAR_SIZE) {
-        return errorResponse('头像过大，请压缩后重试', 400);
-      }
-      // 拒绝非图片 data URL，防止 XSS
-      if (body.avatar && !body.avatar.startsWith('data:image/')) {
+      if (body.avatar === '') {
+        return errorResponse('请先选择头像', 400);
+      } 
+      else if (/^User_\d+$/.test(body.avatar)) {
+        updates.avatar = body.avatar;
+      } 
+      else {
         return errorResponse('头像格式不合法', 400);
       }
-      updates.avatar = body.avatar;
     }
 
     // 执行更新

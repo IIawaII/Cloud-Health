@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
   FiSend, FiLoader, FiAlertCircle, FiSmile, FiHelpCircle, FiTrash2, FiX,
@@ -45,7 +46,6 @@ export default function ChatInterface({
   skills,
   activeSkillId,
   onSelectSkill,
-  onUpdateSkill,
 }: ChatInterfaceProps) {
   const { t } = useTranslation()
   const { user } = useAuth()
@@ -234,7 +234,7 @@ export default function ChatInterface({
       </div>
 
       {/* Help Modal */}
-      {showHelp && (
+      {showHelp && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-md transition-opacity" onClick={() => setShowHelp(false)} />
           <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-modal-pop border border-gray-100 dark:border-slate-700 transition-colors">
@@ -274,11 +274,12 @@ export default function ChatInterface({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Skills Modal */}
-      {showSkills && (
+      {showSkills && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-md transition-opacity" onClick={() => setShowSkills(false)} />
           <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-modal-pop border border-gray-100 dark:border-slate-700 transition-colors flex flex-col max-h-[80vh]">
@@ -321,24 +322,22 @@ export default function ChatInterface({
                       </button>
                     </div>
                     <div className="mt-3">
-                      <label className="text-xs font-medium text-foreground-subtle dark:text-foreground-dark-subtle">System Prompt</label>
-                      <textarea
-                        value={skill.systemPrompt}
-                        onChange={(e) => onUpdateSkill({ ...skill, systemPrompt: e.target.value })}
-                        className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
-                        rows={3}
-                      />
+                      <label className="text-xs font-medium text-foreground-subtle dark:text-foreground-dark-subtle">{t('chat.systemPrompt')}</label>
+                      <div className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 text-sm text-foreground dark:text-foreground-dark leading-relaxed whitespace-pre-wrap">
+                        {skill.systemPrompt}
+                      </div>
                     </div>
                   </div>
                 )
               })}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Confirm Clear Modal */}
-      {showConfirm && (
+      {showConfirm && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-md transition-opacity" onClick={() => setShowConfirm(false)} />
           <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-modal-pop border border-gray-100 dark:border-slate-700 transition-colors">
@@ -368,7 +367,8 @@ export default function ChatInterface({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Messages */}
@@ -431,7 +431,7 @@ export default function ChatInterface({
               className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed break-words ${
                 msg.role === 'user'
                   ? 'bg-primary text-white rounded-tr-sm'
-                  : 'bg-gray-50 dark:bg-slate-700/50 text-foreground-muted dark:text-foreground-dark-muted rounded-tl-sm border border-gray-100 dark:border-slate-700 prose prose-sm !max-w-[80%] prose-headings:text-foreground dark:prose-headings:text-foreground-dark prose-p:text-foreground-muted dark:prose-p:text-foreground-dark-muted prose-strong:text-foreground dark:prose-strong:text-foreground-dark prose-li:text-foreground-muted dark:prose-li:text-foreground-dark-muted'
+                  : 'bg-gray-50 dark:bg-slate-700/50 text-foreground dark:text-foreground-dark rounded-tl-sm border border-gray-100 dark:border-slate-700 prose prose-sm !max-w-[80%] dark:prose-invert'
               }`}
             >
               {msg.role === 'user' ? (
@@ -477,9 +477,6 @@ export default function ChatInterface({
         {/* Action Toolbar */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1">
-            {/* 左侧留白，可扩展其他操作 */}
-          </div>
-          <div className="flex items-center gap-1">
             <button
               onClick={() => setShowSkills(true)}
               className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-foreground-muted dark:text-foreground-dark-muted hover:text-primary hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
@@ -504,6 +501,9 @@ export default function ChatInterface({
               <FiTrash2 className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{t('chat.clear')}</span>
             </button>
+          </div>
+          <div className="flex items-center gap-1">
+            {/* 右侧留白，可扩展其他操作 */}
           </div>
         </div>
         <div className="flex items-end gap-3">

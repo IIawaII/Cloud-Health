@@ -220,7 +220,6 @@
     "clear": "清除",
     "info1": "您可以配置自己的 AI API 来替代服务端默认配置",
     "info2": "配置仅保存在浏览器本地，不会上传到服务器",
-    "info3": "注意：API Key 使用 AES-GCM 加密存储在本地浏览器中，每个用户拥有独立的数据密钥。请勿在公共或共享设备上保存敏感密钥",
     "errors": {
       "incomplete": "请填写完整的 AI 配置信息",
       "saveFailed": "保存失败，请检查登录状态"
@@ -377,6 +376,7 @@
     "skillEnabled": "已启用",
     "skillEnable": "启用",
     "activeSkill": "当前技能",
+    "systemPrompt": "系统提示词",
     "help": {
       "title": "使用帮助",
       "subtitle": "快速上手智能对话",

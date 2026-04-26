@@ -220,7 +220,6 @@
     "clear": "Clear",
     "info1": "You can configure your own AI API instead of server defaults",
     "info2": "Config is stored locally in browser only, not uploaded to server",
-    "info3": "Note: API Key is encrypted with AES-GCM in your local browser. Each user has an independent data key. Do not save sensitive keys on public or shared devices",
     "errors": {
       "incomplete": "Please fill in all AI config fields",
       "saveFailed": "Save failed, please check your login status"
@@ -377,6 +376,7 @@
     "skillEnabled": "Enabled",
     "skillEnable": "Enable",
     "activeSkill": "Active Skill",
+    "systemPrompt": "System Prompt",
     "help": {
       "title": "Help",
       "subtitle": "Quick start guide for smart chat",

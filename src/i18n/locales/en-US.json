@@ -1,0 +1,147 @@
+{
+  "nav": {
+    "home": "Home",
+    "report": "Report Analysis",
+    "plan": "Plan Generator",
+    "chat": "Smart Chat",
+    "quiz": "Health Quiz",
+    "admin": "Admin Panel",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "settings": "Account Settings",
+    "aiConfig": "AI Config"
+  },
+  "home": {
+    "title": "Smart Health Diagnosis",
+    "subtitle": "Your Personal Health AI Advisor",
+    "description": "Leveraging large language model technology to provide intelligent health report analysis, personalized health plans, health Q&A, and smart conversations for more scientific and efficient health management.",
+    "features": {
+      "report": {
+        "title": "Health Report Analysis",
+        "desc": "Upload medical reports, lab results, or health images for AI-powered analysis with professional insights and health recommendations."
+      },
+      "plan": {
+        "title": "Health Plan Generator",
+        "desc": "Fill in your health information and let AI create tailored diet, exercise, and lifestyle management plans."
+      },
+      "chat": {
+        "title": "Smart Chat",
+        "desc": "Chat in real-time with a health AI advisor to get answers to your health questions and professional guidance."
+      },
+      "quiz": {
+        "title": "Health Quiz",
+        "desc": "Test your health knowledge through fun quizzes with AI-generated questions and instant scoring."
+      }
+    },
+    "highlights": {
+      "ai": "AI Powered",
+      "privacy": "Privacy Safe",
+      "professional": "Professional"
+    },
+    "safety": {
+      "title": "Safety Notice",
+      "desc": "This tool analyzes health information using AI technology. Results are for reference only and cannot replace professional medical diagnosis or treatment. Please seek medical attention promptly for serious health issues. Your API key is stored only in your local browser; we do not collect or store any of your health data."
+    }
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "dashboard": "Dashboard",
+    "users": "User Management",
+    "data": "Data Management",
+    "config": "System Config",
+    "search": "Search username or email",
+    "role": {
+      "user": "User",
+      "admin": "Admin"
+    },
+    "actions": {
+      "edit": "Edit Role",
+      "delete": "Delete",
+      "confirm": "Confirm",
+      "cancel": "Cancel"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome Back",
+      "usernameOrEmail": "Username or Email",
+      "usernameOrEmailPlaceholder": "Enter username or email",
+      "password": "Password",
+      "passwordPlaceholder": "Enter password",
+      "submit": "Login",
+      "loggingIn": "Logging in...",
+      "noAccount": "No account?",
+      "registerNow": "Register now",
+      "turnstileError": "Verification failed, please refresh and retry",
+      "turnstileExpired": "Verification expired, please verify again",
+      "securityNotice": "Protected by Cloudflare Turnstile"
+    },
+    "register": {
+      "title": "Create Account",
+      "username": "Username",
+      "usernamePlaceholder": "3-10 chars, letters/numbers/_",
+      "usernameError": "Only letters, numbers, underscore, 3-10 chars",
+      "usernameTaken": "Username already taken",
+      "email": "Email",
+      "emailPlaceholder": "your@email.com",
+      "emailError": "Please enter a valid email",
+      "emailTaken": "Email already registered",
+      "verificationCode": "Verification Code",
+      "verificationCodePlaceholder": "Enter 6-digit code",
+      "sendCode": "Send Code",
+      "resendIn": "Resend in {{seconds}}s",
+      "password": "Password",
+      "passwordPlaceholder": "At least 8 characters",
+      "confirmPassword": "Confirm Password",
+      "confirmPasswordPlaceholder": "Re-enter password",
+      "passwordMismatch": "Passwords do not match",
+      "passwordChecks": {
+        "length": "At least 8 chars",
+        "number": "Contains number",
+        "letter": "Contains letter",
+        "special": "Special character"
+      },
+      "submit": "Register",
+      "registering": "Registering...",
+      "hasAccount": "Already have an account?",
+      "loginNow": "Login now"
+    }
+  },
+  "landing": {
+    "heroTitle": "Your Personal Health AI Advisor",
+    "heroDesc": "Leveraging large language model technology to provide intelligent health report analysis, personalized health plans, health Q&A, and smart conversations for more scientific and efficient health management.",
+    "startFree": "Get Started Free",
+    "learnMore": "Learn More",
+    "coreFeatures": "Core Features",
+    "coreFeaturesDesc": "Four AI health services to comprehensively protect your healthy life",
+    "ctaTitle": "Start Smart Health Management",
+    "ctaDesc": "Register an account and experience AI-driven health analysis. No complex configuration needed, start in a few steps.",
+    "advantages": [
+      "Support multiple health report formats",
+      "One-click personalized health plan",
+      "7×24 AI health advisor online",
+      "Fun health knowledge quiz challenge"
+    ]
+  },
+  "common": {
+    "loading": "Loading...",
+    "submit": "Submit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "error": "Error",
+    "retry": "Retry",
+    "success": "Success",
+    "noData": "No data"
+  },
+  "theme": {
+    "light": "Light Mode",
+    "dark": "Dark Mode",
+    "system": "System"
+  },
+  "language": {
+    "zh": "中文",
+    "en": "English"
+  }
+}

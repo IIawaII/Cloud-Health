@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   FiFileText,
   FiClipboard,
@@ -59,6 +60,8 @@ const advantages = [
 
 export default function LandingPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
+  void t
 
   return (
     <div className="min-h-screen bg-background-secondary">

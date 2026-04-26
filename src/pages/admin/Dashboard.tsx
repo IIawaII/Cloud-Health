@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   FiUsers,
   FiUserPlus,
@@ -54,6 +55,7 @@ function StatCard({
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation()
   const { data, loading, error } = useAdminStats()
 
   const chartData = useMemo(() => {
@@ -89,7 +91,7 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-600">
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-red-600 dark:text-red-400">
         {error}
       </div>
     )
@@ -99,38 +101,38 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Page title */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">仪表盘</h1>
-        <p className="text-sm text-slate-500 mt-1">平台运营数据概览</p>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('admin.dashboard')}</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t('admin.title')}</p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="总用户数"
+          title={t('admin.users')}
           value={data?.totalUsers ?? 0}
           icon={FiUsers}
-          trend={`今日新增 ${data?.todayNewUsers ?? 0}`}
+          trend={`+${data?.todayNewUsers ?? 0} today`}
           color="#0D9488"
         />
         <StatCard
-          title="今日新增"
+          title="Today"
           value={data?.todayNewUsers ?? 0}
           icon={FiUserPlus}
-          trend="活跃用户增长"
+          trend="Active growth"
           color="#3B82F6"
         />
         <StatCard
-          title="功能调用总量"
+          title="Total Calls"
           value={data?.totalLogs ?? 0}
           icon={FiActivity}
-          trend={`今日 ${data?.todayLogs ?? 0}`}
+          trend={`${data?.todayLogs ?? 0} today`}
           color="#F59E0B"
         />
         <StatCard
-          title="数据活跃度"
+          title="Activity"
           value={data?.totalLogs && data.totalUsers ? Math.round(data.totalLogs / data.totalUsers) : 0}
           icon={FiBarChart2}
-          trend="人均调用次数"
+          trend="Per user"
           color="#10B981"
         />
       </div>
@@ -138,8 +140,8 @@ export default function Dashboard() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* User trend chart */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-slate-800 mb-4">用户注册趋势（近30天）</h3>
+        <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm transition-colors">
+          <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100 mb-4">{t('admin.dashboard')}</h3>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
@@ -166,7 +168,7 @@ export default function Dashboard() {
                   strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#colorUsers)"
-                  name="新增用户"
+                  name="Users"
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -174,8 +176,8 @@ export default function Dashboard() {
         </div>
 
         {/* Usage distribution pie chart */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-slate-800 mb-4">功能使用分布</h3>
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm transition-colors">
+          <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100 mb-4">Usage</h3>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -213,7 +215,7 @@ export default function Dashboard() {
                   className="w-2.5 h-2.5 rounded-full"
                   style={{ backgroundColor: COLORS[index % COLORS.length] }}
                 />
-                <span className="text-xs text-slate-600">
+                <span className="text-xs text-slate-600 dark:text-slate-400">
                   {actionNameMap[entry.name] || entry.name}
                 </span>
               </div>

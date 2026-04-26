@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/AuthContext';
 import { TurnstileWidget } from '@/components/TurnstileWidget';
 import { TURNSTILE_SITE_KEY } from '@/lib/config';
@@ -20,6 +21,7 @@ import {
 
 export default function Register() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { register } = useAuth();
   
   const [formData, setFormData] = useState({
@@ -96,7 +98,7 @@ export default function Register() {
         errorSetter('');
       } else {
         statusSetter('taken');
-        errorSetter(field === 'username' ? '用户名已被注册' : '邮箱已被注册');
+        errorSetter(field === 'username' ? t('auth.register.usernameTaken') : t('auth.register.emailTaken'));
       }
     } catch (err) {
       clearTimeout(timeoutId);
@@ -124,7 +126,7 @@ export default function Register() {
     if (name === 'email') {
       setEmailStatus('idle');
       if (value && !validateEmail(value)) {
-        setEmailError('请输入有效的邮箱地址');
+        setEmailError(t('auth.register.emailError'));
       } else {
         setEmailError('');
       }
@@ -139,7 +141,7 @@ export default function Register() {
   const handleEmailBlur = () => {
     if (formData.email) {
       if (!validateEmail(formData.email)) {
-        setEmailError('请输入有效的邮箱地址');
+        setEmailError(t('auth.register.emailError'));
       } else {
         checkAvailability('email', formData.email);
       }
@@ -149,7 +151,7 @@ export default function Register() {
   const handleUsernameBlur = () => {
     if (formData.username) {
       if (!/^[a-zA-Z0-9_]{3,10}$/.test(formData.username)) {
-        setUsernameError('用户名只能包含字母、数字和下划线，长度3-10位');
+        setUsernameError(t('auth.register.usernameError'));
       } else {
         checkAvailability('username', formData.username);
       }
@@ -163,25 +165,25 @@ export default function Register() {
 
   const handleTurnstileError = useCallback(() => {
     setTurnstileToken('');
-    setError('人机验证失败，请刷新页面重试');
-  }, []);
+    setError(t('auth.login.turnstileError'));
+  }, [t]);
 
   const handleTurnstileExpire = useCallback(() => {
     setTurnstileToken('');
-    setError('验证已过期，请重新验证');
-  }, []);
+    setError(t('auth.login.turnstileExpired'));
+  }, [t]);
 
   const handleSendCode = async () => {
     if (!validateEmail(formData.email)) {
-      setEmailError('请输入有效的邮箱地址');
+      setEmailError(t('auth.register.emailError'));
       return;
     }
     if (emailStatus === 'taken') {
-      setError('该邮箱已被注册');
+      setError(t('auth.register.emailTaken'));
       return;
     }
     if (!turnstileToken) {
-      setError('请先完成人机验证');
+      setError(t('auth.login.turnstileError'));
       return;
     }
 
@@ -293,24 +295,24 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-slate-50 to-blue-50 flex items-start sm:items-center justify-center p-4 py-6 overflow-y-auto">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 flex items-start sm:items-center justify-center p-4 py-6 overflow-y-auto transition-colors">
       <div className="w-full max-w-md my-auto">
         {/* Logo */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl shadow-lg mb-4">
             <FiShield className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">Health Project</h1>
-          <p className="text-slate-500 mt-1">智能健康诊断平台</p>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Health Project</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">{t('home.title')}</p>
         </div>
 
         {/* Register Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden transition-colors">
           <div className="p-6 sm:p-8">
-            <h2 className="text-xl font-semibold text-slate-800 mb-6">创建账号</h2>
+            <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-6">{t('auth.register.title')}</h2>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600 text-sm">
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
                 <span className="flex-shrink-0">⚠️</span>
                 {error}
               </div>
@@ -319,8 +321,8 @@ export default function Register() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Username */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  用户名
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  {t('auth.register.username')}
                 </label>
                 <div className="relative">
                   <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -331,10 +333,10 @@ export default function Register() {
                     value={formData.username}
                     onChange={handleChange}
                     onBlur={handleUsernameBlur}
-                    placeholder="3-10位字母、数字或下划线"
+                    placeholder={t('auth.register.usernamePlaceholder')}
                     maxLength={10}
-                    className={`w-full pl-10 pr-9 py-2.5 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none ${
-                      usernameError ? 'border-red-300 focus:ring-red-200' : 'border-slate-200'
+                    className={`w-full pl-10 pr-9 py-2.5 bg-slate-50 dark:bg-slate-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
+                      usernameError ? 'border-red-300 dark:border-red-600 focus:ring-red-200' : 'border-slate-200 dark:border-slate-600'
                     }`}
                     disabled={isLoading}
                   />
@@ -355,8 +357,8 @@ export default function Register() {
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  邮箱
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  {t('auth.register.email')}
                 </label>
                 <div className="relative">
                   <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -367,10 +369,10 @@ export default function Register() {
                     value={formData.email}
                     onChange={handleChange}
                     onBlur={handleEmailBlur}
-                    placeholder="your@email.com"
+                    placeholder={t('auth.register.emailPlaceholder')}
                     maxLength={254}
-                    className={`w-full pl-10 pr-9 py-2.5 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none ${
-                      emailError ? 'border-red-300 focus:ring-red-200' : 'border-slate-200'
+                    className={`w-full pl-10 pr-9 py-2.5 bg-slate-50 dark:bg-slate-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
+                      emailError ? 'border-red-300 dark:border-red-600 focus:ring-red-200' : 'border-slate-200 dark:border-slate-600'
                     }`}
                     disabled={isLoading}
                   />
@@ -391,8 +393,8 @@ export default function Register() {
 
               {/* Verification Code */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  验证码
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  {t('auth.register.verificationCode')}
                 </label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
@@ -404,9 +406,9 @@ export default function Register() {
                       inputMode="numeric"
                       value={formData.verificationCode}
                       onChange={handleChange}
-                      placeholder="请输入6位验证码"
+                      placeholder={t('auth.register.verificationCodePlaceholder')}
                       maxLength={6}
-                      className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                      className="w-full pl-10 pr-3 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                       disabled={isLoading}
                     />
                   </div>
@@ -414,14 +416,14 @@ export default function Register() {
                     type="button"
                     onClick={handleSendCode}
                     disabled={countdown > 0 || isSendingCode || !turnstileToken || emailStatus === 'taken' || !validateEmail(formData.email)}
-                    className="px-4 py-2.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-sm font-medium hover:bg-blue-100 focus:ring-2 focus:ring-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    className="px-4 py-2.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-lg text-sm font-medium hover:bg-blue-100 dark:hover:bg-blue-900/30 focus:ring-2 focus:ring-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     {isSendingCode ? (
                       <FiLoader className="w-4 h-4 animate-spin" />
                     ) : countdown > 0 ? (
-                      `${countdown}s后重发`
+                      t('auth.register.resendIn', { seconds: countdown })
                     ) : (
-                      '获取验证码'
+                      t('auth.register.sendCode')
                     )}
                   </button>
                 </div>
@@ -429,8 +431,8 @@ export default function Register() {
 
               {/* Password */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  密码
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  {t('auth.register.password')}
                 </label>
                 <div className="relative">
                   <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -440,15 +442,15 @@ export default function Register() {
                     autoComplete="new-password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="至少8位字符"
+                    placeholder={t('auth.register.passwordPlaceholder')}
                     maxLength={128}
-                    className="w-full pl-10 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                    className="w-full pl-10 pr-12 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                   >
                     {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
                   </button>
@@ -468,7 +470,7 @@ export default function Register() {
                                 : passwordStrength === 3
                                 ? 'bg-yellow-400'
                                 : 'bg-green-400'
-                              : 'bg-slate-200'
+                              : 'bg-slate-200 dark:bg-slate-600'
                           }`}
                         />
                       ))}
@@ -476,19 +478,19 @@ export default function Register() {
                     <div className="grid grid-cols-2 gap-1 text-xs">
                       <div className={`flex items-center gap-1 ${passwordChecks.length ? 'text-green-600' : 'text-slate-400'}`}>
                         {passwordChecks.length ? <FiCheckCircle className="w-3 h-3" /> : <FiXCircle className="w-3 h-3" />}
-                        至少8位
+                        {t('auth.register.passwordChecks.length')}
                       </div>
                       <div className={`flex items-center gap-1 ${passwordChecks.hasNumber ? 'text-green-600' : 'text-slate-400'}`}>
                         {passwordChecks.hasNumber ? <FiCheckCircle className="w-3 h-3" /> : <FiXCircle className="w-3 h-3" />}
-                        包含数字
+                        {t('auth.register.passwordChecks.number')}
                       </div>
                       <div className={`flex items-center gap-1 ${passwordChecks.hasLetter ? 'text-green-600' : 'text-slate-400'}`}>
                         {passwordChecks.hasLetter ? <FiCheckCircle className="w-3 h-3" /> : <FiXCircle className="w-3 h-3" />}
-                        包含字母
+                        {t('auth.register.passwordChecks.letter')}
                       </div>
                       <div className={`flex items-center gap-1 ${passwordChecks.hasSpecial ? 'text-green-600' : 'text-slate-400'}`}>
                         {passwordChecks.hasSpecial ? <FiCheckCircle className="w-3 h-3" /> : <FiXCircle className="w-3 h-3" />}
-                        特殊字符
+                        {t('auth.register.passwordChecks.special')}
                       </div>
                     </div>
                   </div>
@@ -497,8 +499,8 @@ export default function Register() {
 
               {/* Confirm Password */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  确认密码
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  {t('auth.register.confirmPassword')}
                 </label>
                 <div className="relative">
                   <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -508,21 +510,21 @@ export default function Register() {
                     autoComplete="new-password"
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    placeholder="再次输入密码"
+                    placeholder={t('auth.register.confirmPasswordPlaceholder')}
                     maxLength={128}
-                    className="w-full pl-10 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                    className="w-full pl-10 pr-12 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                   >
                     {showConfirmPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
                   </button>
                 </div>
                 {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                  <p className="mt-1 text-xs text-red-500">两次输入的密码不一致</p>
+                  <p className="mt-1 text-xs text-red-500">{t('auth.register.passwordMismatch')}</p>
                 )}
               </div>
 
@@ -546,11 +548,11 @@ export default function Register() {
                 {isLoading ? (
                   <>
                     <FiLoader className="w-5 h-5 animate-spin" />
-                    注册中...
+                    {t('auth.register.registering')}
                   </>
                 ) : (
                   <>
-                    注册
+                    {t('auth.register.submit')}
                     <FiArrowRight className="w-5 h-5" />
                   </>
                 )}
@@ -559,22 +561,22 @@ export default function Register() {
           </div>
 
           {/* Footer */}
-          <div className="bg-slate-50 px-8 py-4 border-t border-slate-100">
-            <p className="text-center text-sm text-slate-600">
-              已有账号？{' '}
+          <div className="bg-slate-50 dark:bg-slate-700/50 px-8 py-4 border-t border-slate-100 dark:border-slate-700 transition-colors">
+            <p className="text-center text-sm text-slate-600 dark:text-slate-400">
+              {t('auth.register.hasAccount')}{' '}
               <Link 
                 to="/login" 
-                className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors"
               >
-                立即登录
+                {t('auth.register.loginNow')}
               </Link>
             </p>
           </div>
         </div>
 
         {/* Security Notice */}
-        <p className="text-center text-xs text-slate-400 mt-6">
-          受 Cloudflare Turnstile 保护，确保您的账户安全
+        <p className="text-center text-xs text-slate-400 dark:text-slate-500 mt-6">
+          {t('auth.login.securityNotice')}
         </p>
       </div>
     </div>

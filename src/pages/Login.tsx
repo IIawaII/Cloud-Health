@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/AuthContext';
 import { TurnstileWidget } from '@/components/TurnstileWidget';
 import { TURNSTILE_SITE_KEY } from '@/lib/config';
@@ -17,6 +18,7 @@ import {
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
   const { login } = useAuth();
   
   // 获取登录后要跳转的路径（ProtectedRoute 保存的）
@@ -92,24 +94,24 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-slate-50 to-blue-50 flex items-start sm:items-center justify-center p-4 py-6 overflow-y-auto">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 flex items-start sm:items-center justify-center p-4 py-6 overflow-y-auto transition-colors">
       <div className="w-full max-w-md my-auto">
         {/* Logo */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl shadow-lg mb-4">
             <FiShield className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">Health Project</h1>
-          <p className="text-slate-500 mt-1">智能健康诊断平台</p>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Health Project</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">{t('home.title')}</p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden transition-colors">
           <div className="p-6 sm:p-8">
-            <h2 className="text-xl font-semibold text-slate-800 mb-6">欢迎回来</h2>
+            <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-6">{t('auth.login.title')}</h2>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600 text-sm">
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
                 <span className="flex-shrink-0">⚠️</span>
                 {error}
               </div>
@@ -118,8 +120,8 @@ export default function Login() {
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Username/Email */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  用户名或邮箱
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  {t('auth.login.usernameOrEmail')}
                 </label>
                 <div className="relative">
                   <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -129,9 +131,9 @@ export default function Login() {
                     autoComplete="username"
                     value={formData.usernameOrEmail}
                     onChange={handleChange}
-                    placeholder="请输入用户名或邮箱"
+                    placeholder={t('auth.login.usernameOrEmailPlaceholder')}
                     maxLength={254}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     disabled={isLoading}
                   />
                 </div>
@@ -139,8 +141,8 @@ export default function Login() {
 
               {/* Password */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  密码
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  {t('auth.login.password')}
                 </label>
                 <div className="relative">
                   <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -150,15 +152,15 @@ export default function Login() {
                     autoComplete="current-password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="请输入密码"
+                    placeholder={t('auth.login.passwordPlaceholder')}
                     maxLength={128}
-                    className="w-full pl-10 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                    className="w-full pl-10 pr-12 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                   >
                     {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
                   </button>
@@ -185,11 +187,11 @@ export default function Login() {
                 {isLoading ? (
                   <>
                     <FiLoader className="w-5 h-5 animate-spin" />
-                    登录中...
+                    {t('auth.login.loggingIn')}
                   </>
                 ) : (
                   <>
-                    登录
+                    {t('auth.login.submit')}
                     <FiArrowRight className="w-5 h-5" />
                   </>
                 )}
@@ -198,22 +200,22 @@ export default function Login() {
           </div>
 
           {/* Footer */}
-          <div className="bg-slate-50 px-8 py-4 border-t border-slate-100">
-            <p className="text-center text-sm text-slate-600">
-              还没有账号？{' '}
+          <div className="bg-slate-50 dark:bg-slate-700/50 px-8 py-4 border-t border-slate-100 dark:border-slate-700 transition-colors">
+            <p className="text-center text-sm text-slate-600 dark:text-slate-400">
+              {t('auth.login.noAccount')}{' '}
               <Link 
                 to="/register" 
-                className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors"
               >
-                立即注册
+                {t('auth.login.registerNow')}
               </Link>
             </p>
           </div>
         </div>
 
         {/* Security Notice */}
-        <p className="text-center text-xs text-slate-400 mt-6">
-          受 Cloudflare Turnstile 保护，确保您的账户安全
+        <p className="text-center text-xs text-slate-400 dark:text-slate-500 mt-6">
+          {t('auth.login.securityNotice')}
         </p>
       </div>
     </div>

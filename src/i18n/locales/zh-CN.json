@@ -1,0 +1,147 @@
+{
+  "nav": {
+    "home": "首页",
+    "report": "报告分析",
+    "plan": "计划生成",
+    "chat": "智能对话",
+    "quiz": "健康问答",
+    "admin": "后台管理",
+    "login": "登录",
+    "register": "注册",
+    "logout": "退出登录",
+    "settings": "账号设置",
+    "aiConfig": "AI 配置"
+  },
+  "home": {
+    "title": "智能健康诊断平台",
+    "subtitle": "您的私人健康 AI 顾问",
+    "description": "利用大语言模型技术，为您提供智能健康报告分析、个性化健康计划、健康问答和智能对话服务，让健康管理更科学、更高效。",
+    "features": {
+      "report": {
+        "title": "健康报告分析",
+        "desc": "上传体检报告、化验单或健康检测图像，AI 智能分析各项指标，给出专业解读和健康建议。"
+      },
+      "plan": {
+        "title": "健康计划生成",
+        "desc": "填写个人健康信息，AI 为您量身定制科学的饮食、运动和作息管理方案。"
+      },
+      "chat": {
+        "title": "智能对话",
+        "desc": "与健康 AI 顾问实时对话，解答您的健康疑问，获取专业的健康指导建议。"
+      },
+      "quiz": {
+        "title": "健康问答",
+        "desc": "通过趣味问答测试您的健康知识水平，AI 智能出题并即时判分解析。"
+      }
+    },
+    "highlights": {
+      "ai": "AI 智能分析",
+      "privacy": "隐私安全",
+      "professional": "专业可靠"
+    },
+    "safety": {
+      "title": "安全提示",
+      "desc": "本工具基于人工智能技术分析健康信息，结果仅供参考，不能替代专业医生的诊断和治疗建议。如有严重健康问题，请及时就医。您的 API 密钥仅保存在本地浏览器中，我们不会收集或存储您的任何健康数据。"
+    }
+  },
+  "admin": {
+    "title": "后台管理",
+    "dashboard": "仪表盘",
+    "users": "用户管理",
+    "data": "数据管理",
+    "config": "系统配置",
+    "search": "搜索用户名或邮箱",
+    "role": {
+      "user": "普通用户",
+      "admin": "管理员"
+    },
+    "actions": {
+      "edit": "编辑角色",
+      "delete": "删除",
+      "confirm": "确认",
+      "cancel": "取消"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "欢迎回来",
+      "usernameOrEmail": "用户名或邮箱",
+      "usernameOrEmailPlaceholder": "请输入用户名或邮箱",
+      "password": "密码",
+      "passwordPlaceholder": "请输入密码",
+      "submit": "登录",
+      "loggingIn": "登录中...",
+      "noAccount": "还没有账号？",
+      "registerNow": "立即注册",
+      "turnstileError": "人机验证失败，请刷新页面重试",
+      "turnstileExpired": "验证已过期，请重新验证",
+      "securityNotice": "受 Cloudflare Turnstile 保护，确保您的账户安全"
+    },
+    "register": {
+      "title": "创建账号",
+      "username": "用户名",
+      "usernamePlaceholder": "3-10位字母、数字或下划线",
+      "usernameError": "用户名只能包含字母、数字和下划线，长度3-10位",
+      "usernameTaken": "用户名已被注册",
+      "email": "邮箱",
+      "emailPlaceholder": "your@email.com",
+      "emailError": "请输入有效的邮箱地址",
+      "emailTaken": "邮箱已被注册",
+      "verificationCode": "验证码",
+      "verificationCodePlaceholder": "请输入6位验证码",
+      "sendCode": "获取验证码",
+      "resendIn": "{{seconds}}s后重发",
+      "password": "密码",
+      "passwordPlaceholder": "至少8位字符",
+      "confirmPassword": "确认密码",
+      "confirmPasswordPlaceholder": "再次输入密码",
+      "passwordMismatch": "两次输入的密码不一致",
+      "passwordChecks": {
+        "length": "至少8位",
+        "number": "包含数字",
+        "letter": "包含字母",
+        "special": "特殊字符"
+      },
+      "submit": "注册",
+      "registering": "注册中...",
+      "hasAccount": "已有账号？",
+      "loginNow": "立即登录"
+    }
+  },
+  "landing": {
+    "heroTitle": "您的私人健康 AI 顾问",
+    "heroDesc": "利用大语言模型技术，为您提供智能健康报告分析、个性化健康计划、健康问答和智能对话服务，让健康管理更科学、更高效。",
+    "startFree": "免费开始使用",
+    "learnMore": "了解更多",
+    "coreFeatures": "核心功能",
+    "coreFeaturesDesc": "四大 AI 健康服务，全方位守护您的健康生活",
+    "ctaTitle": "立即开启智能健康管理",
+    "ctaDesc": "注册账号，体验 AI 驱动的健康分析服务。无需复杂配置，几步即可开始使用。",
+    "advantages": [
+      "支持多种健康报告格式上传",
+      "个性化健康计划一键生成",
+      "7×24 小时 AI 健康顾问在线",
+      "趣味健康知识问答挑战"
+    ]
+  },
+  "common": {
+    "loading": "加载中...",
+    "submit": "提交",
+    "save": "保存",
+    "cancel": "取消",
+    "close": "关闭",
+    "error": "出错了",
+    "retry": "重试",
+    "success": "成功",
+    "noData": "暂无数据"
+  },
+  "theme": {
+    "light": "浅色模式",
+    "dark": "深色模式",
+    "system": "跟随系统"
+  },
+  "language": {
+    "zh": "中文",
+    "en": "English"
+  }
+}

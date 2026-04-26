@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/context/AuthContext'
+import { useTheme } from '@/hooks/useTheme'
 import { getAvatarDisplayUrl } from '@/lib/avatar'
 import {
   FiHome,
@@ -11,21 +13,24 @@ import {
   FiLogOut,
   FiActivity,
   FiShield,
-  FiClipboard,
   FiChevronsLeft,
   FiChevronsRight,
+  FiMoon,
+  FiSun,
+  FiGlobe,
 } from 'react-icons/fi'
 
 const navItems = [
-  { path: '/admin', label: '仪表盘', icon: FiHome },
-  { path: '/admin/users', label: '用户管理', icon: FiUsers },
-  { path: '/admin/data', label: '数据管理', icon: FiDatabase },
-  { path: '/admin/config', label: '系统配置', icon: FiSettings },
+  { path: '/admin', labelKey: 'admin.dashboard', icon: FiHome },
+  { path: '/admin/users', labelKey: 'admin.users', icon: FiUsers },
+  { path: '/admin/data', labelKey: 'admin.data', icon: FiDatabase },
+  { path: '/admin/config', labelKey: 'admin.config', icon: FiSettings },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
-  const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
+  const { resolvedTheme, toggleTheme } = useTheme()
   const { user, logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -80,12 +85,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {navItems.map((item) => {
             const Icon = item.icon
             const active = isActive(item.path)
+            const label = t(item.labelKey)
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
-                title={collapsed ? item.label : undefined}
+                title={collapsed ? label : undefined}
                 className={`flex items-center rounded-lg text-sm font-medium transition-all ${
                   active
                     ? 'bg-teal-600 text-white'
@@ -93,7 +99,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 } ${collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'}`}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
-                {!collapsed && item.label}
+                {!collapsed && label}
               </Link>
             )
           })}
@@ -109,7 +115,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }`}
           >
             {collapsed ? <FiChevronsRight className="w-4 h-4" /> : <FiChevronsLeft className="w-4 h-4" />}
-            {!collapsed && '收起'}
+            {!collapsed && t('common.cancel')}
           </button>
         </div>
 
@@ -136,7 +142,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }`}
           >
             <FiLogOut className="w-4 h-4" />
-            {!collapsed && '退出登录'}
+            {!collapsed && t('nav.logout')}
           </button>
         </div>
       </aside>
@@ -144,32 +150,45 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8">
+        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 lg:px-8 transition-colors">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100"
+              className="lg:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               <FiMenu className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-2 text-sm text-slate-500">
+            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
               <FiActivity className="w-4 h-4 text-teal-500" />
               <span>Health Project</span>
-              <span className="text-slate-300">/</span>
-              <span className="text-slate-800 font-medium">后台管理</span>
+              <span className="text-slate-300 dark:text-slate-600">/</span>
+              <span className="text-slate-800 dark:text-slate-200 font-medium">{t('admin.title')}</span>
             </div>
           </div>
-          <button
-            onClick={() => navigate('/home')}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            <FiClipboard className="w-4 h-4" />
-            <span className="hidden sm:inline">返回前台</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleTheme}
+              title={resolvedTheme === 'dark' ? t('theme.light') : t('theme.dark')}
+              className="flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              {resolvedTheme === 'dark' ? <FiSun className="w-4 h-4" /> : <FiMoon className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={() => {
+                const next = i18n.language.startsWith('zh') ? 'en' : 'zh-CN'
+                i18n.changeLanguage(next)
+              }}
+              title={i18n.language.startsWith('zh') ? 'English' : '中文'}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              <FiGlobe className="w-4 h-4" />
+              <span>{i18n.language.startsWith('zh') ? 'EN' : '中'}</span>
+            </button>
+          </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 lg:p-8 overflow-auto">
+        <main className="flex-1 p-4 lg:p-8 overflow-auto bg-slate-50 dark:bg-slate-900 transition-colors">
           {children}
         </main>
       </div>

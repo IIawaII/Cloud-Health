@@ -2,12 +2,14 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { ResultProvider } from '@/context/ResultContext'
+import { ThemeProvider } from '@/context/ThemeContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AdminProtectedRoute } from '@/components/AdminProtectedRoute'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import Layout from '@/components/Layout'
 import AdminLayout from '@/components/AdminLayout'
 import { FiActivity } from 'react-icons/fi'
+import '@/i18n'
 
 const Home = lazy(() => import('@/pages/Home'))
 const LandingPage = lazy(() => import('@/pages/LandingPage'))
@@ -203,11 +205,13 @@ function AppRoutes() {
 function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <ResultProvider>
-          <AppRoutes />
-        </ResultProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <ResultProvider>
+            <AppRoutes />
+          </ResultProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   )
 }

@@ -17,7 +17,12 @@ import {
   FiActivity,
   FiLogOut,
   FiCpu,
+  FiMoon,
+  FiSun,
+  FiGlobe,
 } from 'react-icons/fi'
+import { useTheme } from '@/hooks/useTheme'
+import { useTranslation } from 'react-i18next'
 
 const navItems = [
   { path: '/home', label: '首页', icon: FiHome },
@@ -30,6 +35,12 @@ const navItems = [
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const { user, logout } = useAuth()
+  const { resolvedTheme, toggleTheme } = useTheme()
+  const { t, i18n } = useTranslation()
+  const toggleLanguage = () => {
+    const next = i18n.language.startsWith('zh') ? 'en' : 'zh-CN'
+    i18n.changeLanguage(next)
+  }
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -78,14 +89,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background-secondary flex flex-col">
       {/* Top Navigation */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-200 dark:border-slate-700 shadow-sm transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
                 <FiActivity className="w-5 h-5 text-white" />
               </div>
-              <Link to="/home" className="text-xl font-semibold text-foreground tracking-tight">
+              <Link to="/home" className="text-xl font-semibold text-foreground dark:text-foreground-dark tracking-tight">
                 Health Project
               </Link>
             </div>
@@ -113,6 +124,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </nav>
 
             <div className="flex items-center gap-3">
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                title={resolvedTheme === 'dark' ? t('theme.light') : t('theme.dark')}
+                className="hidden sm:flex items-center justify-center w-9 h-9 rounded-lg text-foreground-muted hover:text-foreground hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                {resolvedTheme === 'dark' ? <FiSun className="w-4 h-4" /> : <FiMoon className="w-4 h-4" />}
+              </button>
+
+              {/* Language Toggle */}
+              <button
+                onClick={toggleLanguage}
+                title={i18n.language.startsWith('zh') ? 'English' : '中文'}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-foreground-muted hover:text-foreground hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <FiGlobe className="w-4 h-4" />
+                <span>{i18n.language.startsWith('zh') ? 'EN' : '中'}</span>
+              </button>
+
               {/* AI Config Button */}
               <button
                 onClick={() => setApiSettingsOpen(true)}
@@ -121,10 +151,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     ? 'text-green-600 bg-green-50 hover:bg-green-100'
                     : 'text-red-600 bg-red-50 hover:bg-red-100'
                 }`}
-                title="AI 配置"
+                title={t('nav.aiConfig')}
               >
                 <FiCpu className="w-4 h-4" />
-                <span>AI 配置</span>
+                <span>{t('nav.aiConfig')}</span>
                 <span
                   className={`w-2 h-2 rounded-full ${apiConfigured ? 'bg-green-500' : 'bg-red-500'}`}
                 />
@@ -230,15 +260,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 pt-16">
+      <main className="flex-1 pt-16 bg-background-secondary dark:bg-background-dark-secondary transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {children}
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-foreground-subtle">
+      <footer className="bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 py-6 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-foreground-subtle dark:text-foreground-dark-subtle">
           <p>Health Project - 智能健康诊断平台 | 本工具仅供参考，不能替代专业医疗建议</p>
         </div>
       </footer>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   FiSearch,
   FiEdit2,
@@ -13,24 +14,25 @@ import {
 import { useAdminUsers } from '@/hooks/useAdmin'
 import { getAvatarDisplayUrl } from '@/lib/avatar'
 
-const roleBadge = (role: string) => {
+const roleBadge = (role: string, t: (k: string) => string) => {
   if (role === 'admin') {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-600">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400">
         <FiShield className="w-3 h-3" />
-        管理员
+        {t('admin.role.admin')}
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-50 text-slate-600">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
       <FiUser className="w-3 h-3" />
-      普通用户
+      {t('admin.role.user')}
     </span>
   )
 }
 
 export default function Users() {
+  const { t } = useTranslation()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
@@ -174,7 +176,7 @@ export default function Users() {
                           <option value="admin">管理员</option>
                         </select>
                       ) : (
-                        roleBadge(user.role)
+                        roleBadge(user.role, t)
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-500">

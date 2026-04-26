@@ -17,8 +17,8 @@ import {
   FiChevronsRight,
   FiMoon,
   FiSun,
-  FiGlobe,
 } from 'react-icons/fi'
+import LanguageSwitcher from './LanguageSwitcher'
 
 const navItems = [
   { path: '/admin', labelKey: 'admin.dashboard', icon: FiHome },
@@ -29,7 +29,7 @@ const navItems = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { resolvedTheme, toggleTheme } = useTheme()
   const { user, logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -77,7 +77,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center flex-shrink-0">
             <FiShield className="w-4 h-4 text-white" />
           </div>
-          {!collapsed && <span className="text-lg font-semibold tracking-tight">后台管理</span>}
+          {!collapsed && <span className="text-lg font-semibold tracking-tight">{t('admin.title')}</span>}
         </div>
 
         {/* Navigation */}
@@ -109,7 +109,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="hidden lg:block px-3 pb-2">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            title={collapsed ? '展开侧边栏' : '收起侧边栏'}
+            title={collapsed ? t('admin.collapseExpand') : t('admin.collapseCollapse')}
             className={`flex items-center rounded-lg text-xs text-slate-500 hover:text-white hover:bg-slate-800 transition-colors ${
               collapsed ? 'justify-center w-full px-2 py-2' : 'gap-2 px-3 py-2 w-full'
             }`}
@@ -136,7 +136,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <button
             onClick={handleLogout}
-            title={collapsed ? '退出登录' : undefined}
+            title={collapsed ? t('nav.logout') : undefined}
             className={`flex items-center rounded-lg text-sm text-red-400 hover:bg-slate-800 transition-colors ${
               collapsed ? 'justify-center w-full px-2 py-2' : 'gap-2 px-3 py-2 w-full'
             }`}
@@ -173,17 +173,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               {resolvedTheme === 'dark' ? <FiSun className="w-4 h-4" /> : <FiMoon className="w-4 h-4" />}
             </button>
-            <button
-              onClick={() => {
-                const next = i18n.language.startsWith('zh') ? 'en' : 'zh-CN'
-                i18n.changeLanguage(next)
-              }}
-              title={i18n.language.startsWith('zh') ? 'English' : '中文'}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              <FiGlobe className="w-4 h-4" />
-              <span>{i18n.language.startsWith('zh') ? 'EN' : '中'}</span>
-            </button>
+            <LanguageSwitcher />
           </div>
         </header>
 

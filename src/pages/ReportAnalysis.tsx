@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAIStream } from '../hooks/useAI'
-import { useResult } from '../context/ResultContext'
+import { useResult } from '@/hooks/useResult'
 import FileUploader from '../components/FileUploader'
 import ResultCard from '../components/ResultCard'
 import { FiLoader, FiAlertCircle, FiSearch } from 'react-icons/fi'

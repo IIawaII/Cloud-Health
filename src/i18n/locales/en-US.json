@@ -109,7 +109,9 @@
     }
   },
   "landing": {
-    "heroTitle": "Your Personal Health AI Advisor",
+    "badge": "Smart Health Diagnosis",
+    "heroTitle1": "Your Personal",
+    "heroTitle2": "Health AI Advisor",
     "heroDesc": "Leveraging large language model technology to provide intelligent health report analysis, personalized health plans, health Q&A, and smart conversations for more scientific and efficient health management.",
     "startFree": "Get Started Free",
     "learnMore": "Learn More",
@@ -122,7 +124,33 @@
       "One-click personalized health plan",
       "7×24 AI health advisor online",
       "Fun health knowledge quiz challenge"
-    ]
+    ],
+    "safetyTitle": "Safety Notice",
+    "safetyDesc": "This tool analyzes health information using AI technology. Results are for reference only and cannot replace professional medical diagnosis or treatment. Please seek medical attention promptly for serious health issues. Your API key is stored only in your local browser; we do not collect or store any of your health data.",
+    "footer": "Health Project - Smart Health Diagnosis | For reference only, not a substitute for professional medical advice",
+    "features": {
+      "report": {
+        "title": "Health Report Analysis",
+        "description": "Upload medical reports, lab results, or health images for AI-powered analysis with professional insights and health recommendations."
+      },
+      "plan": {
+        "title": "Health Plan Generator",
+        "description": "Fill in your health information and let AI create tailored diet, exercise, and lifestyle management plans."
+      },
+      "chat": {
+        "title": "Smart Chat",
+        "description": "Chat in real-time with a health AI advisor to get answers to your health questions and professional guidance."
+      },
+      "quiz": {
+        "title": "Health Quiz",
+        "description": "Test your health knowledge through fun quizzes with AI-generated questions and instant scoring."
+      }
+    },
+    "highlights": {
+      "ai": { "title": "AI Powered", "desc": "Deep health data interpretation based on advanced LLM technology" },
+      "privacy": { "title": "Privacy Safe", "desc": "API Key stored locally, data not uploaded to cloud" },
+      "professional": { "title": "Professional", "desc": "Scientific health knowledge system, evidence-based results" }
+    }
   },
   "common": {
     "loading": "Loading...",
@@ -143,5 +171,193 @@
   "language": {
     "zh": "中文",
     "en": "English"
+  },
+  "settings": {
+    "title": "Account Settings",
+    "tabs": {
+      "profile": "Profile",
+      "password": "Change Password"
+    },
+    "avatar": "Choose Avatar",
+    "username": "Username",
+    "email": "Email",
+    "verificationCode": "Verification Code",
+    "sendCode": "Send Code",
+    "resendIn": "Resend in {{seconds}}s",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "save": "Save Changes",
+    "saving": "Saving...",
+    "changePassword": "Change Password",
+    "changing": "Changing...",
+    "messages": {
+      "updateSuccess": "Profile updated successfully",
+      "passwordSuccess": "Password changed, please re-login with new password",
+      "codeSent": "Verification code sent"
+    },
+    "errors": {
+      "invalidEmail": "Please enter a valid email",
+      "invalidUsername": "Invalid username format",
+      "needCode": "Please enter verification code",
+      "network": "Network error, please retry",
+      "passwordMismatch": "New passwords do not match"
+    }
+  },
+  "apiConfig": {
+    "title": "AI Configuration",
+    "subtitle": "Customize your AI access parameters",
+    "baseUrl": "API Base URL",
+    "apiKey": "API Key",
+    "model": "Model Name",
+    "save": "Save Config",
+    "clear": "Clear",
+    "info1": "You can configure your own AI API instead of server defaults",
+    "info2": "Config is stored locally in browser only, not uploaded to server",
+    "errors": {
+      "incomplete": "Please fill in all AI config fields"
+    },
+    "messages": {
+      "saved": "AI config saved",
+      "cleared": "AI config cleared, using server defaults"
+    }
+  },
+  "plan": {
+    "title": "Your Personalized Health Plan",
+    "loading": "AI generating plan...",
+    "estimatedTime": "Estimated 15-30 seconds"
+  },
+  "quiz": {
+    "category": "Category",
+    "difficulty": "Difficulty",
+    "difficulties": {
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard"
+    },
+    "categories": {
+      "general": "General Health",
+      "nutrition": "Nutrition & Diet",
+      "exercise": "Exercise",
+      "mental": "Mental Health",
+      "disease": "Disease Prevention",
+      "firstAid": "First Aid"
+    },
+    "generate": "Generate Quiz",
+    "generating": "Generating..."
+  },
+  "dashboard": {
+    "today": "Today",
+    "totalCalls": "Total Calls",
+    "activity": "Activity",
+    "activeGrowth": "Active growth",
+    "perUser": "Per user",
+    "usage": "Usage Distribution",
+    "actions": {
+      "analyze": "Report Analysis",
+      "chat": "Smart Chat",
+      "plan": "Plan Generator",
+      "quiz": "Health Quiz"
+    }
+  },
+  "users": {
+    "title": "User Management",
+    "subtitle": "Manage registered users, view, edit and delete users",
+    "searchPlaceholder": "Search username or email",
+    "search": "Search",
+    "columns": {
+      "user": "User",
+      "email": "Email",
+      "role": "Role",
+      "createdAt": "Registered At",
+      "actions": "Actions"
+    },
+    "noData": "No user data",
+    "pagination": "{{total}} records, page {{page}} / {{totalPages}}",
+    "roles": {
+      "user": "User",
+      "admin": "Admin"
+    },
+    "actions": {
+      "edit": "Edit Role",
+      "delete": "Delete",
+      "confirm": "Confirm",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "updateFailed": "Failed to update user role, please retry",
+      "deleteFailed": "Failed to delete user, please retry"
+    }
+  },
+  "chat": {
+    "welcomeTitle": "Smart Health Advisor",
+    "welcomeDesc": "I am your AI health advisor. I can answer health-related questions, provide wellness advice, and explain medical knowledge. How can I help you?",
+    "placeholder": "Type your question and press Enter to send...",
+    "clear": "Clear Chat",
+    "disclaimer": "AI-generated content is for reference only and cannot replace professional medical advice",
+    "history": "History",
+    "newChat": "New Chat",
+    "noHistory": "No chat history",
+    "skills": "Skills",
+    "skillsSubtitle": "Select and customize skills",
+    "skillEnabled": "Enabled",
+    "skillEnable": "Enable",
+    "activeSkill": "Active Skill",
+    "help": {
+      "title": "Help",
+      "subtitle": "Quick start guide for smart chat",
+      "send": "Type your health question in the input box below and press Enter to send",
+      "context": "Supports multi-turn conversations; AI will answer based on context",
+      "clear": "Click \"Clear Chat\" to remove all chat history",
+      "disclaimer": "AI-generated content is for reference only and cannot replace professional medical advice"
+    },
+    "clearConfirm": {
+      "title": "Clear all conversations?",
+      "desc": "Are you sure you want to clear all chat history? This action cannot be undone.",
+      "confirm": "Confirm Clear"
+    }
+  },
+  "result": {
+    "loading": "AI generating...",
+    "processing": "Processing...",
+    "analyzing": "AI is analyzing data",
+    "generating": "Generating...",
+    "copy": "Copy",
+    "copied": "Copied"
+  },
+  "planForm": {
+    "steps": {
+      "basic": "Basic Info",
+      "goal": "Health Goal",
+      "lifestyle": "Lifestyle",
+      "other": "Other"
+    },
+    "prev": "Previous",
+    "next": "Next",
+    "submit": "Generate Plan",
+    "submitting": "Generating...",
+    "placeholder": "Please select",
+    "inputPlaceholder": "Enter {{label}}"
+  },
+  "fileUploader": {
+    "dragTitle": "Click or drag file here to upload",
+    "dragDesc": "Supports PNG, JPG, PDF, TXT, max {{maxSize}}MB",
+    "image": "Image",
+    "text": "Text",
+    "pdf": "PDF",
+    "preview": "Preview"
+  },
+  "quizPanel": {
+    "score": "{{score}} points",
+    "correctCount": "{{correct}} / {{total}} correct",
+    "question": "Question {{idx}}",
+    "yourAnswer": "Your answer",
+    "correctAnswer": "Correct answer",
+    "analysis": "Analysis",
+    "retry": "Try Again",
+    "empty": "Click the button above to generate questions",
+    "answered": "{{answered}} / {{total}} answered",
+    "submit": "Submit Answers",
+    "submitting": "Submitting..."
   }
 }

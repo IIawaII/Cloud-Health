@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { isFutureDate } from '../lib/utils'
 import { FiAlertCircle, FiChevronRight, FiChevronLeft } from 'react-icons/fi'
 import type { PlanFormData } from '../types'
@@ -7,13 +8,6 @@ interface PlanFormProps {
   onSubmit: (data: PlanFormData) => void
   loading: boolean
 }
-
-const steps = [
-  { title: '基本信息', fields: ['name', 'age', 'gender', 'height', 'weight'] },
-  { title: '健康目标', fields: ['goal', 'targetDate'] },
-  { title: '生活习惯', fields: ['dietaryPreference', 'exerciseHabit', 'sleepQuality'] },
-  { title: '其他信息', fields: ['medicalConditions', 'allergies'] },
-]
 
 const fieldLabels: Record<string, string> = {
   name: '姓名',
@@ -39,6 +33,7 @@ const selectOptions: Record<string, string[]> = {
 }
 
 export default function PlanForm({ onSubmit, loading }: PlanFormProps) {
+  const { t } = useTranslation()
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<PlanFormData>({
     name: '',
@@ -55,6 +50,13 @@ export default function PlanForm({ onSubmit, loading }: PlanFormProps) {
     allergies: '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const steps = [
+    { title: t('planForm.steps.basic'), fields: ['name', 'age', 'gender', 'height', 'weight'] },
+    { title: t('planForm.steps.goal'), fields: ['goal', 'targetDate'] },
+    { title: t('planForm.steps.lifestyle'), fields: ['dietaryPreference', 'exerciseHabit', 'sleepQuality'] },
+    { title: t('planForm.steps.other'), fields: ['medicalConditions', 'allergies'] },
+  ]
 
   const updateField = (field: keyof PlanFormData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -119,19 +121,19 @@ export default function PlanForm({ onSubmit, loading }: PlanFormProps) {
     if (selectOptions[field]) {
       return (
         <div key={field}>
-          <label className="block text-sm font-medium text-foreground mb-1.5">
+          <label className="block text-sm font-medium text-foreground dark:text-foreground-dark mb-1.5">
             {label}
           </label>
           <select
             value={value}
             onChange={(e) => updateField(field as keyof PlanFormData, e.target.value)}
-            className={`w-full px-4 py-2.5 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 transition-all appearance-none ${
+            className={`w-full px-4 py-2.5 rounded-xl border bg-background dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark focus:outline-none focus:ring-2 transition-all appearance-none ${
               error
                 ? 'border-danger focus:ring-danger/30 focus:border-danger'
-                : 'border-gray-200 focus:ring-primary/30 focus:border-primary'
+                : 'border-gray-200 dark:border-slate-600 focus:ring-primary/30 focus:border-primary'
             }`}
           >
-            <option value="">请选择</option>
+            <option value="">{t('planForm.placeholder')}</option>
             {selectOptions[field].map((opt) => (
               <option key={opt} value={opt}>
                 {opt}
@@ -151,17 +153,17 @@ export default function PlanForm({ onSubmit, loading }: PlanFormProps) {
     if (field === 'targetDate') {
       return (
         <div key={field}>
-          <label className="block text-sm font-medium text-foreground mb-1.5">
+          <label className="block text-sm font-medium text-foreground dark:text-foreground-dark mb-1.5">
             {label}
           </label>
           <input
             type="date"
             value={value}
             onChange={(e) => updateField(field as keyof PlanFormData, e.target.value)}
-            className={`w-full px-4 py-2.5 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 transition-all ${
+            className={`w-full px-4 py-2.5 rounded-xl border bg-background dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark focus:outline-none focus:ring-2 transition-all ${
               error
                 ? 'border-danger focus:ring-danger/30 focus:border-danger'
-                : 'border-gray-200 focus:ring-primary/30 focus:border-primary'
+                : 'border-gray-200 dark:border-slate-600 focus:ring-primary/30 focus:border-primary'
             }`}
           />
           {error && (
@@ -178,18 +180,18 @@ export default function PlanForm({ onSubmit, loading }: PlanFormProps) {
 
     return (
       <div key={field}>
-        <label className="block text-sm font-medium text-foreground mb-1.5">
+        <label className="block text-sm font-medium text-foreground dark:text-foreground-dark mb-1.5">
           {label}
         </label>
         <input
           type={inputType}
           value={value}
           onChange={(e) => updateField(field as keyof PlanFormData, e.target.value)}
-          placeholder={`请输入${label}`}
-          className={`w-full px-4 py-2.5 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 transition-all ${
+          placeholder={t('planForm.inputPlaceholder', { label })}
+          className={`w-full px-4 py-2.5 rounded-xl border bg-background dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark focus:outline-none focus:ring-2 transition-all ${
             error
               ? 'border-danger focus:ring-danger/30 focus:border-danger'
-              : 'border-gray-200 focus:ring-primary/30 focus:border-primary'
+              : 'border-gray-200 dark:border-slate-600 focus:ring-primary/30 focus:border-primary'
           }`}
         />
         {error && (
@@ -203,7 +205,7 @@ export default function PlanForm({ onSubmit, loading }: PlanFormProps) {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-card overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-card dark:shadow-card-dark overflow-hidden transition-colors">
       {/* Progress */}
       <div className="px-6 pt-6 pb-2">
         <div className="flex items-center mb-4">
@@ -213,7 +215,7 @@ export default function PlanForm({ onSubmit, loading }: PlanFormProps) {
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all flex-shrink-0 ${
                   idx <= step
                     ? 'bg-primary text-white'
-                    : 'bg-gray-100 text-foreground-subtle'
+                    : 'bg-gray-100 dark:bg-slate-700 text-foreground-subtle dark:text-foreground-dark-subtle'
                 }`}
               >
                 {idx + 1}
@@ -221,14 +223,14 @@ export default function PlanForm({ onSubmit, loading }: PlanFormProps) {
               {idx < steps.length - 1 && (
                 <div
                   className={`h-1 mx-2 rounded-full transition-all flex-1 ${
-                    idx < step ? 'bg-primary' : 'bg-gray-100'
+                    idx < step ? 'bg-primary' : 'bg-gray-100 dark:bg-slate-700'
                   }`}
                 />
               )}
             </div>
           ))}
         </div>
-        <p className="text-sm font-medium text-foreground text-center">
+        <p className="text-sm font-medium text-foreground dark:text-foreground-dark text-center">
           {steps[step].title}
         </p>
       </div>
@@ -239,18 +241,18 @@ export default function PlanForm({ onSubmit, loading }: PlanFormProps) {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+      <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-700/50">
         <button
           onClick={handlePrev}
           disabled={step === 0}
           className={`flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
             step === 0
-              ? 'text-gray-300 cursor-not-allowed'
-              : 'text-foreground-muted hover:bg-gray-100'
+              ? 'text-gray-300 dark:text-slate-600 cursor-not-allowed'
+              : 'text-foreground-muted dark:text-foreground-dark-muted hover:bg-gray-100 dark:hover:bg-slate-700'
           }`}
         >
           <FiChevronLeft className="w-4 h-4" />
-          上一步
+          {t('planForm.prev')}
         </button>
 
         {step < steps.length - 1 ? (
@@ -258,7 +260,7 @@ export default function PlanForm({ onSubmit, loading }: PlanFormProps) {
             onClick={handleNext}
             className="flex items-center gap-1 px-5 py-2.5 rounded-xl text-sm font-medium text-white bg-primary hover:bg-primary-700 active:scale-95 transition-all"
           >
-            下一步
+            {t('planForm.next')}
             <FiChevronRight className="w-4 h-4" />
           </button>
         ) : (
@@ -267,11 +269,11 @@ export default function PlanForm({ onSubmit, loading }: PlanFormProps) {
             disabled={loading}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium text-white transition-all ${
               loading
-                ? 'bg-gray-300 cursor-not-allowed'
+                ? 'bg-gray-300 dark:bg-slate-600 cursor-not-allowed'
                 : 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 shadow-lg active:scale-95'
             }`}
           >
-            {loading ? '生成中...' : '生成健康计划'}
+            {loading ? t('planForm.submitting') : t('planForm.submit')}
           </button>
         )}
       </div>

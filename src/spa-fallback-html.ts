@@ -1,7 +1,3 @@
-/**
- * ⚠️ 本文件由 scripts/generate-spa-fallback.cjs 在构建时自动生成
- *    请勿手动编辑。运行 `npm run build` 将自动同步 dist/index.html 内容。
- */
 export const FALLBACK_HTML = `<!doctype html>
 <html lang="zh-CN">
   <head>
@@ -16,12 +12,11 @@ export const FALLBACK_HTML = `<!doctype html>
     <link rel="preconnect" href="https://challenges.cloudflare.com" />
     <link rel="dns-prefetch" href="https://challenges.cloudflare.com" />
     <script id="turnstile-script" src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async></script>
-    <script type="module" crossorigin src="/assets/index-CTVR3k3U.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-LM_YpgCt.css">
-  </head>
+    <script type="module" crossorigin src="/assets/index-D28yNPU-.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Qbx0cFG4.css">
+  <script>window.__ENV__={"TURNSTILE_SITE_KEY":"1x00000000000000000000AA"}</script></head>
   <body>
-    <div id="root"></div>
-
+    <div id="root"></div>
   </body>
 </html>
 `

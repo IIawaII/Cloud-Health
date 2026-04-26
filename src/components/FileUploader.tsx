@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { validateFile, fileToBase64, readTextFile } from '../lib/utils'
 import { FiUpload, FiFile, FiImage, FiX, FiCheck, FiAlertCircle } from 'react-icons/fi'
 
@@ -12,6 +13,7 @@ const MAX_SIZE_MB = 5
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf', 'text/plain']
 
 export default function FileUploader({ onFileSelect, onClear, selectedFile }: FileUploaderProps) {
+  const { t } = useTranslation()
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -74,6 +76,12 @@ export default function FileUploader({ onFileSelect, onClear, selectedFile }: Fi
     return <FiFile className="w-5 h-5" />
   }
 
+  const getFileTypeLabel = (type: string) => {
+    if (type.startsWith('image/')) return t('fileUploader.image')
+    if (type === 'text/plain') return t('fileUploader.text')
+    return t('fileUploader.pdf')
+  }
+
   return (
     <div className="space-y-4">
       {!selectedFile ? (
@@ -87,8 +95,8 @@ export default function FileUploader({ onFileSelect, onClear, selectedFile }: Fi
           onClick={() => inputRef.current?.click()}
           className={`relative border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-200 ${
             isDragging
-              ? 'border-primary bg-primary-50'
-              : 'border-gray-300 hover:border-primary-300 hover:bg-gray-50'
+              ? 'border-primary bg-primary-50 dark:bg-primary-900/20'
+              : 'border-gray-300 dark:border-slate-600 hover:border-primary-300 hover:bg-gray-50 dark:hover:bg-slate-700/50'
           }`}
         >
           <input
@@ -98,28 +106,28 @@ export default function FileUploader({ onFileSelect, onClear, selectedFile }: Fi
             onChange={handleChange}
             className="hidden"
           />
-          <div className="w-16 h-16 rounded-2xl bg-primary-50 flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center mx-auto mb-4">
             <FiUpload className="w-8 h-8 text-primary" />
           </div>
-          <p className="text-sm font-medium text-foreground mb-1">
-            点击或拖拽文件到此处上传
+          <p className="text-sm font-medium text-foreground dark:text-foreground-dark mb-1">
+            {t('fileUploader.dragTitle')}
           </p>
-          <p className="text-xs text-foreground-subtle">
-            支持 PNG、JPG、PDF、TXT 格式，最大 {MAX_SIZE_MB}MB
+          <p className="text-xs text-foreground-subtle dark:text-foreground-dark-muted">
+            {t('fileUploader.dragDesc', { maxSize: MAX_SIZE_MB })}
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-card">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-card dark:shadow-card-dark p-5 transition-colors">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center text-primary">
+            <div className="w-12 h-12 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center text-primary">
               {getFileIcon(selectedFile.fileType)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
+              <p className="text-sm font-medium text-foreground dark:text-foreground-dark truncate">
                 {selectedFile.fileName}
               </p>
-              <p className="text-xs text-foreground-subtle">
-                {selectedFile.fileType.startsWith('image/') ? '图像文件' : selectedFile.fileType === 'text/plain' ? '文本文件' : 'PDF 文档'}
+              <p className="text-xs text-foreground-subtle dark:text-foreground-dark-muted">
+                {getFileTypeLabel(selectedFile.fileType)}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -128,7 +136,7 @@ export default function FileUploader({ onFileSelect, onClear, selectedFile }: Fi
               </div>
               <button
                 onClick={onClear}
-                className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-foreground-muted hover:text-danger transition-colors"
+                className="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center justify-center text-foreground-muted dark:text-foreground-dark-muted hover:text-danger transition-colors"
               >
                 <FiX className="w-4 h-4" />
               </button>
@@ -136,11 +144,11 @@ export default function FileUploader({ onFileSelect, onClear, selectedFile }: Fi
           </div>
 
           {selectedFile.fileType.startsWith('image/') && (
-            <div className="mt-4 rounded-xl overflow-hidden border border-gray-100">
+            <div className="mt-4 rounded-xl overflow-hidden border border-gray-100 dark:border-slate-700">
               <img
                 src={selectedFile.fileData}
-                alt="预览"
-                className="w-full max-h-64 object-contain bg-gray-50"
+                alt={t('fileUploader.preview')}
+                className="w-full max-h-64 object-contain bg-gray-50 dark:bg-slate-700"
               />
             </div>
           )}

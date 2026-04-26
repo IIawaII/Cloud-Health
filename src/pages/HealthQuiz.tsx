@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAI } from '../hooks/useAI'
 import QuizPanel from '../components/QuizPanel'
 import { FiLoader, FiPlay, FiAlertCircle } from 'react-icons/fi'
@@ -8,22 +9,27 @@ interface QuizGenerateResponse {
   questions: QuizQuestion[]
 }
 
-const categories = [
-  '综合健康知识',
-  '营养与饮食',
-  '运动健身',
-  '心理健康',
-  '疾病预防',
-  '急救常识',
-]
-
-const difficulties = ['简单', '中等', '困难']
-
 export default function HealthQuiz() {
-  const [category, setCategory] = useState('综合健康知识')
-  const [difficulty, setDifficulty] = useState('中等')
+  const { t } = useTranslation()
+  const [category, setCategory] = useState(t('quiz.categories.general'))
+  const [difficulty, setDifficulty] = useState(t('quiz.difficulties.medium'))
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
   const [result, setResult] = useState<QuizResult | null>(null)
+
+  const categories = [
+    t('quiz.categories.general'),
+    t('quiz.categories.nutrition'),
+    t('quiz.categories.exercise'),
+    t('quiz.categories.mental'),
+    t('quiz.categories.disease'),
+    t('quiz.categories.firstAid'),
+  ]
+
+  const difficulties = [
+    t('quiz.difficulties.easy'),
+    t('quiz.difficulties.medium'),
+    t('quiz.difficulties.hard'),
+  ]
 
   const {
     loading: generating,
@@ -73,16 +79,16 @@ export default function HealthQuiz() {
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
       {/* Controls */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-card p-5">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-card dark:shadow-card-dark p-5 transition-colors">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              题目类别
+            <label className="block text-sm font-medium text-foreground dark:text-foreground-dark mb-1.5">
+              {t('quiz.category')}
             </label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all appearance-none"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-background dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all appearance-none"
             >
               {categories.map((c) => (
                 <option key={c} value={c}>
@@ -92,13 +98,13 @@ export default function HealthQuiz() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              难度
+            <label className="block text-sm font-medium text-foreground dark:text-foreground-dark mb-1.5">
+              {t('quiz.difficulty')}
             </label>
             <select
               value={difficulty}
               onChange={(e) => setDifficulty(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all appearance-none"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-background dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all appearance-none"
             >
               {difficulties.map((d) => (
                 <option key={d} value={d}>
@@ -114,19 +120,19 @@ export default function HealthQuiz() {
           disabled={generating}
           className={`w-full py-3 rounded-xl text-sm font-semibold text-white transition-all flex items-center justify-center gap-2 ${
             generating
-              ? 'bg-gray-300 cursor-not-allowed'
+              ? 'bg-gray-300 dark:bg-slate-600 cursor-not-allowed'
               : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-lg hover:shadow-xl active:scale-[0.98]'
           }`}
         >
           {generating ? (
             <>
               <FiLoader className="w-4 h-4 animate-spin" />
-              正在生成题目...
+              {t('quiz.generating')}
             </>
           ) : (
             <>
               <FiPlay className="w-4 h-4" />
-              生成题目
+              {t('quiz.generate')}
             </>
           )}
         </button>

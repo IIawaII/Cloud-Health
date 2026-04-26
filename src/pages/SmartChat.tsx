@@ -1,12 +1,86 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
+import { useAuth } from '@/context/AuthContext'
 import { useAIStream } from '../hooks/useAI'
-import { useResult } from '../context/ResultContext'
+import { useResult } from '@/hooks/useResult'
 import ChatInterface from '../components/ChatInterface'
 import type { ChatMessage } from '../types'
 import { createChatMessage } from '../../shared/types'
 
+export interface ChatSkill {
+  id: string
+  name: string
+  description: string
+  systemPrompt: string
+}
+
+const DEFAULT_SKILLS: ChatSkill[] = [
+  {
+    id: 'health-advisor',
+    name: '健康顾问',
+    description: '全面的健康咨询和建议',
+    systemPrompt: '你是一位专业的健康顾问，能够回答各种健康问题，提供科学的健康建议。请注意，你的建议仅供参考，不能替代专业医生的诊断。',
+  },
+  {
+    id: 'nutritionist',
+    name: '营养师',
+    description: '专注于饮食和营养方面的咨询',
+    systemPrompt: '你是一位资深营养师，擅长饮食搭配、营养补充、减肥增肌等方面的指导。请根据用户的具体情况提供个性化的饮食建议。',
+  },
+  {
+    id: 'fitness-coach',
+    name: '运动教练',
+    description: '运动训练和健身计划指导',
+    systemPrompt: '你是一位专业的运动教练，擅长制定训练计划、指导运动技巧、预防运动损伤。请根据用户的身体状况和目标提供合适的运动建议。',
+  },
+]
+
+function loadSkills(userId: string): ChatSkill[] {
+  try {
+    const raw = localStorage.getItem(`health_chat_skills_${userId}`)
+    if (raw) return JSON.parse(raw)
+  } catch {
+    // ignore
+  }
+  return DEFAULT_SKILLS
+}
+
+function saveSkills(userId: string, skills: ChatSkill[]) {
+  try {
+    localStorage.setItem(`health_chat_skills_${userId}`, JSON.stringify(skills))
+  } catch {
+    // ignore
+  }
+}
+
 export default function SmartChat() {
-  const { chatMessages, setChatMessages } = useResult()
+  const { user } = useAuth()
+  const userId = user?.id || 'anonymous'
+  const {
+    chatMessages,
+    setChatMessages,
+    chatSessions,
+    activeSessionId,
+    createChatSession,
+    switchChatSession,
+    deleteChatSession,
+    renameChatSession,
+  } = useResult()
+
+  const [skills, setSkills] = useState<ChatSkill[]>(() => loadSkills(userId))
+  const [activeSkillId, setActiveSkillId] = useState<string | null>(null)
+  const hasCreatedRef = useRef(false)
+
+  useEffect(() => {
+    saveSkills(userId, skills)
+  }, [skills, userId])
+
+  // 如果没有活跃会话，自动创建一个
+  useEffect(() => {
+    if (!activeSessionId && chatSessions.length === 0 && !hasCreatedRef.current) {
+      hasCreatedRef.current = true
+      createChatSession()
+    }
+  }, [activeSessionId, chatSessions.length, createChatSession])
 
   const handleChunk = useCallback((chunk: string) => {
     setChatMessages((prev) => {
@@ -26,15 +100,26 @@ export default function SmartChat() {
 
   const handleSend = useCallback(
     (content: string) => {
-      const newMessages: ChatMessage[] = [...chatMessages, createChatMessage('user', content)]
+      const activeSkill = skills.find((s) => s.id === activeSkillId)
+      let newMessages: ChatMessage[] = [...chatMessages, createChatMessage('user', content)]
+      if (activeSkill) {
+        newMessages = [
+          createChatMessage('system', activeSkill.systemPrompt),
+          ...newMessages,
+        ]
+      }
       setChatMessages(newMessages)
       execute({ messages: newMessages })
     },
-    [chatMessages, execute, setChatMessages]
+    [chatMessages, execute, setChatMessages, activeSkillId, skills]
   )
 
   const handleClear = () => {
     setChatMessages([])
+  }
+
+  const handleUpdateSkill = (updated: ChatSkill) => {
+    setSkills((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
   }
 
   return (
@@ -45,6 +130,16 @@ export default function SmartChat() {
         loading={loading}
         error={error}
         onClear={handleClear}
+        sessions={chatSessions}
+        activeSessionId={activeSessionId}
+        onCreateSession={createChatSession}
+        onSwitchSession={switchChatSession}
+        onDeleteSession={deleteChatSession}
+        onRenameSession={renameChatSession}
+        skills={skills}
+        activeSkillId={activeSkillId}
+        onSelectSkill={setActiveSkillId}
+        onUpdateSkill={handleUpdateSkill}
       />
     </div>
   )

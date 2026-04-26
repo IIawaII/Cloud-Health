@@ -36,12 +36,12 @@ function StatCard({
   color: string
 }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm hover:shadow-md transition-shadow dark:text-foreground-dark">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-slate-500 font-medium">{title}</p>
-          <p className="text-2xl font-bold text-slate-800 mt-1">{value}</p>
-          {trend && <p className="text-xs text-slate-400 mt-1">{trend}</p>}
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{title}</p>
+          <p className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-1">{value}</p>
+          {trend && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{trend}</p>}
         </div>
         <div
           className="w-10 h-10 rounded-lg flex items-center justify-center"
@@ -75,10 +75,10 @@ export default function Dashboard() {
   }, [data])
 
   const actionNameMap: Record<string, string> = {
-    analyze: '报告分析',
-    chat: '智能对话',
-    plan: '计划生成',
-    quiz: '健康问答',
+    analyze: t('dashboard.actions.analyze'),
+    chat: t('dashboard.actions.chat'),
+    plan: t('dashboard.actions.plan'),
+    quiz: t('dashboard.actions.quiz'),
   }
 
   if (loading) {
@@ -111,28 +111,28 @@ export default function Dashboard() {
           title={t('admin.users')}
           value={data?.totalUsers ?? 0}
           icon={FiUsers}
-          trend={`+${data?.todayNewUsers ?? 0} today`}
+          trend={`+${data?.todayNewUsers ?? 0} ${t('dashboard.today')}`}
           color="#0D9488"
         />
         <StatCard
-          title="Today"
+          title={t('dashboard.today')}
           value={data?.todayNewUsers ?? 0}
           icon={FiUserPlus}
-          trend="Active growth"
+          trend={t('dashboard.activeGrowth')}
           color="#3B82F6"
         />
         <StatCard
-          title="Total Calls"
+          title={t('dashboard.totalCalls')}
           value={data?.totalLogs ?? 0}
           icon={FiActivity}
-          trend={`${data?.todayLogs ?? 0} today`}
+          trend={`${data?.todayLogs ?? 0} ${t('dashboard.today')}`}
           color="#F59E0B"
         />
         <StatCard
-          title="Activity"
+          title={t('dashboard.activity')}
           value={data?.totalLogs && data.totalUsers ? Math.round(data.totalLogs / data.totalUsers) : 0}
           icon={FiBarChart2}
-          trend="Per user"
+          trend={t('dashboard.perUser')}
           color="#10B981"
         />
       </div>
@@ -177,7 +177,7 @@ export default function Dashboard() {
 
         {/* Usage distribution pie chart */}
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm transition-colors">
-          <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100 mb-4">Usage</h3>
+          <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100 mb-4">{t('dashboard.usage')}</h3>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { FiCheck, FiX, FiHelpCircle, FiArrowRight, FiRotateCcw, FiAward } from 'react-icons/fi'
 import type { QuizQuestion, QuizResult } from '../types'
 
@@ -11,6 +12,7 @@ interface QuizPanelProps {
 }
 
 export default function QuizPanel({ questions, onSubmit, result, loading, onRegenerate }: QuizPanelProps) {
+  const { t } = useTranslation()
   const [answers, setAnswers] = useState<number[]>([])
   const [submitted, setSubmitted] = useState(false)
 
@@ -39,15 +41,15 @@ export default function QuizPanel({ questions, onSubmit, result, loading, onRege
     return (
       <div className="space-y-6 animate-fade-in">
         {/* Score Card */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-card p-8 text-center">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-card dark:shadow-card-dark p-8 text-center transition-colors">
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
             <FiAward className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-3xl font-bold text-foreground mb-1">{result.score} 分</h2>
-          <p className="text-sm text-foreground-muted mb-4">
-            答对 {result.correctCount} / {result.total} 题
+          <h2 className="text-3xl font-bold text-foreground dark:text-foreground-dark mb-1">{t('quizPanel.score', { score: result.score })}</h2>
+          <p className="text-sm text-foreground-muted dark:text-foreground-dark-muted mb-4">
+            {t('quizPanel.correctCount', { correct: result.correctCount, total: result.total })}
           </p>
-          <div className="inline-flex items-center px-4 py-2 rounded-full bg-primary-50 text-primary-600 text-sm font-medium">
+          <div className="inline-flex items-center px-4 py-2 rounded-full bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 text-sm font-medium">
             {result.comment}
           </div>
         </div>
@@ -57,7 +59,7 @@ export default function QuizPanel({ questions, onSubmit, result, loading, onRege
           {result.results.map((res, idx) => (
             <div
               key={idx}
-              className={`bg-white rounded-2xl border shadow-card overflow-hidden ${
+              className={`bg-white dark:bg-slate-800 rounded-2xl border shadow-card dark:shadow-card-dark overflow-hidden transition-colors ${
                 res.isCorrect ? 'border-success/30' : 'border-danger/30'
               }`}
             >
@@ -73,18 +75,18 @@ export default function QuizPanel({ questions, onSubmit, result, loading, onRege
                 >
                   {res.isCorrect ? <FiCheck className="w-4 h-4" /> : <FiX className="w-4 h-4" />}
                 </div>
-                <span className="text-sm font-medium text-foreground">
-                  第 {idx + 1} 题
+                <span className="text-sm font-medium text-foreground dark:text-foreground-dark">
+                  {t('quizPanel.question', { idx: idx + 1 })}
                 </span>
-                <span className="text-xs text-foreground-subtle ml-auto">
-                  您的答案：{String.fromCharCode(65 + res.userAnswer)} | 正确答案：
+                <span className="text-xs text-foreground-subtle dark:text-foreground-dark-subtle ml-auto">
+                  {t('quizPanel.yourAnswer')}：{String.fromCharCode(65 + res.userAnswer)} | {t('quizPanel.correctAnswer')}：
                   {String.fromCharCode(65 + res.correctAnswer)}
                 </span>
               </div>
               <div className="px-5 py-4">
-                <p className="text-sm text-foreground mb-2">{res.question}</p>
-                <div className="p-3 rounded-xl bg-gray-50 text-sm text-foreground-muted">
-                  <span className="font-medium text-primary">解析：</span>
+                <p className="text-sm text-foreground dark:text-foreground-dark mb-2">{res.question}</p>
+                <div className="p-3 rounded-xl bg-gray-50 dark:bg-slate-700/50 text-sm text-foreground-muted dark:text-foreground-dark-muted">
+                  <span className="font-medium text-primary">{t('quizPanel.analysis')}：</span>
                   {res.explanation}
                 </div>
               </div>
@@ -98,7 +100,7 @@ export default function QuizPanel({ questions, onSubmit, result, loading, onRege
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium text-white bg-primary hover:bg-primary-700 shadow-lg active:scale-95 transition-all"
           >
             <FiRotateCcw className="w-4 h-4" />
-            再试一次
+            {t('quizPanel.retry')}
           </button>
         </div>
       </div>
@@ -108,10 +110,10 @@ export default function QuizPanel({ questions, onSubmit, result, loading, onRege
   if (questions.length === 0) {
     return (
       <div className="text-center py-16">
-        <div className="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center mx-auto mb-4">
-          <FiHelpCircle className="w-8 h-8 text-gray-300" />
+        <div className="w-16 h-16 rounded-2xl bg-gray-50 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4">
+          <FiHelpCircle className="w-8 h-8 text-gray-300 dark:text-slate-500" />
         </div>
-        <p className="text-sm text-foreground-muted">点击上方按钮生成题目</p>
+        <p className="text-sm text-foreground-muted dark:text-foreground-dark-muted">{t('quizPanel.empty')}</p>
       </div>
     )
   }
@@ -123,14 +125,14 @@ export default function QuizPanel({ questions, onSubmit, result, loading, onRege
       {questions.map((q, qIdx) => (
         <div
           key={qIdx}
-          className="bg-white rounded-2xl border border-gray-200 shadow-card p-6 animate-fade-in"
+          className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-card dark:shadow-card-dark p-6 animate-fade-in transition-colors"
           style={{ animationDelay: `${qIdx * 0.05}s` }}
         >
           <div className="flex items-start gap-3 mb-4">
-            <span className="w-7 h-7 rounded-full bg-primary-50 text-primary-600 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span className="w-7 h-7 rounded-full bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
               {qIdx + 1}
             </span>
-            <h3 className="text-sm font-medium text-foreground leading-relaxed">
+            <h3 className="text-sm font-medium text-foreground dark:text-foreground-dark leading-relaxed">
               {q.question}
             </h3>
           </div>
@@ -145,15 +147,15 @@ export default function QuizPanel({ questions, onSubmit, result, loading, onRege
                   disabled={submitted}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-left transition-all ${
                     isSelected
-                      ? 'bg-primary-50 border-2 border-primary text-primary'
-                      : 'bg-gray-50 border-2 border-transparent text-foreground-muted hover:bg-gray-100'
+                      ? 'bg-primary-50 dark:bg-primary-900/20 border-2 border-primary text-primary'
+                      : 'bg-gray-50 dark:bg-slate-700/50 border-2 border-transparent text-foreground-muted dark:text-foreground-dark-muted hover:bg-gray-100 dark:hover:bg-slate-700'
                   }`}
                 >
                   <span
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 ${
                       isSelected
                         ? 'bg-primary text-white'
-                        : 'bg-white border border-gray-200 text-foreground-subtle'
+                        : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-foreground-subtle dark:text-foreground-dark-subtle'
                     }`}
                   >
                     {String.fromCharCode(65 + oIdx)}
@@ -167,19 +169,19 @@ export default function QuizPanel({ questions, onSubmit, result, loading, onRege
       ))}
 
       <div className="flex items-center justify-between">
-        <p className="text-sm text-foreground-muted">
-          已答 {answers.length} / {questions.length} 题
+        <p className="text-sm text-foreground-muted dark:text-foreground-dark-muted">
+          {t('quizPanel.answered', { answered: answers.length, total: questions.length })}
         </p>
         <button
           onClick={handleSubmit}
           disabled={!allAnswered || loading || submitted}
           className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium text-white transition-all ${
             !allAnswered || loading || submitted
-              ? 'bg-gray-300 cursor-not-allowed'
+              ? 'bg-gray-300 dark:bg-slate-600 cursor-not-allowed'
               : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-lg active:scale-95'
           }`}
         >
-          {loading ? '提交中...' : '提交答案'}
+          {loading ? t('quizPanel.submitting') : t('quizPanel.submit')}
           <FiArrowRight className="w-4 h-4" />
         </button>
       </div>

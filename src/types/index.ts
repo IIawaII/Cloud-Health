@@ -1,9 +1,19 @@
+import type { ChatMessage } from '../../shared/types'
+
 export type {
   ChatMessage,
   QuizQuestion,
   QuizResult,
   ApiConfig,
 } from '../../shared/types'
+
+export interface ChatSession {
+  id: string
+  title: string
+  messages: ChatMessage[]
+  createdAt: number
+  updatedAt: number
+}
 
 export interface HealthPlanFormData {
   name: string

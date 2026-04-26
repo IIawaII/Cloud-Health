@@ -5,11 +5,11 @@
 
 export interface ChatMessage {
   id?: string
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'system'
   content: string
 }
 
-export function createChatMessage(role: 'user' | 'assistant', content: string): ChatMessage {
+export function createChatMessage(role: 'user' | 'assistant' | 'system', content: string): ChatMessage {
   return {
     id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     role,

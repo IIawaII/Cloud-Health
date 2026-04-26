@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/context/AuthContext'
 import type { User } from '@/types/auth'
 import { AVATAR_LIST, getUserAvatarUrl } from '@/lib/avatar'
@@ -12,6 +13,7 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+  const { t } = useTranslation()
   const { user, updateUser, logout } = useAuth()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile')
@@ -59,7 +61,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const handleSendCode = async () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
-      showMessage('error', '请输入有效的邮箱地址')
+      showMessage('error', t('settings.errors.invalidEmail'))
       return
     }
 
@@ -92,12 +94,12 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             return prev - 1
           })
         }, 1000)
-        showMessage('success', '验证码已发送')
+        showMessage('success', t('settings.messages.codeSent'))
       } else {
-        showMessage('error', data.error || '发送失败')
+        showMessage('error', data.error || t('common.error'))
       }
     } catch {
-      showMessage('error', '网络错误，请稍后重试')
+      showMessage('error', t('settings.errors.network'))
     } finally {
       setIsSendingCode(false)
     }
@@ -108,7 +110,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     if (username) {
       const uResult = usernameSchema.safeParse(username)
       if (!uResult.success) {
-        showMessage('error', uResult.error.errors[0]?.message || '用户名格式不正确')
+        showMessage('error', uResult.error.errors[0]?.message || t('settings.errors.invalidUsername'))
         return
       }
     }
@@ -117,14 +119,14 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     if (email) {
       const eResult = emailSchema.safeParse(email)
       if (!eResult.success) {
-        showMessage('error', eResult.error.errors[0]?.message || '请输入有效的邮箱地址')
+        showMessage('error', eResult.error.errors[0]?.message || t('settings.errors.invalidEmail'))
         return
       }
     }
 
     // 如果修改了邮箱，需要验证码
     if (isEmailChanged && !verificationCode) {
-      showMessage('error', '请输入验证码')
+      showMessage('error', t('settings.errors.needCode'))
       return
     }
 
@@ -152,13 +154,13 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       const data = await response.json() as { user?: unknown; error?: string }
       if (response.ok) {
         updateUser(data.user as User)
-        showMessage('success', '个人信息更新成功')
+        showMessage('success', t('settings.messages.updateSuccess'))
         setVerificationCode('')
       } else {
-        showMessage('error', data.error || '更新失败')
+        showMessage('error', data.error || t('common.error'))
       }
     } catch {
-      showMessage('error', '网络错误，请稍后重试')
+      showMessage('error', t('settings.errors.network'))
     } finally {
       setLoading(false)
     }
@@ -167,11 +169,11 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const handleChangePassword = async () => {
     const parseResult = changePasswordSchema.safeParse({ currentPassword, newPassword })
     if (!parseResult.success) {
-      showMessage('error', parseResult.error.errors[0]?.message || '请求参数错误')
+      showMessage('error', parseResult.error.errors[0]?.message || t('common.error'))
       return
     }
     if (newPassword !== confirmPassword) {
-      showMessage('error', '两次输入的新密码不一致')
+      showMessage('error', t('settings.errors.passwordMismatch'))
       return
     }
     setLoading(true)
@@ -186,7 +188,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       })
       const data = await response.json() as { error?: string; requireReLogin?: boolean }
       if (response.ok) {
-        showMessage('success', '密码修改成功，请使用新密码重新登录')
+        showMessage('success', t('settings.messages.passwordSuccess'))
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
@@ -198,55 +200,53 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           }, 1500)
         }
       } else {
-        showMessage('error', data.error || '修改失败')
+        showMessage('error', data.error || t('common.error'))
       }
     } catch {
-      showMessage('error', '网络错误，请稍后重试')
+      showMessage('error', t('settings.errors.network'))
     } finally {
       setLoading(false)
     }
   }
 
-
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
+      <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in transition-colors">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-foreground">账号设置</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-700">
+          <h2 className="text-lg font-semibold text-foreground dark:text-foreground-dark">{t('settings.title')}</h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-foreground-muted hover:bg-gray-100 transition-colors"
+            className="p-1.5 rounded-lg text-foreground-muted dark:text-foreground-dark-muted hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
           >
             <FiX className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-100">
+        <div className="flex border-b border-gray-100 dark:border-slate-700">
           <button
             onClick={() => setActiveTab('profile')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all ${
               activeTab === 'profile'
                 ? 'text-primary border-b-2 border-primary'
-                : 'text-foreground-muted hover:text-foreground'
+                : 'text-foreground-muted dark:text-foreground-dark-muted hover:text-foreground dark:hover:text-foreground-dark'
             }`}
           >
             <FiUser className="w-4 h-4" />
-            个人资料
+            {t('settings.tabs.profile')}
           </button>
           <button
             onClick={() => setActiveTab('password')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all ${
               activeTab === 'password'
                 ? 'text-primary border-b-2 border-primary'
-                : 'text-foreground-muted hover:text-foreground'
+                : 'text-foreground-muted dark:text-foreground-dark-muted hover:text-foreground dark:hover:text-foreground-dark'
             }`}
           >
             <FiLock className="w-4 h-4" />
-            修改密码
+            {t('settings.tabs.password')}
           </button>
         </div>
 
@@ -266,13 +266,13 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <>
               {/* Avatar Selection */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-3">选择头像</label>
+                <label className="block text-sm font-medium text-foreground dark:text-foreground-dark mb-3">{t('settings.avatar')}</label>
                 <div className="grid grid-cols-5 gap-2 max-h-[240px] overflow-y-auto p-3 -m-1">
                   {AVATAR_LIST.map((name) => (
                     <button
                       key={name}
                       onClick={() => setSelectedAvatar(name)}
-                      className={`relative w-full aspect-square rounded-xl bg-gray-50 flex items-center justify-center transition-all m-0.5 ${
+                      className={`relative w-full aspect-square rounded-xl bg-gray-50 dark:bg-slate-700 flex items-center justify-center transition-all m-0.5 ${
                         selectedAvatar === name
                           ? 'ring-2 ring-primary scale-105'
                           : 'hover:scale-105 opacity-80 hover:opacity-100'
@@ -285,7 +285,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         loading="lazy"
                       />
                       {selectedAvatar === name && (
-                        <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-sm border-2 border-white">
+                        <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-sm border-2 border-white dark:border-slate-800">
                           <FiCheck className="w-3 h-3 text-white" />
                         </div>
                       )}
@@ -296,24 +296,24 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
               {/* Username */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <label className="block text-sm font-medium text-foreground dark:text-foreground-dark mb-2">
                   <FiUser className="w-4 h-4 inline mr-1" />
-                  用户名
+                  {t('settings.username')}
                 </label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                  placeholder="3-10位字母、数字或下划线"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  placeholder={t('auth.register.usernamePlaceholder')}
                 />
               </div>
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <label className="block text-sm font-medium text-foreground dark:text-foreground-dark mb-2">
                   <FiMail className="w-4 h-4 inline mr-1" />
-                  邮箱
+                  {t('settings.email')}
                 </label>
                 <input
                   type="email"
@@ -322,26 +322,26 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     setEmail(e.target.value)
                     setVerificationCode('')
                   }}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                  placeholder="请输入邮箱"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  placeholder={t('auth.register.emailPlaceholder')}
                 />
               </div>
 
               {/* Verification Code (only when email changed) */}
               {isEmailChanged && (
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
+                  <label className="block text-sm font-medium text-foreground dark:text-foreground-dark mb-2">
                     <FiMessageSquare className="w-4 h-4 inline mr-1" />
-                    验证码
+                    {t('settings.verificationCode')}
                   </label>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       value={verificationCode}
                       onChange={(e) => setVerificationCode(e.target.value)}
-                      placeholder="请输入6位验证码"
+                      placeholder={t('auth.register.verificationCodePlaceholder')}
                       maxLength={6}
-                      className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                      className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                     />
                     <button
                       type="button"
@@ -352,9 +352,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       {isSendingCode ? (
                         <span className="inline-block w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
                       ) : countdown > 0 ? (
-                        `${countdown}s后重发`
+                        t('settings.resendIn', { seconds: countdown })
                       ) : (
-                        '获取验证码'
+                        t('settings.sendCode')
                       )}
                     </button>
                   </div>
@@ -366,44 +366,44 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 disabled={loading}
                 className="w-full py-2.5 rounded-xl text-sm font-medium text-white bg-primary hover:bg-primary-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? '保存中...' : '保存修改'}
+                {loading ? t('settings.saving') : t('settings.save')}
               </button>
             </>
           ) : (
             <>
               {/* Current Password */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">当前密码</label>
+                <label className="block text-sm font-medium text-foreground dark:text-foreground-dark mb-2">{t('settings.currentPassword')}</label>
                 <input
                   type="password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                  placeholder="请输入当前密码"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  placeholder={t('auth.login.passwordPlaceholder')}
                 />
               </div>
 
               {/* New Password */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">新密码</label>
+                <label className="block text-sm font-medium text-foreground dark:text-foreground-dark mb-2">{t('settings.newPassword')}</label>
                 <input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                  placeholder="至少8位，包含字母和数字"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  placeholder={t('auth.register.passwordPlaceholder')}
                 />
               </div>
 
               {/* Confirm Password */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">确认新密码</label>
+                <label className="block text-sm font-medium text-foreground dark:text-foreground-dark mb-2">{t('settings.confirmPassword')}</label>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                  placeholder="再次输入新密码"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  placeholder={t('auth.register.confirmPasswordPlaceholder')}
                 />
               </div>
 
@@ -412,7 +412,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 disabled={loading}
                 className="w-full py-2.5 rounded-xl text-sm font-medium text-white bg-primary hover:bg-primary-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? '修改中...' : '修改密码'}
+                {loading ? t('settings.changing') : t('settings.changePassword')}
               </button>
             </>
           )}

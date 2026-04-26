@@ -1,12 +1,14 @@
 import { useState, useCallback, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAIStream } from '../hooks/useAI'
-import { useResult } from '../context/ResultContext'
+import { useResult } from '@/hooks/useResult'
 import PlanForm from '../components/PlanForm'
 import type { PlanFormData } from '../types'
 import ResultCard from '../components/ResultCard'
 import { FiAlertCircle } from 'react-icons/fi'
 
 export default function PlanGenerator() {
+  const { t } = useTranslation()
   const { planResult, setPlanResult } = useResult()
   const [streamResult, setStreamResult] = useState(planResult)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -56,15 +58,15 @@ export default function PlanGenerator() {
 
       {loading && !streamResult ? (
         <ResultCard
-          title="您的个性化健康计划"
+          title={t('plan.title')}
           content=""
           loading
-          loadingText="AI 生成计划中..."
-          estimatedTime="预计需要 15-30 秒"
+          loadingText={t('plan.loading')}
+          estimatedTime={t('plan.estimatedTime')}
         />
       ) : streamResult ? (
         <ResultCard
-          title="您的个性化健康计划"
+          title={t('plan.title')}
           content={streamResult}
           isStreaming={isStreaming}
         />

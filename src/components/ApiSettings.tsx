@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getStoredApiConfig, saveApiConfig, clearApiConfig } from '@/lib/aiConfig'
 import { FiX, FiGlobe, FiKey, FiCpu, FiCheck, FiAlertCircle, FiTrash2 } from 'react-icons/fi'
 
@@ -9,6 +10,7 @@ interface ApiSettingsProps {
 }
 
 export default function ApiSettings({ isOpen, onClose, onConfigChange }: ApiSettingsProps) {
+  const { t } = useTranslation()
   const [baseUrl, setBaseUrl] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [model, setModel] = useState('')
@@ -34,11 +36,11 @@ export default function ApiSettings({ isOpen, onClose, onConfigChange }: ApiSett
 
   const handleSave = () => {
     if (!baseUrl.trim() || !apiKey.trim() || !model.trim()) {
-      showMessage('error', '请填写完整的 AI 配置信息')
+      showMessage('error', t('apiConfig.errors.incomplete'))
       return
     }
     saveApiConfig({ baseUrl: baseUrl.trim(), apiKey: apiKey.trim(), model: model.trim() })
-    showMessage('success', 'AI 配置已保存')
+    showMessage('success', t('apiConfig.messages.saved'))
     onConfigChange?.()
   }
 
@@ -47,28 +49,28 @@ export default function ApiSettings({ isOpen, onClose, onConfigChange }: ApiSett
     setBaseUrl('')
     setApiKey('')
     setModel('')
-    showMessage('success', 'AI 配置已清除，将使用服务端默认配置')
+    showMessage('success', t('apiConfig.messages.cleared'))
     onConfigChange?.()
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-md transition-opacity" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-modal-pop border border-gray-100">
+      <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-modal-pop border border-gray-100 dark:border-slate-700 transition-colors">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-white">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-slate-700 bg-gradient-to-r from-primary-50 to-white dark:from-slate-800 dark:to-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center shadow-sm">
               <FiCpu className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-foreground leading-tight">AI 配置</h2>
-              <p className="text-xs text-foreground-subtle mt-0.5">自定义您的 AI 接入参数</p>
+              <h2 className="text-base font-semibold text-foreground dark:text-foreground-dark leading-tight">{t('apiConfig.title')}</h2>
+              <p className="text-xs text-foreground-subtle dark:text-foreground-dark-subtle mt-0.5">{t('apiConfig.subtitle')}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-foreground-muted hover:bg-gray-100 hover:text-foreground transition-all"
+            className="p-2 rounded-xl text-foreground-muted dark:text-foreground-dark-muted hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-foreground dark:hover:text-foreground-dark transition-all"
           >
             <FiX className="w-5 h-5" />
           </button>
@@ -88,64 +90,64 @@ export default function ApiSettings({ isOpen, onClose, onConfigChange }: ApiSett
 
         {/* Content */}
         <div className="p-6 space-y-5">
-          <div className="text-xs text-foreground-muted bg-background-secondary p-3.5 rounded-xl leading-relaxed border border-gray-100">
+          <div className="text-xs text-foreground-muted dark:text-foreground-dark-muted bg-background-secondary dark:bg-slate-700/50 p-3.5 rounded-xl leading-relaxed border border-gray-100 dark:border-slate-700 transition-colors">
             <p className="flex items-start gap-2">
               <span className="inline-block w-1 h-1 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-              您可以配置自己的 AI API 来替代服务端默认配置
+              {t('apiConfig.info1')}
             </p>
             <p className="flex items-start gap-2 mt-1">
               <span className="inline-block w-1 h-1 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-              配置仅保存在浏览器本地，不会上传到服务器
+              {t('apiConfig.info2')}
             </p>
           </div>
 
           {/* Base URL */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <span className="w-6 h-6 rounded-lg bg-primary-50 text-primary flex items-center justify-center">
+            <label className="flex items-center gap-2 text-sm font-medium text-foreground dark:text-foreground-dark">
+              <span className="w-6 h-6 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary flex items-center justify-center">
                 <FiGlobe className="w-3.5 h-3.5" />
               </span>
-              API Base URL
+              {t('apiConfig.baseUrl')}
             </label>
             <input
               type="text"
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-background text-sm text-foreground placeholder:text-foreground-subtle focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/60 focus:bg-white transition-all"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-background dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark placeholder:text-foreground-subtle dark:placeholder:text-foreground-dark-subtle focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/60 focus:bg-white dark:focus:bg-slate-700 transition-all"
               placeholder="https://api.openai.com/v1"
             />
           </div>
 
           {/* API Key */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <span className="w-6 h-6 rounded-lg bg-primary-50 text-primary flex items-center justify-center">
+            <label className="flex items-center gap-2 text-sm font-medium text-foreground dark:text-foreground-dark">
+              <span className="w-6 h-6 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary flex items-center justify-center">
                 <FiKey className="w-3.5 h-3.5" />
               </span>
-              API Key
+              {t('apiConfig.apiKey')}
             </label>
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-background text-sm text-foreground placeholder:text-foreground-subtle focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/60 focus:bg-white transition-all"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-background dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark placeholder:text-foreground-subtle dark:placeholder:text-foreground-dark-subtle focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/60 focus:bg-white dark:focus:bg-slate-700 transition-all"
               placeholder="sk-..."
             />
           </div>
 
           {/* Model */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <span className="w-6 h-6 rounded-lg bg-primary-50 text-primary flex items-center justify-center">
+            <label className="flex items-center gap-2 text-sm font-medium text-foreground dark:text-foreground-dark">
+              <span className="w-6 h-6 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary flex items-center justify-center">
                 <FiCpu className="w-3.5 h-3.5" />
               </span>
-              模型名称
+              {t('apiConfig.model')}
             </label>
             <input
               type="text"
               value={model}
               onChange={(e) => setModel(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-background text-sm text-foreground placeholder:text-foreground-subtle focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/60 focus:bg-white transition-all"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-background dark:bg-slate-700 text-sm text-foreground dark:text-foreground-dark placeholder:text-foreground-subtle dark:placeholder:text-foreground-dark-subtle focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/60 focus:bg-white dark:focus:bg-slate-700 transition-all"
               placeholder="gpt-4o"
             />
           </div>
@@ -155,14 +157,14 @@ export default function ApiSettings({ isOpen, onClose, onConfigChange }: ApiSett
               onClick={handleSave}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-primary hover:bg-primary-700 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.97] transition-all"
             >
-              保存配置
+              {t('apiConfig.save')}
             </button>
             <button
               onClick={handleClear}
               className="flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 hover:shadow-md active:scale-[0.97] transition-all border border-red-100"
             >
               <FiTrash2 className="w-4 h-4" />
-              清除
+              {t('apiConfig.clear')}
             </button>
           </div>
         </div>

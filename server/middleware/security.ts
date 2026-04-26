@@ -12,7 +12,8 @@ export function generateNonce(): string {
 export function buildCsp(scriptNonce?: string): string {
   const directives = [
     "default-src 'self'",
-    "style-src 'self' https://fonts.googleapis.com",
+    // 'unsafe-inline' 为 Turnstile 的 srcdoc iframe 内联样式所必需
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https://challenges.cloudflare.com",
     "connect-src 'self' https://challenges.cloudflare.com",
@@ -27,10 +28,10 @@ export function buildCsp(scriptNonce?: string): string {
   ]
   if (scriptNonce) {
     directives.push(
-      `script-src 'self' 'nonce-${scriptNonce}' 'strict-dynamic' https://challenges.cloudflare.com`
+      `script-src 'self' 'nonce-${scriptNonce}' 'unsafe-inline' 'strict-dynamic' https://challenges.cloudflare.com`
     )
   } else {
-    directives.push("script-src 'self' https://challenges.cloudflare.com")
+    directives.push("script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com")
   }
   return directives.join('; ')
 }

@@ -33,6 +33,7 @@ export interface LogListData {
   logs: Array<{
     id: string;
     user_id: string | null;
+    username: string | null;
     action: string;
     metadata: string | null;
     created_at: string;

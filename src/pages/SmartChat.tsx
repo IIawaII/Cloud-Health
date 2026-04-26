@@ -3,7 +3,6 @@ import { useAuth } from '@/context/AuthContext'
 import { useAIStream } from '../hooks/useAI'
 import { useResult } from '@/hooks/useResult'
 import ChatInterface from '../components/ChatInterface'
-import type { ChatMessage } from '../types'
 import { createChatMessage } from '../../shared/types'
 
 export interface ChatSkill {
@@ -100,18 +99,29 @@ export default function SmartChat() {
 
   const handleSend = useCallback(
     (content: string) => {
+      // 确保有活跃会话，如果没有则自动创建
+      let currentSessionId = activeSessionId
+      if (!currentSessionId) {
+        currentSessionId = createChatSession()
+      }
+
       const activeSkill = skills.find((s) => s.id === activeSkillId)
-      let newMessages: ChatMessage[] = [...chatMessages, createChatMessage('user', content)]
+      const userMessage = createChatMessage('user', content)
+      const sessionMessages = [...chatMessages, userMessage]
+
+      // 构建发送给API的消息：包含system prompt但不保存到session
+      let apiMessages = [...sessionMessages]
       if (activeSkill) {
-        newMessages = [
+        apiMessages = [
           createChatMessage('system', activeSkill.systemPrompt),
-          ...newMessages,
+          ...apiMessages,
         ]
       }
-      setChatMessages(newMessages)
-      execute({ messages: newMessages })
+
+      setChatMessages(sessionMessages)
+      execute({ messages: apiMessages })
     },
-    [chatMessages, execute, setChatMessages, activeSkillId, skills]
+    [chatMessages, execute, setChatMessages, activeSkillId, skills, activeSessionId, createChatSession]
   )
 
   const handleClear = () => {
@@ -121,6 +131,16 @@ export default function SmartChat() {
   const handleUpdateSkill = (updated: ChatSkill) => {
     setSkills((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
   }
+
+  // 新建对话：如果已有空会话则跳转，否则创建新会话
+  const handleCreateSession = useCallback(() => {
+    const emptySession = chatSessions.find((s) => s.messages.length === 0)
+    if (emptySession) {
+      switchChatSession(emptySession.id)
+    } else {
+      createChatSession()
+    }
+  }, [chatSessions, createChatSession, switchChatSession])
 
   return (
     <div className="max-w-3xl mx-auto animate-fade-in">
@@ -132,7 +152,7 @@ export default function SmartChat() {
         onClear={handleClear}
         sessions={chatSessions}
         activeSessionId={activeSessionId}
-        onCreateSession={createChatSession}
+        onCreateSession={handleCreateSession}
         onSwitchSession={switchChatSession}
         onDeleteSession={deleteChatSession}
         onRenameSession={renameChatSession}

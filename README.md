@@ -1,6 +1,17 @@
-# Health Project - 智能健康诊断平台
+![Logo](./public/logo.svg)
 
-🌐 **[English README](README_EN.md)**
+---
+
+<div align="center">
+  基于 Cloudflare Workers 的智能健康平台
+</div>
+
+<p align="center">
+  <a href="README.md">中文文档</a> |
+  <a href="README_EN.md">English Document</a>
+</p>
+
+> 本项目仅供提供参考意见，若身体状况有异常，请及时就医。
 
 ## 📝 项目简介
 

@@ -1,6 +1,7 @@
 import { jsonResponse, errorResponse } from '../../lib/response';
-import { findUserByIdPublic } from '../../lib/db';
+import { findUserById, updateUserDataKey } from '../../lib/db';
 import { verifyToken } from '../../lib/auth';
+import { generateDataKey } from '../../lib/crypto';
 import type { AppContext } from '../../lib/handler';
 
 export const onRequestGet = async (context: AppContext) => {
@@ -12,13 +13,21 @@ export const onRequestGet = async (context: AppContext) => {
 
     let avatar: string | undefined;
     let email = tokenData.email;
+    let dataKey: string | undefined = tokenData.dataKey;
 
     try {
-      // 从 D1 获取完整用户信息（包括头像和最新邮箱）
-      const dbUser = await findUserByIdPublic(context.env.DB, tokenData.userId);
+      // 从 D1 获取完整用户信息（包括头像、最新邮箱和数据密钥）
+      const dbUser = await findUserById(context.env.DB, tokenData.userId);
       if (dbUser) {
         avatar = dbUser.avatar ?? undefined;
         email = dbUser.email;
+        // 为没有 data_key 的老用户自动生成并持久化
+        if (!dbUser.data_key) {
+          dataKey = generateDataKey();
+          await updateUserDataKey(context.env.DB, dbUser.id, dataKey);
+        } else {
+          dataKey = dbUser.data_key;
+        }
       }
     } catch (dbError) {
       console.warn('Token verification fallback to token payload:', dbError);
@@ -32,6 +41,7 @@ export const onRequestGet = async (context: AppContext) => {
         email,
         avatar,
         role: tokenData.role ?? 'user',
+        dataKey,
       },
     }, 200);
   } catch (error) {

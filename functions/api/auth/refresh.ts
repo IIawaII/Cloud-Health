@@ -1,7 +1,8 @@
-import { generateToken } from '../../lib/crypto';
+import { generateToken, generateDataKey } from '../../lib/crypto';
 import { saveToken, saveRefreshToken, verifyRefreshToken, deleteRefreshToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { getCookie, serializeCookie, getSecureCookieOptions, getAccessTokenCookieMaxAge, getRefreshTokenCookieMaxAge } from '../../lib/cookie';
+import { findUserById, updateUserDataKey } from '../../lib/db';
 import type { AppContext } from '../../lib/handler';
 
 export const onRequestPost = async (context: AppContext) => {
@@ -23,6 +24,22 @@ export const onRequestPost = async (context: AppContext) => {
       return errorResponse('刷新令牌已过期或无效', 401);
     }
 
+    // 从数据库获取最新的 data_key；老用户无 data_key 时自动生成
+    let dataKey = refreshData.dataKey;
+    try {
+      const dbUser = await findUserById(context.env.DB, refreshData.userId);
+      if (dbUser) {
+        if (!dbUser.data_key) {
+          dataKey = generateDataKey();
+          await updateUserDataKey(context.env.DB, dbUser.id, dataKey);
+        } else {
+          dataKey = dbUser.data_key;
+        }
+      }
+    } catch {
+      // 忽略数据库查询错误，使用 token 中的 dataKey
+    }
+
     // 生成新的 Access Token 和 Refresh Token（Token Rotation）
     const accessToken = generateToken();
     const newRefreshToken = generateToken();
@@ -34,6 +51,7 @@ export const onRequestPost = async (context: AppContext) => {
       username: refreshData.username,
       email: refreshData.email,
       role: refreshData.role ?? 'user',
+      dataKey,
       createdAt: now,
     });
 
@@ -43,6 +61,7 @@ export const onRequestPost = async (context: AppContext) => {
       username: refreshData.username,
       email: refreshData.email,
       role: refreshData.role ?? 'user',
+      dataKey,
       createdAt: now,
     });
 
@@ -58,6 +77,7 @@ export const onRequestPost = async (context: AppContext) => {
         username: refreshData.username,
         email: refreshData.email,
         role: refreshData.role ?? 'user',
+        dataKey,
       },
     }, 200, {
       'Set-Cookie': [

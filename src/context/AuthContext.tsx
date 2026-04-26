@@ -28,6 +28,7 @@ function extractUser(data: unknown): User | null {
     email: getStringField(userData, 'email') || '',
     avatar: getStringField(userData, 'avatar'),
     role: (getStringField(userData, 'role') as 'user' | 'admin') || 'user',
+    dataKey: getStringField(userData, 'dataKey'),
   };
 }
 
@@ -245,6 +246,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [handleAuthSuccess]);
 
   const logout = useCallback(async () => {
+    // 先记录当前用户ID，用于登出后清理该用户的本地数据
+    const currentUserId = state.user?.id;
+
     try {
       await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
@@ -254,9 +258,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     clearUserCache();
+
+    // 清理当前用户的 ResultContext 本地数据，防止切换账户时数据混淆
+    if (currentUserId) {
+      localStorage.removeItem(`health_project_results_${currentUserId}`);
+    }
+
+    // 清理加密配置相关数据
+    localStorage.removeItem('health_ai_config_enc');
+    localStorage.removeItem('health_ai_config');
+
     setState({ isAuthenticated: false, user: null, isLoading: false });
     broadcastAuthChange('logout');
-  }, []);
+  }, [state.user]);
 
   const updateUser = useCallback((user: User) => {
     persistUser(user);

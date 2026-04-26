@@ -103,3 +103,13 @@ export function generateToken(): string {
   crypto.getRandomValues(array)
   return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('')
 }
+
+/**
+ * 生成用户数据加密密钥（256 位，64 位十六进制字符串）
+ * 用于前端 AES-GCM 加密本地存储的 API Key 等敏感配置
+ */
+export function generateDataKey(): string {
+  const array = new Uint8Array(32)
+  crypto.getRandomValues(array)
+  return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('')
+}

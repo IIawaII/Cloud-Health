@@ -11,7 +11,6 @@ import {
   FiSettings,
   FiMenu,
   FiLogOut,
-  FiActivity,
   FiShield,
   FiChevronsLeft,
   FiChevronsRight,
@@ -77,7 +76,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center flex-shrink-0">
             <FiShield className="w-4 h-4 text-white" />
           </div>
-          {!collapsed && <span className="text-lg font-semibold tracking-tight">{t('admin.title')}</span>}
+          <span className={`overflow-hidden whitespace-nowrap text-lg font-semibold tracking-tight transition-all duration-300 ${collapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}`}>
+            {t('admin.title')}
+          </span>
         </div>
 
         {/* Navigation */}
@@ -99,7 +100,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 } ${collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'}`}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
-                {!collapsed && label}
+                <span className={`overflow-hidden whitespace-nowrap transition-all duration-300 ${collapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}`}>
+                  {label}
+                </span>
               </Link>
             )
           })}
@@ -115,7 +118,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }`}
           >
             {collapsed ? <FiChevronsRight className="w-4 h-4" /> : <FiChevronsLeft className="w-4 h-4" />}
-            {!collapsed && t('common.cancel')}
+            <span className={`overflow-hidden whitespace-nowrap transition-all duration-300 ${collapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}`}>
+              {t('admin.collapse')}
+            </span>
           </button>
         </div>
 
@@ -127,12 +132,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               alt="avatar"
               className="w-8 h-8 rounded-full bg-gray-100 object-cover"
             />
-            {!collapsed && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{user?.username}</p>
-                <p className="text-xs text-slate-500">{user?.email}</p>
-              </div>
-            )}
+            <div className={`flex-1 min-w-0 overflow-hidden transition-all duration-300 ${collapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}`}>
+              <p className="text-sm font-medium text-white truncate">{user?.username}</p>
+              <p className="text-xs text-slate-500">{user?.email}</p>
+            </div>
           </div>
           <button
             onClick={handleLogout}
@@ -142,7 +145,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }`}
           >
             <FiLogOut className="w-4 h-4" />
-            {!collapsed && t('nav.logout')}
+            <span className={`overflow-hidden whitespace-nowrap transition-all duration-300 ${collapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}`}>
+              {t('nav.logout')}
+            </span>
           </button>
         </div>
       </aside>
@@ -159,8 +164,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <FiMenu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-              <FiActivity className="w-4 h-4 text-teal-500" />
-              <span>Health Project</span>
+              <img src="/icon.svg" alt="Cloud Health" className="w-4 h-4" />
+              <span>Cloud Health</span>
               <span className="text-slate-300 dark:text-slate-600">/</span>
               <span className="text-slate-800 dark:text-slate-200 font-medium">{t('admin.title')}</span>
             </div>

@@ -4,6 +4,7 @@ export interface User {
   email: string;
   avatar?: string;
   role?: 'user' | 'admin';
+  dataKey?: string;
 }
 
 export interface AuthState {

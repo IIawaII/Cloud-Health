@@ -13,7 +13,7 @@
     "aiConfig": "AI 配置"
   },
   "home": {
-    "title": "智能健康诊断平台",
+    "title": "Cloud Health",
     "subtitle": "您的私人健康 AI 顾问",
     "description": "利用大语言模型技术，为您提供智能健康报告分析、个性化健康计划、健康问答和智能对话服务，让健康管理更科学、更高效。",
     "features": {
@@ -50,6 +50,7 @@
     "users": "用户管理",
     "data": "数据管理",
     "config": "系统配置",
+    "collapse": "收起",
     "search": "搜索用户名或邮箱",
     "role": {
       "user": "普通用户",
@@ -61,6 +62,9 @@
       "confirm": "确认",
       "cancel": "取消"
     }
+  },
+  "turnstile": {
+    "loadError": "人机验证加载失败，请刷新页面重试"
   },
   "auth": {
     "login": {
@@ -127,7 +131,7 @@
     ],
     "safetyTitle": "安全提示",
     "safetyDesc": "本工具基于人工智能技术分析健康信息，结果仅供参考，不能替代专业医生的诊断和治疗建议。如有严重健康问题，请及时就医。您的 API 密钥仅保存在本地浏览器中，我们不会收集或存储您的任何健康数据。",
-    "footer": "Health Project - 智能健康诊断平台 | 本工具仅供参考，不能替代专业医疗建议",
+    "footer": "Cloud Health | 本工具仅供参考，不能替代专业医疗建议",
     "features": {
       "report": {
         "title": "健康报告分析",
@@ -214,8 +218,10 @@
     "clear": "清除",
     "info1": "您可以配置自己的 AI API 来替代服务端默认配置",
     "info2": "配置仅保存在浏览器本地，不会上传到服务器",
+    "info3": "注意：API Key 使用 AES-GCM 加密存储在本地浏览器中，每个用户拥有独立的数据密钥。请勿在公共或共享设备上保存敏感密钥",
     "errors": {
-      "incomplete": "请填写完整的 AI 配置信息"
+      "incomplete": "请填写完整的 AI 配置信息",
+      "saveFailed": "保存失败，请检查登录状态"
     },
     "messages": {
       "saved": "AI 配置已保存",
@@ -289,6 +295,59 @@
       "deleteFailed": "删除用户失败，请稍后重试"
     }
   },
+  "dataManagement": {
+    "title": "数据管理",
+    "subtitle": "查看平台使用日志和管理员审计记录",
+    "tabs": {
+      "usage": "使用日志",
+      "audit": "审计日志"
+    },
+    "filters": {
+      "allActions": "全部操作",
+      "analyze": "报告分析",
+      "chat": "智能对话",
+      "plan": "计划生成",
+      "quiz": "健康问答"
+    },
+    "columns": {
+      "actionType": "操作类型",
+      "userId": "用户",
+      "metadata": "元数据",
+      "time": "时间",
+      "action": "操作",
+      "admin": "管理员",
+      "target": "目标",
+      "details": "详情"
+    },
+    "noUsageLogs": "暂无使用日志",
+    "noAuditLogs": "暂无审计日志",
+    "pagination": "共 {{total}} 条记录，第 {{page}} / {{totalPages}} 页",
+    "anonymous": "匿名"
+  },
+  "systemConfig": {
+    "title": "系统配置",
+    "subtitle": "管理平台运行参数和全局开关",
+    "refresh": "刷新",
+    "noConfig": "暂无系统配置",
+    "noConfigDesc": "配置项会在首次设置后显示在这里",
+    "updatedAt": "更新时间",
+    "saved": "已保存",
+    "saveFailed": "保存失败",
+    "displayNames": {
+      "site_name": "站点名称",
+      "welcome_message": "欢迎消息",
+      "max_requests_per_day": "每日最大请求数",
+      "maintenance_mode": "维护模式",
+      "enable_registration": "允许注册"
+    },
+    "descriptions": {
+      "site_name": "显示在页面标题和导航栏中的站点名称",
+      "welcome_message": "用户登录后在首页看到的欢迎语",
+      "max_requests_per_day": "每个用户每天可调用 AI 功能的最大次数，0 表示不限制",
+      "maintenance_mode": "开启后普通用户将无法使用平台功能",
+      "enable_registration": "关闭后将禁止新用户注册"
+    }
+  },
   "chat": {
     "welcomeTitle": "智能健康顾问",
     "welcomeDesc": "我是您的 AI 健康顾问，可以回答健康相关问题、提供养生建议、解读医学知识。请问有什么可以帮您的？",
@@ -337,7 +396,35 @@
     "submit": "生成健康计划",
     "submitting": "生成中...",
     "placeholder": "请选择",
-    "inputPlaceholder": "请输入{{label}}"
+    "inputPlaceholder": "请输入{{label}}",
+    "fields": {
+      "name": "姓名",
+      "age": "年龄",
+      "gender": "性别",
+      "height": "身高 (cm)",
+      "weight": "体重 (kg)",
+      "goal": "健康目标",
+      "dietaryPreference": "饮食偏好",
+      "exerciseHabit": "运动习惯",
+      "sleepQuality": "睡眠质量",
+      "targetDate": "目标日期",
+      "medicalConditions": "现有疾病/状况",
+      "allergies": "过敏源/忌口"
+    },
+    "options": {
+      "gender": ["男", "女"],
+      "goal": ["减重减脂", "增肌塑形", "改善体质", "慢性病管理", "提高免疫力", "改善睡眠", "其他"],
+      "dietaryPreference": ["无特殊偏好", "素食", "低碳饮食", "高蛋白", "Mediterranean 饮食", "间歇性断食", "其他"],
+      "exerciseHabit": ["几乎不运动", "偶尔运动（每周1-2次）", "规律运动（每周3-4次）", "高频运动（每周5次以上）"],
+      "sleepQuality": ["很好（7-8小时，易入睡）", "一般（6-7小时，偶尔失眠）", "较差（少于6小时，经常失眠）", "严重睡眠问题"]
+    },
+    "errors": {
+      "required": "{{label}} 不能为空",
+      "ageInvalid": "请输入有效的年龄（1-120）",
+      "heightInvalid": "请输入有效的身高（50-250 cm）",
+      "weightInvalid": "请输入有效的体重（20-300 kg）",
+      "targetDateInvalid": "目标日期必须是今天或以后的日期"
+    }
   },
   "fileUploader": {
     "dragTitle": "点击或拖拽文件到此处上传",

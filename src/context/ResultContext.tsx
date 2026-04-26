@@ -97,7 +97,10 @@ function saveToStorage(storageKey: string, data: StoredData) {
 
 export function ResultProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const userId = useMemo(() => user?.id || getAnonymousId(), [user?.id]);
+  const userId = useMemo(() => {
+    const id = user?.id?.trim();
+    return id ? id : getAnonymousId();
+  }, [user?.id]);
   const STORAGE_KEY = useMemo(() => `health_project_results_${userId}`, [userId]);
 
   const initial = loadFromStorage(STORAGE_KEY);
@@ -107,6 +110,7 @@ export function ResultProvider({ children }: { children: ReactNode }) {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(initial.activeSessionId || null);
   const activeSessionIdRef = useRef(activeSessionId);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevStorageKeyRef = useRef(STORAGE_KEY);
 
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
@@ -119,6 +123,14 @@ export function ResultProvider({ children }: { children: ReactNode }) {
   }, [chatSessions, activeSessionId]);
 
   useEffect(() => {
+    // 如果 STORAGE_KEY 实际发生了变化，先清空旧数据，再加载新数据
+    if (prevStorageKeyRef.current !== STORAGE_KEY) {
+      setAnalysisResultState('');
+      setPlanResultState('');
+      setChatSessionsState([]);
+      setActiveSessionId(null);
+      prevStorageKeyRef.current = STORAGE_KEY;
+    }
     const data = loadFromStorage(STORAGE_KEY);
     setAnalysisResultState(data.analysisResult);
     setPlanResultState(data.planResult);

@@ -2,9 +2,11 @@ import { useState, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/hooks/useTheme';
 import { TurnstileWidget } from '@/components/TurnstileWidget';
 import { TURNSTILE_SITE_KEY } from '@/lib/config';
 import { loginSchema } from '../../shared/schemas';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { 
   FiUser, 
   FiLock, 
@@ -12,7 +14,9 @@ import {
   FiEyeOff, 
   FiLoader,
   FiShield,
-  FiArrowRight
+  FiArrowRight,
+  FiMoon,
+  FiSun,
 } from 'react-icons/fi';
 
 export default function Login() {
@@ -20,6 +24,7 @@ export default function Login() {
   const location = useLocation();
   const { t } = useTranslation();
   const { login } = useAuth();
+  const { resolvedTheme, toggleTheme } = useTheme();
   
   // 获取登录后要跳转的路径（ProtectedRoute 保存的）
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/home';
@@ -94,14 +99,26 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 flex items-start sm:items-center justify-center p-4 py-6 overflow-y-auto transition-colors">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 flex items-start sm:items-center justify-center p-4 py-6 overflow-y-auto transition-colors relative">
+      {/* Top-right controls */}
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        <button
+          onClick={toggleTheme}
+          title={resolvedTheme === 'dark' ? t('theme.light') : t('theme.dark')}
+          className="flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-colors"
+        >
+          {resolvedTheme === 'dark' ? <FiSun className="w-4 h-4" /> : <FiMoon className="w-4 h-4" />}
+        </button>
+        <LanguageSwitcher />
+      </div>
+
       <div className="w-full max-w-md my-auto">
         {/* Logo */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl shadow-lg mb-4">
             <FiShield className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Health Project</h1>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Cloud Health</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">{t('home.title')}</p>
         </div>
 

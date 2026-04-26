@@ -1,12 +1,12 @@
-import { verifyPassword, generateToken } from '../../lib/crypto';
+import { verifyPassword, generateToken, generateDataKey } from '../../lib/crypto';
 import { saveToken, saveRefreshToken, ADMIN_ACCESS_TOKEN_TTL, ADMIN_REFRESH_TOKEN_TTL } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { validateTurnstile } from '../../lib/turnstile';
 import { checkRateLimit } from '../../lib/rateLimit';
-import { findUserByUsername, findUserByEmail } from '../../lib/db';
+import { findUserByUsername, findUserByEmail, updateUserDataKey } from '../../lib/db';
 import { serializeCookie, getSecureCookieOptions, getAccessTokenCookieMaxAge, getRefreshTokenCookieMaxAge } from '../../lib/cookie';
 import type { AppContext } from '../../lib/handler';
-import { loginSchema } from '../../../shared/schemas';
+import { loginSchema, EMAIL_REGEX } from '../../../shared/schemas';
 
 export const onRequestPost = async (context: AppContext) => {
   try {
@@ -87,7 +87,7 @@ export const onRequestPost = async (context: AppContext) => {
 
     // 判断是用户名还是邮箱，直接从 D1 查询用户
     // 使用与注册一致的邮箱校验逻辑，避免宽松正则误判
-    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(usernameOrEmail);
+    const isEmail = EMAIL_REGEX.test(usernameOrEmail);
     const user = isEmail
       ? await findUserByEmail(context.env.DB, usernameOrEmail)
       : await findUserByUsername(context.env.DB, usernameOrEmail);
@@ -102,6 +102,18 @@ export const onRequestPost = async (context: AppContext) => {
       return errorResponse('用户名或密码错误', 401);
     }
 
+    // 为没有 data_key 的老用户自动生成并持久化
+    let dataKey = user.data_key;
+    if (!dataKey) {
+      dataKey = generateDataKey();
+      try {
+        await updateUserDataKey(context.env.DB, user.id, dataKey);
+      } catch (dbError) {
+        console.error('[Login] Failed to update data_key:', dbError);
+        return errorResponse('登录失败，用户数据迁移异常', 500);
+      }
+    }
+
     // 生成 Access Token 和 Refresh Token
     const accessToken = generateToken();
     const refreshToken = generateToken();
@@ -113,6 +125,7 @@ export const onRequestPost = async (context: AppContext) => {
       username: user.username,
       email: user.email,
       role: (user.role as 'user' | 'admin') ?? 'user',
+      dataKey,
       createdAt: now,
     });
 
@@ -122,6 +135,7 @@ export const onRequestPost = async (context: AppContext) => {
       username: user.username,
       email: user.email,
       role: (user.role as 'user' | 'admin') ?? 'user',
+      dataKey,
       createdAt: now,
     });
 
@@ -135,6 +149,7 @@ export const onRequestPost = async (context: AppContext) => {
         email: user.email,
         avatar: user.avatar ?? undefined,
         role: user.role ?? 'user',
+        dataKey,
       },
     }, 200, {
       'Set-Cookie': [

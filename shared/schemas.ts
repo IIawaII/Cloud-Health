@@ -2,6 +2,9 @@ import { z } from 'zod'
 
 export const usernameSchema = z.string().regex(/^[a-zA-Z0-9_]{3,10}$/, '用户名只能包含字母、数字和下划线，长度3-10位')
 export const emailSchema = z.string().email('请输入有效的邮箱地址')
+
+/** 前后端共享的邮箱校验正则，确保登录与注册逻辑一致 */
+export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export const passwordSchema = z
   .string()
   .min(8, '密码长度至少8位')

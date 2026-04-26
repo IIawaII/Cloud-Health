@@ -69,11 +69,9 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
-                <FiActivity className="w-5 h-5 text-white" />
-              </div>
+              <img src="/icon.svg" alt="Cloud Health" className="w-9 h-9" />
               <span className="text-xl font-semibold text-foreground dark:text-foreground-dark tracking-tight">
-                Health Project
+                Cloud Health
               </span>
             </div>
             <div className="flex items-center gap-3">

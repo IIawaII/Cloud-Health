@@ -1,4 +1,4 @@
-import { hashPassword, generateToken } from '../../lib/crypto';
+import { hashPassword, generateToken, generateDataKey } from '../../lib/crypto';
 import { saveToken, saveRefreshToken } from '../../lib/auth';
 import { jsonResponse, errorResponse } from '../../lib/response';
 import { validateTurnstile } from '../../lib/turnstile';
@@ -77,6 +77,7 @@ export const onRequestPost = async (context: AppContext) => {
     // 创建用户
     const userId = crypto.randomUUID();
     const passwordHash = await hashPassword(password);
+    const dataKey = generateDataKey();
     const now = new Date().toISOString();
     try {
       await createUser(context.env.DB, {
@@ -85,6 +86,7 @@ export const onRequestPost = async (context: AppContext) => {
         email,
         password_hash: passwordHash,
         role: 'user',
+        data_key: dataKey,
         created_at: now,
         updated_at: now,
       });
@@ -107,6 +109,7 @@ export const onRequestPost = async (context: AppContext) => {
         username,
         email,
         role: 'user',
+        dataKey,
         createdAt: now,
       });
 
@@ -116,6 +119,7 @@ export const onRequestPost = async (context: AppContext) => {
         username,
         email,
         role: 'user',
+        dataKey,
         createdAt: now,
       });
     } catch (tokenError) {
@@ -136,6 +140,7 @@ export const onRequestPost = async (context: AppContext) => {
         id: userId,
         username,
         email,
+        dataKey,
       },
     }, 201, {
       'Set-Cookie': [

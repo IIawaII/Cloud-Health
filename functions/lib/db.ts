@@ -10,12 +10,13 @@ export interface DbUser {
   password_hash: string
   avatar: string | null
   role: string
+  data_key: string | null
   created_at: string
   updated_at: string
 }
 
 /** 不含敏感字段的用户信息 */
-export type DbUserPublic = Omit<DbUser, 'password_hash'>
+export type DbUserPublic = Omit<DbUser, 'password_hash' | 'data_key'>
 
 export interface UsageLog {
   id: string
@@ -55,7 +56,7 @@ export interface VerificationCodeRecord {
  * 通过用户名查找用户
  */
 export async function findUserByUsername(db: D1Database, username: string): Promise<DbUser | null> {
-  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, role, created_at, updated_at FROM users WHERE username = ? COLLATE NOCASE')
+  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, role, data_key, created_at, updated_at FROM users WHERE username = ? COLLATE NOCASE')
   const result = await stmt.bind(username).first<DbUser>()
   return result ?? null
 }
@@ -64,7 +65,7 @@ export async function findUserByUsername(db: D1Database, username: string): Prom
  * 通过邮箱查找用户
  */
 export async function findUserByEmail(db: D1Database, email: string): Promise<DbUser | null> {
-  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, role, created_at, updated_at FROM users WHERE email = ? COLLATE NOCASE')
+  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, role, data_key, created_at, updated_at FROM users WHERE email = ? COLLATE NOCASE')
   const result = await stmt.bind(email).first<DbUser>()
   return result ?? null
 }
@@ -73,7 +74,7 @@ export async function findUserByEmail(db: D1Database, email: string): Promise<Db
  * 通过 ID 查找用户（含密码哈希，仅用于认证相关场景）
  */
 export async function findUserById(db: D1Database, id: string): Promise<DbUser | null> {
-  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, role, created_at, updated_at FROM users WHERE id = ?')
+  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, role, data_key, created_at, updated_at FROM users WHERE id = ?')
   const result = await stmt.bind(id).first<DbUser>()
   return result ?? null
 }
@@ -95,7 +96,7 @@ export async function createUser(
   user: Omit<DbUser, 'avatar'> & { avatar?: string | null }
 ): Promise<void> {
   const stmt = db.prepare(
-    'INSERT INTO users (id, username, email, password_hash, avatar, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO users (id, username, email, password_hash, avatar, data_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   )
   await stmt.bind(
     user.id,
@@ -103,6 +104,7 @@ export async function createUser(
     user.email,
     user.password_hash,
     user.avatar ?? null,
+    user.data_key ?? null,
     user.created_at,
     user.updated_at
   ).run()
@@ -193,12 +195,12 @@ export async function getUsageLogs(
   const [countResult, logsResult] = await db.batch([
     db.prepare(`SELECT COUNT(*) as total FROM usage_logs ${whereClause}`).bind(...values),
     db.prepare(
-      `SELECT id, user_id, action, metadata, created_at FROM usage_logs ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+      `SELECT l.id, l.user_id, u.username, l.action, l.metadata, l.created_at FROM usage_logs l LEFT JOIN users u ON l.user_id = u.id ${whereClause} ORDER BY l.created_at DESC LIMIT ? OFFSET ?`
     ).bind(...values, limit, offset),
   ])
 
   return {
-    logs: (logsResult as D1Result<UsageLog>).results ?? [],
+    logs: (logsResult as D1Result<UsageLog & { username: string | null }>).results ?? [],
     total: (countResult as D1Result<{ total: number }>).results?.[0]?.total ?? 0,
   }
 }
@@ -361,6 +363,14 @@ export async function getUserList(
     users: (usersResult as D1Result<DbUserPublic>).results ?? [],
     total: (countResult as D1Result<{ total: number }>).results?.[0]?.total ?? 0,
   }
+}
+
+/**
+ * 更新用户数据密钥（data_key）
+ */
+export async function updateUserDataKey(db: D1Database, id: string, dataKey: string): Promise<void> {
+  const stmt = db.prepare('UPDATE users SET data_key = ?, updated_at = ? WHERE id = ?')
+  await stmt.bind(dataKey, new Date().toISOString(), id).run()
 }
 
 /**

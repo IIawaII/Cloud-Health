@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { FiAlertCircle } from 'react-icons/fi';
 
 declare global {
   interface Window {
@@ -81,6 +83,7 @@ function getTurnstileSize(): 'normal' | 'compact' {
 }
 
 export function TurnstileWidget({ onVerify, onError, onExpire, siteKey }: TurnstileWidgetProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const callbacksRef = useRef({ onVerify, onError, onExpire });
@@ -157,8 +160,9 @@ export function TurnstileWidget({ onVerify, onError, onExpire, siteKey }: Turnst
 
   if (loadError) {
     return (
-      <div className="flex justify-center p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-        <span>⚠️ 人机验证加载失败，请刷新页面重试</span>
+      <div className="flex items-center justify-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+        <FiAlertCircle className="w-4 h-4 flex-shrink-0" />
+        <span>{t('turnstile.loadError')}</span>
       </div>
     );
   }

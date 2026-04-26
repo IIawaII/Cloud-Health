@@ -14,7 +14,6 @@ import {
   FiSettings,
   FiMenu,
   FiX,
-  FiActivity,
   FiLogOut,
   FiCpu,
   FiMoon,
@@ -41,14 +40,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [apiSettingsOpen, setApiSettingsOpen] = useState(false)
-  const [apiConfigured, setApiConfigured] = useState(hasStoredApiConfig())
+  const [apiConfigured, setApiConfigured] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
+
+  // 异步检查 API 配置状态
+  useEffect(() => {
+    hasStoredApiConfig().then(setApiConfigured).catch(() => setApiConfigured(false))
+  }, [])
 
   // 监听 storage 事件，同步多标签页的 AI 配置状态变化
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'health_ai_config') {
-        setApiConfigured(hasStoredApiConfig())
+      if (e.key === 'health_ai_config_enc' || e.key === 'health_ai_config') {
+        hasStoredApiConfig().then(setApiConfigured).catch(() => setApiConfigured(false))
       }
     }
     window.addEventListener('storage', handleStorage)
@@ -89,11 +93,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
-                <FiActivity className="w-5 h-5 text-white" />
-              </div>
+              <img src="/icon.svg" alt="Cloud Health" className="w-9 h-9" />
               <Link to="/home" className="text-xl font-semibold text-foreground dark:text-foreground-dark tracking-tight">
-                Health Project
+                Cloud Health
               </Link>
             </div>
 
@@ -269,9 +271,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         isOpen={apiSettingsOpen}
         onClose={() => {
           setApiSettingsOpen(false)
-          setApiConfigured(hasStoredApiConfig())
+          hasStoredApiConfig().then(setApiConfigured).catch(() => setApiConfigured(false))
         }}
-        onConfigChange={() => setApiConfigured(hasStoredApiConfig())}
+        onConfigChange={() => hasStoredApiConfig().then(setApiConfigured).catch(() => setApiConfigured(false))}
       />
     </div>
   )

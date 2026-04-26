@@ -50,6 +50,21 @@ export default function ChatInterface({
   const { t } = useTranslation()
   const { user } = useAuth()
   const [input, setInput] = useState('')
+
+  /**
+   * 获取安全的用户头像地址。
+   * 优先使用认证状态中的 avatar；仅在未登录或 avatar 为空时回退到 localStorage。
+   * 回退值经过白名单校验（仅允许 User_ 预设头像或合法 image data URL），
+   * 防止 localStorage 被 XSS 污染后加载恶意资源。
+   */
+  const safeAvatar = (() => {
+    if (user?.avatar) return user.avatar
+    const cached = typeof window !== 'undefined' ? localStorage.getItem('user_avatar') : null
+    if (cached && (cached.startsWith('User_') || /^data:image\/(png|jpeg|jpg|webp|gif|svg\+xml);/.test(cached))) {
+      return cached
+    }
+    return undefined
+  })()
   const [showHelp, setShowHelp] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
@@ -434,7 +449,7 @@ export default function ChatInterface({
             >
               {msg.role === 'user' ? (
                 <img
-                  src={getAvatarDisplayUrl(user?.avatar || localStorage.getItem('user_avatar') || undefined)}
+                  src={getAvatarDisplayUrl(safeAvatar)}
                   alt="avatar"
                   className="w-full h-full"
                   onError={(e) => {

@@ -39,10 +39,10 @@ class EmailSendError extends Error {
 }
 
 async function sendEmailViaResend(apiKey: string, resendDomain: string | undefined, to: string, code: string, type: string): Promise<void> {
-  const subject = type === 'register' ? 'Health Project - 注册验证码' : 'Health Project - 修改邮箱验证码';
+  const subject = type === 'register' ? 'Cloud Health - 注册验证码' : 'Cloud Health - 修改邮箱验证码';
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
-      <h2 style="color: #3b82f6;">Health Project</h2>
+      <h2 style="color: #3b82f6;">Cloud Health</h2>
       <p>您的验证码为：</p>
       <div style="font-size: 32px; font-weight: bold; color: #3b82f6; letter-spacing: 4px; margin: 20px 0; padding: 15px; background: #f0f9ff; border-radius: 8px; text-align: center;">
         ${code}
@@ -59,7 +59,7 @@ async function sendEmailViaResend(apiKey: string, resendDomain: string | undefin
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: `Health Project <noreply@${resendDomain || 'resend.dev'}>`,
+      from: `Cloud Health <noreply@${resendDomain || 'resend.dev'}>`,
       to,
       subject,
       html,

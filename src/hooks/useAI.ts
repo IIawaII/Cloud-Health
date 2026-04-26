@@ -17,11 +17,11 @@ interface UseAIReturn<T> {
   execute: (payload: Record<string, unknown>) => Promise<void>
 }
 
-function buildHeaders(): Record<string, string> {
+async function buildHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
-  const cfg = getStoredApiConfig()
+  const cfg = await getStoredApiConfig()
   if (cfg?.baseUrl) headers['X-AI-Base-URL'] = cfg.baseUrl
   if (cfg?.apiKey) headers['X-AI-API-Key'] = cfg.apiKey
   if (cfg?.model) headers['X-AI-Model'] = cfg.model
@@ -51,7 +51,7 @@ export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
       async function doFetch() {
         return fetch(currentOptions.endpoint, {
           method: 'POST',
-          headers: buildHeaders(),
+          headers: await buildHeaders(),
           body: JSON.stringify(payload),
           signal: controller!.signal,
         })
@@ -157,7 +157,7 @@ export function useAIStream(options: {
       async function doFetch() {
         return fetch(currentOptions.endpoint, {
           method: 'POST',
-          headers: buildHeaders(),
+          headers: await buildHeaders(),
           body: JSON.stringify({ ...payload, stream: true }),
           signal: controller!.signal,
         })

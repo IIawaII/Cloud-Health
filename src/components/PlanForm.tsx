@@ -9,31 +9,35 @@ interface PlanFormProps {
   loading: boolean
 }
 
-const fieldLabels: Record<string, string> = {
-  name: '姓名',
-  age: '年龄',
-  gender: '性别',
-  height: '身高 (cm)',
-  weight: '体重 (kg)',
-  goal: '健康目标',
-  dietaryPreference: '饮食偏好',
-  exerciseHabit: '运动习惯',
-  sleepQuality: '睡眠质量',
-  targetDate: '目标日期',
-  medicalConditions: '现有疾病/状况',
-  allergies: '过敏源/忌口',
-}
-
-const selectOptions: Record<string, string[]> = {
-  gender: ['男', '女'],
-  goal: ['减重减脂', '增肌塑形', '改善体质', '慢性病管理', '提高免疫力', '改善睡眠', '其他'],
-  dietaryPreference: ['无特殊偏好', '素食', '低碳饮食', '高蛋白', ' Mediterranean 饮食', '间歇性断食', '其他'],
-  exerciseHabit: ['几乎不运动', '偶尔运动（每周1-2次）', '规律运动（每周3-4次）', '高频运动（每周5次以上）'],
-  sleepQuality: ['很好（7-8小时，易入睡）', '一般（6-7小时，偶尔失眠）', '较差（少于6小时，经常失眠）', '严重睡眠问题'],
+function usePlanFormI18n() {
+  const { t } = useTranslation()
+  const fieldLabels: Record<string, string> = {
+    name: t('planForm.fields.name'),
+    age: t('planForm.fields.age'),
+    gender: t('planForm.fields.gender'),
+    height: t('planForm.fields.height'),
+    weight: t('planForm.fields.weight'),
+    goal: t('planForm.fields.goal'),
+    dietaryPreference: t('planForm.fields.dietaryPreference'),
+    exerciseHabit: t('planForm.fields.exerciseHabit'),
+    sleepQuality: t('planForm.fields.sleepQuality'),
+    targetDate: t('planForm.fields.targetDate'),
+    medicalConditions: t('planForm.fields.medicalConditions'),
+    allergies: t('planForm.fields.allergies'),
+  }
+  const selectOptions: Record<string, string[]> = {
+    gender: t('planForm.options.gender', { returnObjects: true }) as string[],
+    goal: t('planForm.options.goal', { returnObjects: true }) as string[],
+    dietaryPreference: t('planForm.options.dietaryPreference', { returnObjects: true }) as string[],
+    exerciseHabit: t('planForm.options.exerciseHabit', { returnObjects: true }) as string[],
+    sleepQuality: t('planForm.options.sleepQuality', { returnObjects: true }) as string[],
+  }
+  return { fieldLabels, selectOptions }
 }
 
 export default function PlanForm({ onSubmit, loading }: PlanFormProps) {
   const { t } = useTranslation()
+  const { fieldLabels, selectOptions } = usePlanFormI18n()
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<PlanFormData>({
     name: '',
@@ -76,21 +80,21 @@ export default function PlanForm({ onSubmit, loading }: PlanFormProps) {
     for (const field of currentFields) {
       const value = form[field as keyof PlanFormData]
       if (!value || value.trim() === '') {
-        newErrors[field] = `${fieldLabels[field]} 不能为空`
+        newErrors[field] = t('planForm.errors.required', { label: fieldLabels[field] })
       }
     }
 
     if (form.age && (isNaN(Number(form.age)) || Number(form.age) < 1 || Number(form.age) > 120)) {
-      newErrors.age = '请输入有效的年龄（1-120）'
+      newErrors.age = t('planForm.errors.ageInvalid')
     }
     if (form.height && (isNaN(Number(form.height)) || Number(form.height) < 50 || Number(form.height) > 250)) {
-      newErrors.height = '请输入有效的身高（50-250 cm）'
+      newErrors.height = t('planForm.errors.heightInvalid')
     }
     if (form.weight && (isNaN(Number(form.weight)) || Number(form.weight) < 20 || Number(form.weight) > 300)) {
-      newErrors.weight = '请输入有效的体重（20-300 kg）'
+      newErrors.weight = t('planForm.errors.weightInvalid')
     }
     if (form.targetDate && !isFutureDate(form.targetDate)) {
-      newErrors.targetDate = '目标日期必须是今天或以后的日期'
+      newErrors.targetDate = t('planForm.errors.targetDateInvalid')
     }
 
     setErrors(newErrors)

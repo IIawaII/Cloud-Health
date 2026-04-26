@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getStoredApiConfig, saveApiConfig, clearApiConfig } from '@/lib/aiConfig'
-import { FiX, FiGlobe, FiKey, FiCpu, FiCheck, FiAlertCircle, FiTrash2 } from 'react-icons/fi'
+import { FiX, FiGlobe, FiKey, FiCpu, FiCheck, FiAlertCircle, FiTrash2, FiShield } from 'react-icons/fi'
 
 interface ApiSettingsProps {
   isOpen: boolean
@@ -18,12 +18,15 @@ export default function ApiSettings({ isOpen, onClose, onConfigChange }: ApiSett
 
   useEffect(() => {
     if (isOpen) {
-      const cfg = getStoredApiConfig()
-      if (cfg) {
-        setBaseUrl(cfg.baseUrl)
-        setApiKey(cfg.apiKey)
-        setModel(cfg.model)
-      }
+      getStoredApiConfig().then((cfg) => {
+        if (cfg) {
+          setBaseUrl(cfg.baseUrl)
+          setApiKey(cfg.apiKey)
+          setModel(cfg.model)
+        }
+      }).catch(() => {
+        // 忽略读取错误
+      })
     }
   }, [isOpen])
 
@@ -34,14 +37,18 @@ export default function ApiSettings({ isOpen, onClose, onConfigChange }: ApiSett
     setTimeout(() => setMessage(null), 3000)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!baseUrl.trim() || !apiKey.trim() || !model.trim()) {
       showMessage('error', t('apiConfig.errors.incomplete'))
       return
     }
-    saveApiConfig({ baseUrl: baseUrl.trim(), apiKey: apiKey.trim(), model: model.trim() })
-    showMessage('success', t('apiConfig.messages.saved'))
-    onConfigChange?.()
+    try {
+      await saveApiConfig({ baseUrl: baseUrl.trim(), apiKey: apiKey.trim(), model: model.trim() })
+      showMessage('success', t('apiConfig.messages.saved'))
+      onConfigChange?.()
+    } catch (err) {
+      showMessage('error', err instanceof Error ? err.message : t('apiConfig.errors.saveFailed'))
+    }
   }
 
   const handleClear = () => {
@@ -98,6 +105,10 @@ export default function ApiSettings({ isOpen, onClose, onConfigChange }: ApiSett
             <p className="flex items-start gap-2 mt-1">
               <span className="inline-block w-1 h-1 rounded-full bg-primary mt-1.5 flex-shrink-0" />
               {t('apiConfig.info2')}
+            </p>
+            <p className="flex items-start gap-2 mt-1">
+              <FiShield className="w-3 h-3 text-warning flex-shrink-0 mt-0.5" />
+              {t('apiConfig.info3')}
             </p>
           </div>
 

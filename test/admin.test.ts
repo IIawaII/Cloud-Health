@@ -296,10 +296,10 @@ describe('db 管理函数', () => {
 
   describe('系统配置', () => {
     it('应设置和获取配置', async () => {
-      await setSystemConfig(db, 'site_name', 'Health Project')
+      await setSystemConfig(db, 'site_name', 'Cloud Health')
       const config = await getSystemConfig(db, 'site_name')
       expect(config).not.toBeNull()
-      expect(config?.value).toBe('Health Project')
+      expect(config?.value).toBe('Cloud Health')
     })
 
     it('应获取所有配置', async () => {
@@ -529,7 +529,7 @@ describe('admin API handlers', () => {
       const request = new Request('http://localhost/api/admin/config', {
         method: 'PUT',
         headers: { Authorization: 'Bearer admin-token', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ site_name: 'New Health Project' }),
+        body: JSON.stringify({ site_name: 'New Cloud Health' }),
       })
       const context = createMockContext(kv, db, {
         adminToken: 'admin-token',

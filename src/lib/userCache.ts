@@ -6,6 +6,7 @@ const KEYS = {
   username: 'user_username',
   email: 'user_email',
   role: 'user_role',
+  dataKey: 'user_data_key',
 } as const;
 
 export function clearUserCache() {
@@ -14,6 +15,7 @@ export function clearUserCache() {
   localStorage.removeItem(KEYS.username);
   localStorage.removeItem(KEYS.email);
   localStorage.removeItem(KEYS.role);
+  localStorage.removeItem(KEYS.dataKey);
 }
 
 export function persistUser(user: User | null) {
@@ -22,6 +24,7 @@ export function persistUser(user: User | null) {
   if (user?.username) localStorage.setItem(KEYS.username, user.username);
   if (user?.email) localStorage.setItem(KEYS.email, user.email);
   if (user?.role) localStorage.setItem(KEYS.role, user.role);
+  if (user?.dataKey) localStorage.setItem(KEYS.dataKey, user.dataKey);
 }
 
 export function loadCachedUser(): Partial<User> | null {
@@ -34,6 +37,7 @@ export function loadCachedUser(): Partial<User> | null {
     email: localStorage.getItem(KEYS.email) || '',
     avatar: localStorage.getItem(KEYS.avatar) || undefined,
     role: (localStorage.getItem(KEYS.role) as 'user' | 'admin') || 'user',
+    dataKey: localStorage.getItem(KEYS.dataKey) || undefined,
   };
 }
 
@@ -44,4 +48,8 @@ export function buildUserWithCache(user: User | null): User | null {
     return { ...user, avatar: cachedAvatar };
   }
   return user;
+}
+
+export function getCachedDataKey(): string | null {
+  return localStorage.getItem(KEYS.dataKey);
 }

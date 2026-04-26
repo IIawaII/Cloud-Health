@@ -3,6 +3,7 @@ export interface TokenData {
   username: string
   email: string
   role: 'user' | 'admin'
+  dataKey?: string
   createdAt: string
 }
 

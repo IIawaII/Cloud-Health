@@ -43,7 +43,7 @@
 ## 📄 项目结构
 
 ```
-health-project/
+cloud-health/
 ├── public/                  # 静态资源
 │   ├── User/                # 用户头像 SVG
 │   ├── Doctor.svg           # AI 头像
@@ -154,7 +154,7 @@ npm run deploy
 
 ```bash
 git clone https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME.git
-cd health-project
+cd cloud-health
 ```
 
 #### 2. 安装依赖
@@ -191,7 +191,7 @@ npx wrangler kv namespace create VERIFICATION_CODES
 
 > **D1 数据库**：首次部署前需执行迁移创建 users 表：
 > ```bash
-> npx wrangler d1 migrations apply health-project-db --local
+> npx wrangler d1 migrations apply cloud-health-db --local
 > ```
 
 #### 5. 启动开发服务器

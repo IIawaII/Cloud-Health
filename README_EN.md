@@ -32,7 +32,7 @@ An intelligent health management platform based on large language models, provid
 ## 📄 Project Structure
 
 ```
-health-project/
+cloud-health/
 ├── public/                  # Static assets
 │   ├── User/                # User avatar SVGs
 │   ├── Doctor.svg           # AI avatar
@@ -143,7 +143,7 @@ npm run deploy
 
 ```bash
 git clone https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME.git
-cd health-project
+cd cloud-health
 ```
 
 #### 2. Install dependencies

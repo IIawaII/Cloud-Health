@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef, useMemo } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTranslation } from 'react-i18next'
 import { useAIStream } from '../../hooks/useAI'
 import { useResult } from '@/hooks/useResult'
 import ChatInterface from '../../components/chat/ChatInterface'
@@ -12,48 +13,26 @@ export interface ChatSkill {
   systemPrompt: string
 }
 
-const DEFAULT_SKILLS: ChatSkill[] = [
-  {
-    id: 'health-advisor',
-    name: '健康顾问',
-    description: '全面的健康咨询和建议',
-    systemPrompt: '你是一位专业的健康顾问，能够回答各种健康问题，提供科学的健康建议。请注意，你的建议仅供参考，不能替代专业医生的诊断。',
-  },
-  {
-    id: 'nutritionist',
-    name: '营养师',
-    description: '专注于饮食和营养方面的咨询',
-    systemPrompt: '你是一位资深营养师，擅长饮食搭配、营养补充、减肥增肌等方面的指导。请根据用户的具体情况提供个性化的饮食建议。',
-  },
-  {
-    id: 'fitness-coach',
-    name: '运动教练',
-    description: '运动训练和健身计划指导',
-    systemPrompt: '你是一位专业的运动教练，擅长制定训练计划、指导运动技巧、预防运动损伤。请根据用户的身体状况和目标提供合适的运动建议。',
-  },
-]
-
-function loadSkills(userId: string): ChatSkill[] {
+// 加载/保存用户自定义技能
+function loadUserSkills(userId: string): ChatSkill[] | null {
   try {
     const raw = localStorage.getItem(`health_chat_skills_${userId}`)
     if (raw) return JSON.parse(raw)
-  } catch {
-    // ignore
-  }
-  return DEFAULT_SKILLS
+  } catch { /* ignore */ }
+  return null
 }
 
-function saveSkills(userId: string, skills: ChatSkill[]) {
+function saveUserSkills(userId: string, skills: ChatSkill[]) {
   try {
     localStorage.setItem(`health_chat_skills_${userId}`, JSON.stringify(skills))
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
 }
 
 export default function SmartChat() {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const userId = user?.id || 'anonymous'
+
   const {
     chatMessages,
     setChatMessages,
@@ -65,13 +44,45 @@ export default function SmartChat() {
     renameChatSession,
   } = useResult()
 
-  const [skills, setSkills] = useState<ChatSkill[]>(() => loadSkills(userId))
+  // 用户自定义技能
+  const [userSkills, setUserSkills] = useState<ChatSkill[] | null>(() =>
+    loadUserSkills(userId)
+  )
+
+  // 根据当前语言动态生成默认技能
+  const defaultSkills: ChatSkill[] = useMemo(() => [
+    {
+      id: 'health-advisor',
+      name: t('chat.skills.health-advisor.name'),
+      description: t('chat.skills.health-advisor.description'),
+      systemPrompt: t('chat.skills.health-advisor.systemPrompt'),
+    },
+    {
+      id: 'nutritionist',
+      name: t('chat.skills.nutritionist.name'),
+      description: t('chat.skills.nutritionist.description'),
+      systemPrompt: t('chat.skills.nutritionist.systemPrompt'),
+    },
+    {
+      id: 'fitness-coach',
+      name: t('chat.skills.fitness-coach.name'),
+      description: t('chat.skills.fitness-coach.description'),
+      systemPrompt: t('chat.skills.fitness-coach.systemPrompt'),
+    },
+  ], [t])
+
+  // 当前实际使用的技能列表：用户自定义优先，否则用默认
+  const skills = userSkills && userSkills.length > 0 ? userSkills : defaultSkills
+
   const [activeSkillId, setActiveSkillId] = useState<string | null>(null)
   const hasCreatedRef = useRef(false)
 
+  // 当用户自定义技能改变时同步到 localStorage
   useEffect(() => {
-    saveSkills(userId, skills)
-  }, [skills, userId])
+    if (userSkills) {
+      saveUserSkills(userId, userSkills)
+    }
+  }, [userSkills, userId])
 
   // 如果没有活跃会话，自动创建一个
   useEffect(() => {
@@ -129,7 +140,11 @@ export default function SmartChat() {
   }
 
   const handleUpdateSkill = (updated: ChatSkill) => {
-    setSkills((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+    setUserSkills((prev) => {
+      // 若用户尚未自定义过技能，基线采用当前默认技能
+      const base = prev && prev.length > 0 ? prev : defaultSkills
+      return base.map((s) => (s.id === updated.id ? updated : s))
+    })
   }
 
   // 新建对话：如果已有空会话则跳转，否则创建新会话

@@ -63,6 +63,13 @@
       "delete": "Delete",
       "confirm": "Confirm",
       "cancel": "Cancel"
+    },
+    "errors": {
+      "fetchStatsFailed": "Failed to fetch statistics",
+      "fetchUsersFailed": "Failed to fetch user list",
+      "fetchLogsFailed": "Failed to fetch logs",
+      "fetchAuditLogsFailed": "Failed to fetch audit logs",
+      "fetchConfigFailed": "Failed to fetch config"
     }
   },
   "turnstile": {
@@ -111,8 +118,19 @@
       "submit": "Register",
       "registering": "Registering...",
       "hasAccount": "Already have an account?",
-      "loginNow": "Login now"
-    }
+      "loginNow": "Login now",
+      "errors": {
+        "checkFailed": "Check failed, please try again later",
+        "checkTimeout": "Check timeout, please check your network or try again later",
+        "sendCodeFailed": "Failed to send code",
+        "turnstileRequired": "Please complete the human verification",
+        "registrationFailed": "Registration failed"
+      }
+    },
+    "errors": {
+      "invalidRequest": "Invalid request parameters",
+      "loginFailed": "Login failed"
+     }
   },
   "landing": {
     "badge": "Cloud Health",
@@ -167,7 +185,9 @@
     "error": "Error",
     "retry": "Retry",
     "success": "Success",
-    "noData": "No data"
+    "noData": "No data",
+    "networkError": "Network error, please try again later",
+    "loginRequired": "Please log in first"
   },
   "theme": {
     "light": "Light Mode",
@@ -210,6 +230,13 @@
       "passwordMismatch": "New passwords do not match"
     }
   },
+  "ai": {
+    "sessionExpired": "Session expired, please log in again",
+    "serverTimeout": "Server timeout, please try uploading a smaller file or retry later",
+    "streamUnreadable": "Unable to read response stream",
+    "requestFailed": "Request failed: {{status}}",
+    "aiNotConfigured": "AI service is not configured. Please fill in the API information in Settings or contact the administrator."
+  },
   "apiConfig": {
     "title": "AI Configuration",
     "subtitle": "Customize your AI access parameters",
@@ -222,11 +249,27 @@
     "info2": "Config is stored locally in browser only, not uploaded to server",
     "errors": {
       "incomplete": "Please fill in all AI config fields",
-      "saveFailed": "Save failed, please check your login status"
+      "saveFailed": "Save failed, please check your login status",
+      "missingKey": "Data key not found. Please log in first."
     },
     "messages": {
       "saved": "AI config saved",
       "cleared": "AI config cleared, using server defaults"
+    }
+  },
+  "utils": {
+    "fileSizeExceeded": "File size cannot exceed {{maxSizeMB}}MB",
+    "fileTypeNotSupported": "Unsupported file type: {{fileType}}"
+  },
+  "analysis": {
+      "title": "Analysis Result",
+      "copyButton": "Copy Result",
+      "copied": "Copied",
+    "skeleton": {
+      "title": "AI Analyzing...",
+      "estimatedTime": "Estimated 10-30 seconds",
+      "status": "Analyzing report content...",
+      "statusDesc": "AI is identifying key health indicators"
     }
   },
   "plan": {
@@ -389,6 +432,23 @@
       "title": "Clear all conversations?",
       "desc": "Are you sure you want to clear all chat history? This action cannot be undone.",
       "confirm": "Confirm Clear"
+    },
+    "skillsList": {
+      "health-advisor": {
+        "name": "Health Advisor",
+        "description": "Comprehensive health consultation and advice",
+        "systemPrompt": "You are a professional health advisor who can answer various health questions and provide scientific health advice. Note: your advice is for reference only and cannot replace professional medical diagnosis."
+      },
+      "nutritionist": {
+        "name": "Nutritionist",
+        "description": "Dietary and nutrition consultation",
+        "systemPrompt": "You are a senior nutritionist specialized in meal planning, nutritional supplements, weight loss, and muscle gain guidance. Please provide personalized dietary advice based on the user's specific situation."
+      },
+      "fitness-coach": {
+        "name": "Fitness Coach",
+        "description": "Exercise training and fitness program guidance",
+        "systemPrompt": "You are a professional fitness coach skilled in creating training plans, guiding exercise techniques, and preventing sports injuries. Please provide appropriate exercise advice based on the user's physical condition and goals."
+      }
     }
   },
   "result": {

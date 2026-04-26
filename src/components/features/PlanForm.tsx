@@ -63,7 +63,7 @@ export default function PlanForm({ onSubmit, loading }: PlanFormProps) {
   ]
 
   const updateField = (field: keyof PlanFormData, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }))
+    setForm((prev: PlanFormData) => ({ ...prev, [field]: value }))
     if (errors[field]) {
       setErrors((prev) => {
         const next = { ...prev }

@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { getStoredApiConfig } from '../config/ai'
 import { getApiError, parseStreamChunk, resolveErrorMessage } from '../utils'
 import { useAIBase } from './useAIBase'
+import i18n from '@/i18n'
 
 interface UseAIOptions<T> {
   endpoint: string
@@ -66,7 +67,7 @@ export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
           if (refreshed) {
             response = await doFetch()
           } else {
-            throw new Error('登录已过期，请重新登录')
+            throw new Error(i18n.t('ai.sessionExpired'))
           }
         }
 
@@ -80,15 +81,14 @@ export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
           try {
             data = JSON.parse(text)
           } catch {
-            data = { error: text || `请求失败: ${response.status}` }
+            data = { error: text || i18n.t('ai.requestFailed', { status: response.status }) }
           }
         }
 
         if (!response.ok || getApiError(data)) {
-          const errMsg = getApiError(data) || `请求失败: ${response.status}`
-          // 502/504 通常表示后端超时或资源超限，给出更友好的提示
+          const errMsg = getApiError(data) || i18n.t('ai.requestFailed', { status: response.status })
           if (response.status === 502 || response.status === 504) {
-            throw new Error('服务器处理超时，请尝试上传较小的文件或稍后重试')
+            throw new Error(i18n.t('ai.serverTimeout'))
           }
           throw new Error(errMsg)
         }
@@ -110,7 +110,7 @@ export function useAI<T = unknown>(options: UseAIOptions<T>): UseAIReturn<T> {
   return { loading, error, result, execute }
 }
 
-const STREAM_TIMEOUT_MS = 120_000 // 流式请求最长 2 分钟
+const STREAM_TIMEOUT_MS = 120_000
 
 export function useAIStream(options: {
   endpoint: string
@@ -172,7 +172,7 @@ export function useAIStream(options: {
           if (refreshed) {
             response = await doFetch()
           } else {
-            throw new Error('登录已过期，请重新登录')
+            throw new Error(i18n.t('ai.sessionExpired'))
           }
         }
 
@@ -185,7 +185,7 @@ export function useAIStream(options: {
         const decoder = new TextDecoder()
 
         if (!reader) {
-          throw new Error('无法读取响应流')
+          throw new Error(i18n.t('ai.streamUnreadable'))
         }
 
         let buffer = ''

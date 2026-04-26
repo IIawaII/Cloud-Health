@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchWithTimeout } from '@/api/client';
+import i18n from '@/i18n';
 
 const API_BASE_URL = '';
 
@@ -81,10 +82,10 @@ export function useAdminStats() {
       if (response.ok && result.data) {
         setData(result.data as StatsData);
       } else {
-        setError(result.message || '获取统计数据失败');
+        setError(result.message || i18n.t('admin.errors.fetchStatsFailed'));
       }
     } catch (err) {
-      setError('网络错误，请稍后重试');
+      setError(i18n.t('common.networkError'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -117,10 +118,10 @@ export function useAdminUsers(page = 1, pageSize = 20, search = '') {
       if (response.ok && result.data) {
         setData(result.data as UserListData);
       } else {
-        setError(result.message || '获取用户列表失败');
+        setError(result.message || i18n.t('admin.errors.fetchUsersFailed'));
       }
     } catch (err) {
-      setError('网络错误，请稍后重试');
+      setError(i18n.t('common.networkError'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -174,10 +175,10 @@ export function useAdminLogs(page = 1, pageSize = 20, action?: string, startDate
       if (response.ok && result.data) {
         setData(result.data as LogListData);
       } else {
-        setError(result.message || '获取日志失败');
+        setError(result.message || i18n.t('admin.errors.fetchLogsFailed'));
       }
     } catch (err) {
-      setError('网络错误，请稍后重试');
+      setError(i18n.t('common.networkError'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -209,10 +210,10 @@ export function useAdminAuditLogs(page = 1, pageSize = 20) {
       if (response.ok && result.data) {
         setData(result.data as AuditLogListData);
       } else {
-        setError(result.message || '获取审计日志失败');
+        setError(result.message || i18n.t('admin.errors.fetchAuditLogsFailed'));
       }
     } catch (err) {
-      setError('网络错误，请稍后重试');
+      setError(i18n.t('common.networkError'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -243,10 +244,10 @@ export function useAdminConfig() {
       if (response.ok && result.data) {
         setData(result.data as ConfigData[]);
       } else {
-        setError(result.message || '获取配置失败');
+        setError(result.message || i18n.t('admin.errors.fetchConfigFailed'));
       }
     } catch (err) {
-      setError('网络错误，请稍后重试');
+      setError(i18n.t('common.networkError'));
       console.error(err);
     } finally {
       setLoading(false);

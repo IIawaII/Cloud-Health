@@ -22,6 +22,7 @@ module.exports = defineConfig({
     ? undefined
     : {
         command: 'npx wrangler dev',
+        cwd: '..',
         url: 'http://localhost:8787',
         reuseExistingServer: !process.env.CI,
         timeout: 120 * 1000,

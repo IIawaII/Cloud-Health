@@ -97,7 +97,7 @@ export default function Register() {
 
       if (!res.ok) {
         statusSetter('idle');
-        errorSetter(data.error || '检查失败，请稍后重试');
+        errorSetter(data.error || t('auth.register.errors.checkFailed'));
         return;
       }
 
@@ -114,7 +114,7 @@ export default function Register() {
         // 如果是当前请求被主动取消，不重置状态（新请求会覆盖）
         if (controller.signal.reason !== 'next-check') {
           statusSetter('idle');
-          errorSetter('检查超时，请检查网络或稍后重试');
+          errorSetter(t('auth.register.errors.checkTimeout'));
         }
       } else {
         statusSetter('idle');
@@ -224,7 +224,7 @@ export default function Register() {
           });
         }, 1000);
       } else {
-        setError(data.error || '发送失败');
+        setError(data.error || t('auth.register.errors.sendCodeFailed'));
         // 如果 Turnstile 验证失败，重置 token
         if (data.error?.includes('人机验证')) {
           setTurnstileToken('');
@@ -232,7 +232,7 @@ export default function Register() {
         }
       }
     } catch {
-      setError('网络错误，请稍后重试');
+      setError(t('common.networkError'));
     } finally {
       setIsSendingCode(false);
     }
@@ -256,12 +256,12 @@ export default function Register() {
       verificationCode: formData.verificationCode,
     });
     if (!result.success) {
-      setError(result.error.errors[0]?.message || '请求参数错误');
+      setError(result.error.errors[0]?.message || t('auth.errors.invalidRequest'));
       return false;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('两次输入的密码不一致');
+      setError(t('auth.register.passwordMismatch'));
       return false;
     }
 
@@ -286,7 +286,7 @@ export default function Register() {
     if (!validateForm()) return;
 
     if (!turnstileToken) {
-      setError('请完成人机验证');
+      setError(t('auth.register.errors.turnstileRequired'));
       return;
     }
 
@@ -307,7 +307,7 @@ export default function Register() {
     if (result.success) {
       navigate('/');
     } else {
-      setError(result.error || '注册失败');
+      setError(result.error || t('auth.register.errors.registrationFailed'));
       // 重置 Turnstile token 并强制重新渲染验证组件
       setTurnstileToken('');
       setTurnstileKey(prev => prev + 1);

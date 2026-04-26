@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { useAIStream } from '@/hooks/useAI'
 import { useResult } from '@/hooks/useResult'
 import PlanForm from '@/components/features/PlanForm'
-import type { PlanFormData } from '@/types'
 import ResultCard from '@/components/common/ResultCard'
 import { FiAlertCircle } from 'react-icons/fi'
+import type { PlanFormData } from '@/types'
 
 export default function PlanGenerator() {
   const { t } = useTranslation()

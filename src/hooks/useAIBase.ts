@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import i18n from '@/i18n'
 
 interface UseAIBaseReturn {
   loading: boolean
@@ -31,7 +32,7 @@ export function useAIBase(): UseAIBaseReturn {
     if (!isAuthenticated) {
       if (isMountedRef.current) {
         setLoading(false)
-        setError('请先登录')
+        setError(i18n.t('common.loginRequired'))
       }
       return null
     }

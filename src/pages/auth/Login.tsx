@@ -53,13 +53,13 @@ export default function Login() {
 
   const handleTurnstileError = useCallback(() => {
     setTurnstileToken('');
-    setError('人机验证失败，请刷新页面重试');
-  }, []);
+    setError(t('auth.login.turnstileError'));
+  }, [t]);
 
   const handleTurnstileExpire = useCallback(() => {
     setTurnstileToken('');
-    setError('验证已过期，请重新验证');
-  }, []);
+    setError(t('auth.login.turnstileExpired'));
+  }, [t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,7 +76,7 @@ export default function Login() {
       turnstileToken,
     });
     if (!parseResult.success) {
-      setError(parseResult.error.errors[0]?.message || '请求参数错误');
+      setError(parseResult.error.errors[0]?.message || t('auth.errors.invalidRequest'));
       return;
     }
 
@@ -98,7 +98,7 @@ export default function Login() {
         navigate(from, { replace: true });
       }
     } else {
-      setError(result.error || '登录失败');
+      setError(result.error || t('auth.errors.loginFailed'));
       // 重置 Turnstile token 并强制重新渲染验证组件
       setTurnstileToken('');
       setTurnstileKey(prev => prev + 1);

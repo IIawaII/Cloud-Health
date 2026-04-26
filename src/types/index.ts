@@ -30,5 +30,17 @@ export interface HealthPlanFormData {
   allergies: string
 }
 
-/** @deprecated 使用 HealthPlanFormData，保留别名以兼容旧代码 */
-export type PlanFormData = HealthPlanFormData
+export interface PlanFormData {
+  name: string
+  age: string
+  gender: string
+  height: string
+  weight: string
+  goal: string
+  dietaryPreference: string
+  exerciseHabit: string
+  sleepQuality: string
+  targetDate: string
+  medicalConditions: string
+  allergies: string
+}

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { FiClipboard, FiCheck, FiClock, FiActivity } from 'react-icons/fi'
 import MarkdownRenderer from '../chat/MarkdownRenderer'
 
@@ -7,6 +8,7 @@ interface AnalysisResultProps {
 }
 
 export default function AnalysisResult({ result }: AnalysisResultProps) {
+  const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
@@ -24,7 +26,9 @@ export default function AnalysisResult({ result }: AnalysisResultProps) {
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-700/50">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-success" />
-          <h3 className="text-sm font-semibold text-foreground dark:text-foreground-dark">分析结果</h3>
+          <h3 className="text-sm font-semibold text-foreground dark:text-foreground-dark">
+            {t('analysis.title')}
+          </h3>
         </div>
         <button
           onClick={handleCopy}
@@ -37,12 +41,12 @@ export default function AnalysisResult({ result }: AnalysisResultProps) {
           {copied ? (
             <>
               <FiCheck className="w-3.5 h-3.5" />
-              已复制
+              {t('analysis.copied')}
             </>
           ) : (
             <>
               <FiClipboard className="w-3.5 h-3.5" />
-              复制结果
+              {t('analysis.copyButton')}
             </>
           )}
         </button>
@@ -56,16 +60,20 @@ export default function AnalysisResult({ result }: AnalysisResultProps) {
 
 // 加载中状态组件
 export function AnalysisResultSkeleton() {
+  const { t } = useTranslation()
+
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-card dark:shadow-card-dark overflow-hidden transition-colors">
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-700/50">
         <div className="flex items-center gap-2">
           <FiActivity className="w-4 h-4 text-primary animate-pulse" />
-          <h3 className="text-sm font-semibold text-foreground dark:text-foreground-dark">AI 分析中...</h3>
+          <h3 className="text-sm font-semibold text-foreground dark:text-foreground-dark">
+            {t('analysis.skeleton.title')}
+          </h3>
         </div>
         <div className="flex items-center gap-1.5 text-xs text-foreground-muted dark:text-foreground-dark-muted">
           <FiClock className="w-3.5 h-3.5" />
-          预计需要 10-30 秒
+          {t('analysis.skeleton.estimatedTime')}
         </div>
       </div>
       <div className="p-6 space-y-4">
@@ -74,8 +82,12 @@ export function AnalysisResultSkeleton() {
             <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground dark:text-foreground-dark">正在分析报告内容...</p>
-            <p className="text-xs text-foreground-muted dark:text-foreground-dark-muted">AI 正在识别关键健康指标</p>
+            <p className="text-sm font-medium text-foreground dark:text-foreground-dark">
+              {t('analysis.skeleton.status')}
+            </p>
+            <p className="text-xs text-foreground-muted dark:text-foreground-dark-muted">
+              {t('analysis.skeleton.statusDesc')}
+            </p>
           </div>
         </div>
         <div className="space-y-2">

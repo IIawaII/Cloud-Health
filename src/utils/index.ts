@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import i18n from '@/i18n'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -8,7 +9,9 @@ export function cn(...inputs: ClassValue[]) {
 export function formatDate(dateInput: string | number): string {
   if (!dateInput) return ''
   const date = typeof dateInput === 'number' ? new Date(dateInput * 1000) : new Date(dateInput)
-  return date.toLocaleDateString('zh-CN', {
+  // 根据当前语言选择日期格式区域
+  const locale = i18n.language?.startsWith('zh') ? 'zh-CN' : 'en-US'
+  return date.toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -51,7 +54,7 @@ export function validateFile(
 ): { valid: boolean; error?: string } {
   const maxSizeBytes = maxSizeMB * 1024 * 1024
   if (file.size > maxSizeBytes) {
-    return { valid: false, error: `文件大小不能超过 ${maxSizeMB}MB` }
+    return { valid: false, error: i18n.t('utils.fileSizeExceeded', { maxSizeMB }) }
   }
 
   const isAllowed = allowedTypes.some((type) => {
@@ -62,7 +65,7 @@ export function validateFile(
   })
 
   if (!isAllowed) {
-    return { valid: false, error: `不支持的文件类型: ${file.type}` }
+    return { valid: false, error: i18n.t('utils.fileTypeNotSupported', { fileType: file.type }) }
   }
 
   return { valid: true }
@@ -123,10 +126,10 @@ export function escapeHtml(text: string): string {
  */
 export function resolveErrorMessage(status: number, serverText: string): string {
   if (status === 503) {
-    return 'AI 服务未配置，请在设置中填写 API 信息或联系管理员'
+    return i18n.t('ai.aiNotConfigured')
   }
   if (status === 502 || status === 504) {
-    return '服务器处理超时，请尝试上传较小的文件或稍后重试'
+    return i18n.t('ai.serverTimeout')
   }
   try {
     const data = JSON.parse(serverText)
@@ -134,9 +137,9 @@ export function resolveErrorMessage(status: number, serverText: string): string 
       // 对错误消息进行 HTML 转义，防止 XSS
       return escapeHtml(data.error)
     }
-    return `请求失败: ${status}`
+    return i18n.t('ai.requestFailed', { status })
   } catch {
     // 非 JSON 响应时，对原始文本进行 HTML 转义
-    return serverText ? escapeHtml(serverText) : `请求失败: ${status}`
+    return serverText ? escapeHtml(serverText) : i18n.t('ai.requestFailed', { status })
   }
 }

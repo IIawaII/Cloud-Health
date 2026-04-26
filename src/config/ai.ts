@@ -1,4 +1,5 @@
 import type { ApiConfig } from '@/types'
+import i18n from '@/i18n'
 
 const STORAGE_KEY = 'health_ai_config_enc'
 
@@ -97,7 +98,7 @@ export async function getStoredApiConfig(): Promise<ApiConfig | null> {
 export async function saveApiConfig(config: ApiConfig): Promise<void> {
   const dataKey = getDataKey()
   if (!dataKey) {
-    throw new Error('未找到数据密钥，请先登录')
+    throw new Error(i18n.t('apiConfig.errors.missingKey'))
   }
   const encrypted = await encryptApiConfigData(config, dataKey)
   localStorage.setItem(STORAGE_KEY, encrypted)

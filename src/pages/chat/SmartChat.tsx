@@ -13,18 +13,18 @@ export interface ChatSkill {
   systemPrompt: string
 }
 
-// 加载/保存用户自定义技能
-function loadUserSkills(userId: string): ChatSkill[] | null {
+// 加载/保存用户自定义的 systemPrompt 覆盖（不保存 name/description，确保它们始终跟随当前语言翻译）
+function loadUserSkillPrompts(userId: string): Record<string, string> | null {
   try {
-    const raw = localStorage.getItem(`health_chat_skills_${userId}`)
+    const raw = localStorage.getItem(`health_chat_skill_prompts_${userId}`)
     if (raw) return JSON.parse(raw)
   } catch { /* ignore */ }
   return null
 }
 
-function saveUserSkills(userId: string, skills: ChatSkill[]) {
+function saveUserSkillPrompts(userId: string, prompts: Record<string, string>) {
   try {
-    localStorage.setItem(`health_chat_skills_${userId}`, JSON.stringify(skills))
+    localStorage.setItem(`health_chat_skill_prompts_${userId}`, JSON.stringify(prompts))
   } catch { /* ignore */ }
 }
 
@@ -44,9 +44,9 @@ export default function SmartChat() {
     renameChatSession,
   } = useResult()
 
-  // 用户自定义技能
-  const [userSkills, setUserSkills] = useState<ChatSkill[] | null>(() =>
-    loadUserSkills(userId)
+  // 用户自定义的 systemPrompt 覆盖
+  const [userSkillPrompts, setUserSkillPrompts] = useState<Record<string, string> | null>(() =>
+    loadUserSkillPrompts(userId)
   )
 
   // 根据当前语言动态生成默认技能
@@ -71,31 +71,30 @@ export default function SmartChat() {
     },
   ], [t])
 
-  // 当前实际使用的技能列表：默认技能的 name/description 始终跟随当前语言翻译，
-  // 仅 systemPrompt 允许用户自定义并持久化到 localStorage
+  // 当前实际使用的技能列表：name/description/systemPrompt 默认跟随当前语言翻译，
+  // 仅当用户自定义了 systemPrompt 时才用 localStorage 中的值覆盖
   const skills = useMemo(() => {
-    if (!userSkills || userSkills.length === 0) return defaultSkills
     return defaultSkills.map((defaultSkill) => {
-      const userSkill = userSkills.find((s) => s.id === defaultSkill.id)
-      if (userSkill) {
+      const userPrompt = userSkillPrompts?.[defaultSkill.id]
+      if (userPrompt) {
         return {
           ...defaultSkill,
-          systemPrompt: userSkill.systemPrompt,
+          systemPrompt: userPrompt,
         }
       }
       return defaultSkill
     })
-  }, [userSkills, defaultSkills])
+  }, [userSkillPrompts, defaultSkills])
 
   const [activeSkillId, setActiveSkillId] = useState<string | null>(null)
   const hasCreatedRef = useRef(false)
 
-  // 当用户自定义技能改变时同步到 localStorage
+  // 当用户自定义 systemPrompt 改变时同步到 localStorage
   useEffect(() => {
-    if (userSkills) {
-      saveUserSkills(userId, userSkills)
+    if (userSkillPrompts) {
+      saveUserSkillPrompts(userId, userSkillPrompts)
     }
-  }, [userSkills, userId])
+  }, [userSkillPrompts, userId])
 
   // 如果没有活跃会话，自动创建一个
   useEffect(() => {
@@ -153,11 +152,10 @@ export default function SmartChat() {
   }
 
   const handleUpdateSkill = (updated: ChatSkill) => {
-    setUserSkills((prev) => {
-      // 若用户尚未自定义过技能，基线采用当前默认技能
-      const base = prev && prev.length > 0 ? prev : defaultSkills
-      return base.map((s) => (s.id === updated.id ? updated : s))
-    })
+    setUserSkillPrompts((prev) => ({
+      ...prev,
+      [updated.id]: updated.systemPrompt,
+    }))
   }
 
   // 新建对话：如果已有空会话则跳转，否则创建新会话

@@ -53,6 +53,9 @@
     "data": "Data Management",
     "config": "System Config",
     "collapse": "Collapse",
+    "collapseExpand": "Expand sidebar",
+    "collapseCollapse": "Collapse sidebar",
+    "metrics": "Performance Monitor",
     "search": "Search username or email",
     "role": {
       "user": "User",
@@ -173,7 +176,9 @@
       "loginFailed": "Login failed",
       "tooManyAttempts": "Too many login attempts",
       "adminConfigError": "Admin account configuration error",
-      "dataMigrationError": "Login failed, user data migration error"
+      "dataMigrationError": "Login failed, user data migration error",
+      "tokenExpired": "Token expired or invalid",
+      "verifyFailed": "Verification failed, please try again later"
      }
   },
   "landing": {
@@ -231,7 +236,10 @@
     "success": "Success",
     "noData": "No data",
     "networkError": "Network error, please try again later",
-    "loginRequired": "Please log in first"
+    "timeoutError": "Request timeout, please check your network or try again later",
+    "loginRequired": "Please log in first",
+    "on": "ON",
+    "off": "OFF"
   },
   "theme": {
     "light": "Light Mode",
@@ -240,7 +248,8 @@
   },
   "language": {
     "zh": "中文",
-    "en": "English"
+    "en": "English",
+    "label": "Language"
   },
     "settings": {
     "title": "Account Settings",
@@ -304,10 +313,12 @@
     "model": "Model Name",
     "save": "Save Config",
     "clear": "Clear",
-    "info1": "You can configure your own AI API instead of server defaults",
-    "info2": "Config is stored locally in browser only, not uploaded to server",
+    "info1": "Please configure your own AI API. All AI calls will use your configuration",
+    "info2": "Config is stored locally in browser only (AES-GCM encrypted), not uploaded to server",
     "errors": {
       "incomplete": "Please fill in all AI config fields",
+      "invalidProtocol": "Only http:// or https:// protocols are supported",
+      "invalidUrl": "Please enter a valid URL",
       "saveFailed": "Save failed, please check your login status",
       "missingKey": "Data key not found. Please log in first."
     },
@@ -567,7 +578,36 @@
     "image": "Image",
     "text": "Text",
     "pdf": "PDF",
-    "preview": "Preview"
+    "preview": "Preview",
+    "errors": {
+      "validateFailed": "File validation failed",
+      "readFailed": "Failed to read file, please retry"
+    }
+  },
+  "metrics": {
+    "last1Hour": "Last 1 hour",
+    "last6Hours": "Last 6 hours",
+    "last24Hours": "Last 24 hours",
+    "last7Days": "Last 7 days",
+    "totalRequests": "Total Requests",
+    "avgLatency": "Avg Latency",
+    "maxLatency": "Max Latency",
+    "minLatency": "Min Latency",
+    "errorRate": "Error Rate",
+    "requestTrend": "Request Trend",
+    "requestCount": "Requests",
+    "avgLatencyMs": "Avg Latency(ms)",
+    "topPaths": "Top Paths",
+    "statusDist": "Status Distribution",
+    "latencyDetail": "Latency Details",
+    "path": "Path",
+    "errorCount": "Errors",
+    "recentErrors": "Recent Errors",
+    "time": "Time",
+    "method": "Method",
+    "statusCode": "Status",
+    "latency": "Latency",
+    "noErrors": "No errors"
   },
   "quizPanel": {
     "score": "{{score}} points",

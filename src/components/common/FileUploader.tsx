@@ -9,7 +9,7 @@ interface FileUploaderProps {
   selectedFile: { fileData: string; fileType: string; fileName: string } | null
 }
 
-const MAX_SIZE_MB = 5
+const MAX_SIZE_MB = 10
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf', 'text/plain']
 
 export default function FileUploader({ onFileSelect, onClear, selectedFile }: FileUploaderProps) {
@@ -24,7 +24,7 @@ export default function FileUploader({ onFileSelect, onClear, selectedFile }: Fi
 
       const validation = validateFile(file, ALLOWED_TYPES, MAX_SIZE_MB)
       if (!validation.valid) {
-        setError(validation.error || '文件验证失败')
+        setError(validation.error || t('fileUploader.errors.validateFailed', '文件验证失败'))
         return
       }
 
@@ -46,10 +46,10 @@ export default function FileUploader({ onFileSelect, onClear, selectedFile }: Fi
           fileName: file.name,
         })
       } catch {
-        setError('文件读取失败，请重试')
+        setError(t('fileUploader.errors.readFailed', '文件读取失败，请重试'))
       }
     },
-    [onFileSelect]
+    [onFileSelect, t]
   )
 
   const handleDrop = useCallback(

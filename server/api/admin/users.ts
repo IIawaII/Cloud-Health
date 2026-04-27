@@ -4,8 +4,10 @@ import { getUserList, findUserByIdPublic, updateUserRole, deleteUserById } from 
 import { createAuditLog } from '../../dao/audit.dao';
 import { revokeAllUserTokens } from '../../utils/auth';
 import { withAdmin } from '../../middleware/admin';
-import { verifyToken } from '../../utils/auth';
-import type { AppContext } from '../../utils/handler';
+import { getLogger } from '../../utils/logger';
+import type { AdminContext } from '../../middleware/admin';
+
+const logger = getLogger('AdminUsers')
 
 const listSchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -17,7 +19,7 @@ const updateRoleSchema = z.object({
   role: z.enum(['user', 'admin']),
 });
 
-export const onRequestGet = withAdmin(async (context: AppContext) => {
+export const onRequestGet = withAdmin(async (context: AdminContext) => {
   try {
     const url = new URL(context.req.url);
     const parseResult = listSchema.safeParse({
@@ -48,12 +50,12 @@ export const onRequestGet = withAdmin(async (context: AppContext) => {
       },
     }, 200);
   } catch (error) {
-    console.error('Admin users list error:', error);
+    logger.error('Failed to get user list', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse('获取用户列表失败', 500);
   }
 });
 
-export const onRequestPatch = withAdmin(async (context: AppContext) => {
+export const onRequestPatch = withAdmin(async (context: AdminContext) => {
   try {
     const id = context.req.param('id');
     if (!id) {
@@ -73,10 +75,9 @@ export const onRequestPatch = withAdmin(async (context: AppContext) => {
 
     await updateUserRole(context.env.DB, id, parseResult.data.role);
 
-    const tokenData = await verifyToken({ request: context.req.raw, env: context.env });
     await createAuditLog(context.env.DB, {
       id: crypto.randomUUID(),
-      admin_id: tokenData?.userId ?? 'unknown',
+      admin_id: context.tokenData.userId,
       action: 'UPDATE_USER_ROLE',
       target_type: 'user',
       target_id: id,
@@ -85,12 +86,12 @@ export const onRequestPatch = withAdmin(async (context: AppContext) => {
 
     return jsonResponse({ success: true, message: '用户角色更新成功' }, 200);
   } catch (error) {
-    console.error('Admin update user error:', error);
+    logger.error('Failed to update user', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse('更新用户失败', 500);
   }
 });
 
-export const onRequestDelete = withAdmin(async (context: AppContext) => {
+export const onRequestDelete = withAdmin(async (context: AdminContext) => {
   try {
     const id = context.req.param('id');
     if (!id) {
@@ -105,10 +106,9 @@ export const onRequestDelete = withAdmin(async (context: AppContext) => {
     await deleteUserById(context.env.DB, id);
     await revokeAllUserTokens(context.env.AUTH_TOKENS, id);
 
-    const tokenData = await verifyToken({ request: context.req.raw, env: context.env });
     await createAuditLog(context.env.DB, {
       id: crypto.randomUUID(),
-      admin_id: tokenData?.userId ?? 'unknown',
+      admin_id: context.tokenData.userId,
       action: 'DELETE_USER',
       target_type: 'user',
       target_id: id,
@@ -117,7 +117,7 @@ export const onRequestDelete = withAdmin(async (context: AppContext) => {
 
     return jsonResponse({ success: true, message: '用户删除成功' }, 200);
   } catch (error) {
-    console.error('Admin delete user error:', error);
+    logger.error('Failed to delete user', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse('删除用户失败', 500);
   }
 });

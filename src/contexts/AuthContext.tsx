@@ -4,6 +4,7 @@ import { getApiError, getStringField, getObjectField } from '@/utils';
 import { fetchWithTimeout } from '@/api/client';
 import { persistUser, clearUserCache, loadCachedUser, buildUserWithCache } from '@/utils/userCache';
 import { broadcastAuthChange, useAuthSync } from '@/hooks/useAuthSync';
+import i18n from '@/i18n';
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<AuthResponse>;
@@ -225,14 +226,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         return handleAuthSuccess(data);
       } else {
-        const err = getApiError(data) || '登录失败';
+        const err = getApiError(data) || i18n.t('auth.errors.loginFailed', '登录失败');
         return { success: false, message: err, error: getApiError(data) };
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        return { success: false, message: '请求超时，请检查网络或稍后重试', error: '请求超时' };
+        return { success: false, message: i18n.t('common.timeoutError', '请求超时，请检查网络或稍后重试'), error: '请求超时' };
       }
-      return { success: false, message: '网络错误，请稍后重试', error: '网络错误' };
+      return { success: false, message: i18n.t('common.networkError', '网络错误，请稍后重试'), error: '网络错误' };
     }
   }, [handleAuthSuccess]);
 
@@ -254,14 +255,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         return handleAuthSuccess(data);
       } else {
-        const err = getApiError(data) || '注册失败';
+        const err = getApiError(data) || i18n.t('auth.register.errors.registrationFailed', '注册失败');
         return { success: false, message: err, error: getApiError(data) };
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        return { success: false, message: '请求超时，请检查网络或稍后重试', error: '请求超时' };
+        return { success: false, message: i18n.t('common.timeoutError', '请求超时，请检查网络或稍后重试'), error: '请求超时' };
       }
-      return { success: false, message: '网络错误，请稍后重试', error: '网络错误' };
+      return { success: false, message: i18n.t('common.networkError', '网络错误，请稍后重试'), error: '网络错误' };
     }
   }, [handleAuthSuccess]);
 
@@ -287,6 +288,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 清理加密配置相关数据
     localStorage.removeItem('health_ai_config_enc');
     localStorage.removeItem('health_ai_config');
+    localStorage.removeItem('user_data_key');
 
     setState({ isAuthenticated: false, user: null, isLoading: false });
     broadcastAuthChange('logout');

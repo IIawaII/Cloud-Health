@@ -2,9 +2,11 @@ import { z } from 'zod';
 import { jsonResponse, errorResponse } from '../../utils/response';
 import { getAllSystemConfigs, getSystemConfig, setSystemConfig } from '../../dao/config.dao';
 import { createAuditLog } from '../../dao/audit.dao';
-import { verifyToken } from '../../utils/auth';
 import { withAdmin } from '../../middleware/admin';
-import type { AppContext } from '../../utils/handler';
+import { getLogger } from '../../utils/logger';
+import type { AdminContext } from '../../middleware/admin';
+
+const logger = getLogger('AdminConfig')
 
 /** 允许管理员通过 API 修改的系统配置键白名单 */
 const ALLOWED_CONFIG_KEYS = new Set([
@@ -15,7 +17,7 @@ const ALLOWED_CONFIG_KEYS = new Set([
   'enable_registration',
 ]);
 
-export const onRequestGet = withAdmin(async (context: AppContext) => {
+export const onRequestGet = withAdmin(async (context: AdminContext) => {
   try {
     const url = new URL(context.req.url);
     const key = url.searchParams.get('key');
@@ -28,14 +30,14 @@ export const onRequestGet = withAdmin(async (context: AppContext) => {
     const configs = await getAllSystemConfigs(context.env.DB);
     return jsonResponse({ success: true, data: configs }, 200);
   } catch (error) {
-    console.error('Admin config get error:', error);
+    logger.error('Failed to get config', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse('获取配置失败', 500);
   }
 });
 
 const updateSchema = z.record(z.string().min(1).max(500));
 
-export const onRequestPut = withAdmin(async (context: AppContext) => {
+export const onRequestPut = withAdmin(async (context: AdminContext) => {
   try {
     const body = await context.req.json<unknown>();
     const parseResult = updateSchema.safeParse(body);
@@ -53,10 +55,9 @@ export const onRequestPut = withAdmin(async (context: AppContext) => {
       await setSystemConfig(context.env.DB, key, value);
     }
 
-    const tokenData = await verifyToken({ request: context.req.raw, env: context.env });
     await createAuditLog(context.env.DB, {
       id: crypto.randomUUID(),
-      admin_id: tokenData?.userId ?? 'unknown',
+      admin_id: context.tokenData.userId,
       action: 'UPDATE_SYSTEM_CONFIG',
       target_type: 'config',
       target_id: null,
@@ -65,7 +66,7 @@ export const onRequestPut = withAdmin(async (context: AppContext) => {
 
     return jsonResponse({ success: true, message: '配置更新成功' }, 200);
   } catch (error) {
-    console.error('Admin config update error:', error);
+    logger.error('Failed to update config', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse('更新配置失败', 500);
   }
 });

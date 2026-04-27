@@ -32,7 +32,7 @@ function ActionBadge({ action }: { action: string }) {
 }
 
 export default function DataManagement() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [activeTab, setActiveTab] = useState<'usage' | 'audit'>('usage')
   const [page, setPage] = useState(1)
   const [actionFilter, setActionFilter] = useState('')
@@ -163,7 +163,7 @@ export default function DataManagement() {
                         {log.metadata ?? '-'}
                       </td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                        {new Date(log.created_at).toLocaleString('zh-CN')}
+                        {new Date(log.created_at).toLocaleString(i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US')}
                       </td>
                     </tr>
                   ))
@@ -190,7 +190,7 @@ export default function DataManagement() {
                       </td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-xs truncate">{log.details ?? '-'}</td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                        {new Date(log.created_at).toLocaleString('zh-CN')}
+                        {new Date(log.created_at).toLocaleString(i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US')}
                       </td>
                     </tr>
                   ))

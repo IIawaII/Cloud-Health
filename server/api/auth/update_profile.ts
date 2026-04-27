@@ -2,10 +2,12 @@ import { verifyToken } from '../../utils/auth';
 import { jsonResponse, errorResponse } from '../../utils/response';
 import { findUserById, updateUser, usernameExists, emailExists } from '../../dao/user.dao';
 import { consumeVerificationCode } from '../../dao/verification.dao';
+import { getLogger } from '../../utils/logger';
 import type { AppContext } from '../../utils/handler';
 import i18n from '../../../src/i18n';
 
 const t = i18n.t.bind(i18n);
+const logger = getLogger('UpdateProfile')
 
 function isUniqueConstraintError(error: unknown): boolean {
   return error instanceof Error && /unique constraint failed/i.test(error.message);
@@ -115,7 +117,7 @@ export const onRequestPost = async (context: AppContext) => {
       },
     }, 200);
   } catch (error) {
-    console.error('Update profile error:', error);
+    logger.error('Update profile error', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse(t('settings.errors.updateFailed', '更新失败，请稍后重试'), 500);
   }
 };

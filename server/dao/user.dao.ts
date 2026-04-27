@@ -1,6 +1,12 @@
 /**
- * User DAO - 用户数据访问层
+ * User DAO - 用户数据访问层 (Drizzle ORM)
  */
+
+import { eq, and, ne, or, count, sql } from 'drizzle-orm'
+import { getDb, users, type DbClient } from '../db'
+import { getLogger } from '../utils/logger'
+
+const logger = getLogger('UserDAO')
 
 export interface DbUser {
   id: string
@@ -17,62 +23,94 @@ export interface DbUser {
 /** 不含敏感字段的用户信息 */
 export type DbUserPublic = Omit<DbUser, 'password_hash' | 'data_key'>
 
-export async function findUserByUsername(db: D1Database, username: string): Promise<DbUser | null> {
-  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, role, data_key, created_at, updated_at FROM users WHERE username = ? COLLATE NOCASE')
-  const result = await stmt.bind(username).first<DbUser>()
-  return result ?? null
+/** 获取 Drizzle 客户端 */
+function db(d1: D1Database): DbClient {
+  return getDb(d1)
 }
 
-export async function findUserByEmail(db: D1Database, email: string): Promise<DbUser | null> {
-  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, role, data_key, created_at, updated_at FROM users WHERE email = ? COLLATE NOCASE')
-  const result = await stmt.bind(email).first<DbUser>()
-  return result ?? null
+export async function findUserByUsername(d1: D1Database, username: string): Promise<DbUser | null> {
+  const result = await db(d1)
+    .select()
+    .from(users)
+    .where(sql`${users.username} = ${username} COLLATE NOCASE`)
+    .limit(1)
+  return (result[0] as DbUser | undefined) ?? null
 }
 
-export async function findUserById(db: D1Database, id: string): Promise<DbUser | null> {
-  const stmt = db.prepare('SELECT id, username, email, password_hash, avatar, role, data_key, created_at, updated_at FROM users WHERE id = ?')
-  const result = await stmt.bind(id).first<DbUser>()
-  return result ?? null
+export async function findUserByEmail(d1: D1Database, email: string): Promise<DbUser | null> {
+  const result = await db(d1)
+    .select()
+    .from(users)
+    .where(sql`${users.email} = ${email} COLLATE NOCASE`)
+    .limit(1)
+  return (result[0] as DbUser | undefined) ?? null
 }
 
-export async function findUserByIdPublic(db: D1Database, id: string): Promise<DbUserPublic | null> {
-  const stmt = db.prepare('SELECT id, username, email, avatar, role, created_at, updated_at FROM users WHERE id = ?')
-  const result = await stmt.bind(id).first<DbUserPublic>()
-  return result ?? null
+export async function findUserById(d1: D1Database, id: string): Promise<DbUser | null> {
+  const result = await db(d1)
+    .select()
+    .from(users)
+    .where(eq(users.id, id))
+    .limit(1)
+  return (result[0] as DbUser | undefined) ?? null
+}
+
+export async function findUserByIdPublic(d1: D1Database, id: string): Promise<DbUserPublic | null> {
+  const result = await db(d1)
+    .select({
+      id: users.id,
+      username: users.username,
+      email: users.email,
+      avatar: users.avatar,
+      role: users.role,
+      created_at: users.created_at,
+      updated_at: users.updated_at,
+    })
+    .from(users)
+    .where(eq(users.id, id))
+    .limit(1)
+  return (result[0] as DbUserPublic | undefined) ?? null
 }
 
 export async function createUser(
-  db: D1Database,
+  d1: D1Database,
   user: Omit<DbUser, 'avatar'> & { avatar?: string | null }
 ): Promise<void> {
-  const stmt = db.prepare(
-    'INSERT INTO users (id, username, email, password_hash, avatar, data_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  )
-  await stmt.bind(
-    user.id,
-    user.username,
-    user.email,
-    user.password_hash,
-    user.avatar ?? null,
-    user.data_key ?? null,
-    user.created_at,
-    user.updated_at
-  ).run()
+  logger.info('Creating user', { username: user.username, email: user.email })
+  await db(d1)
+    .insert(users)
+    .values({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      password_hash: user.password_hash,
+      avatar: user.avatar ?? null,
+      role: user.role,
+      data_key: user.data_key ?? null,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+    })
+    .run()
 }
 
-export async function updateUserPassword(db: D1Database, id: string, passwordHash: string): Promise<void> {
-  const stmt = db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
-  await stmt.bind(passwordHash, Math.floor(Date.now() / 1000), id).run()
+export async function updateUserPassword(d1: D1Database, id: string, passwordHash: string): Promise<void> {
+  await db(d1)
+    .update(users)
+    .set({
+      password_hash: passwordHash,
+      updated_at: Math.floor(Date.now() / 1000),
+    })
+    .where(eq(users.id, id))
+    .run()
 }
 
 const ALLOWED_UPDATE_COLUMNS = ['username', 'email', 'avatar'] as const
 
 export async function updateUser(
-  db: D1Database,
+  d1: D1Database,
   id: string,
   updates: Partial<Pick<DbUser, typeof ALLOWED_UPDATE_COLUMNS[number]>>
 ): Promise<void> {
-  // 校验不允许的字段，防止非法字段注入
   const invalidKeys = Object.keys(updates).filter(
     (k) => !(ALLOWED_UPDATE_COLUMNS as readonly string[]).includes(k)
   )
@@ -80,100 +118,134 @@ export async function updateUser(
     throw new Error(`Invalid update fields: ${invalidKeys.join(', ')}`)
   }
 
-  const fieldMap: { column: string; value: string | null }[] = []
-
-  if (updates.username !== undefined) {
-    fieldMap.push({ column: 'username', value: updates.username })
-  }
-  if (updates.email !== undefined) {
-    fieldMap.push({ column: 'email', value: updates.email })
-  }
-  if (updates.avatar !== undefined) {
-    fieldMap.push({ column: 'avatar', value: updates.avatar })
+  const setData: Record<string, string | number | null> = {
+    updated_at: Math.floor(Date.now() / 1000),
   }
 
-  if (fieldMap.length === 0) return
+  if (updates.username !== undefined) setData.username = updates.username
+  if (updates.email !== undefined) setData.email = updates.email
+  if (updates.avatar !== undefined) setData.avatar = updates.avatar
 
-  const setClause = fieldMap.map((f) => `${f.column} = ?`).join(', ')
-  const values = [...fieldMap.map((f) => f.value), Math.floor(Date.now() / 1000), id]
+  if (Object.keys(setData).length <= 1) return
 
-  const stmt = db.prepare(`UPDATE users SET ${setClause}, updated_at = ? WHERE id = ?`)
-  await stmt.bind(...values).run()
+  await db(d1)
+    .update(users)
+    .set(setData)
+    .where(eq(users.id, id))
+    .run()
 }
 
-export async function updateUserDataKey(db: D1Database, id: string, dataKey: string): Promise<void> {
-  const stmt = db.prepare('UPDATE users SET data_key = ?, updated_at = ? WHERE id = ?')
-  await stmt.bind(dataKey, Math.floor(Date.now() / 1000), id).run()
+export async function updateUserDataKey(d1: D1Database, id: string, dataKey: string): Promise<void> {
+  await db(d1)
+    .update(users)
+    .set({
+      data_key: dataKey,
+      updated_at: Math.floor(Date.now() / 1000),
+    })
+    .where(eq(users.id, id))
+    .run()
 }
 
-export async function updateUserRole(db: D1Database, id: string, role: string): Promise<void> {
-  const stmt = db.prepare('UPDATE users SET role = ?, updated_at = ? WHERE id = ?')
-  await stmt.bind(role, Math.floor(Date.now() / 1000), id).run()
+export async function updateUserRole(d1: D1Database, id: string, role: string): Promise<void> {
+  await db(d1)
+    .update(users)
+    .set({
+      role,
+      updated_at: Math.floor(Date.now() / 1000),
+    })
+    .where(eq(users.id, id))
+    .run()
 }
 
-export async function deleteUserById(db: D1Database, id: string): Promise<void> {
-  const stmt = db.prepare('DELETE FROM users WHERE id = ?')
-  await stmt.bind(id).run()
+export async function deleteUserById(d1: D1Database, id: string): Promise<void> {
+  await db(d1)
+    .delete(users)
+    .where(eq(users.id, id))
+    .run()
 }
 
-export async function usernameExists(db: D1Database, username: string, excludeId?: string): Promise<boolean> {
-  if (excludeId) {
-    const stmt = db.prepare('SELECT 1 as found FROM users WHERE username = ? COLLATE NOCASE AND id != ?')
-    const result = await stmt.bind(username, excludeId).first<{ found: number }>()
-    return !!result
-  }
-  const stmt = db.prepare('SELECT 1 as found FROM users WHERE username = ? COLLATE NOCASE')
-  const result = await stmt.bind(username).first<{ found: number }>()
-  return !!result
+export async function usernameExists(d1: D1Database, username: string, excludeId?: string): Promise<boolean> {
+  const conditions = excludeId
+    ? [sql`${users.username} = ${username} COLLATE NOCASE`, ne(users.id, excludeId)]
+    : [sql`${users.username} = ${username} COLLATE NOCASE`]
+
+  const result = await db(d1)
+    .select({ found: sql<number>`1` })
+    .from(users)
+    .where(and(...conditions))
+    .limit(1)
+  return result.length > 0
 }
 
-export async function emailExists(db: D1Database, email: string, excludeId?: string): Promise<boolean> {
-  if (excludeId) {
-    const stmt = db.prepare('SELECT 1 as found FROM users WHERE email = ? COLLATE NOCASE AND id != ?')
-    const result = await stmt.bind(email, excludeId).first<{ found: number }>()
-    return !!result
-  }
-  const stmt = db.prepare('SELECT 1 as found FROM users WHERE email = ? COLLATE NOCASE')
-  const result = await stmt.bind(email).first<{ found: number }>()
-  return !!result
+export async function emailExists(d1: D1Database, email: string, excludeId?: string): Promise<boolean> {
+  const conditions = excludeId
+    ? [sql`${users.email} = ${email} COLLATE NOCASE`, ne(users.id, excludeId)]
+    : [sql`${users.email} = ${email} COLLATE NOCASE`]
+
+  const result = await db(d1)
+    .select({ found: sql<number>`1` })
+    .from(users)
+    .where(and(...conditions))
+    .limit(1)
+  return result.length > 0
 }
 
 export async function getUserList(
-  db: D1Database,
+  d1: D1Database,
   options: { limit?: number; offset?: number; search?: string } = {}
 ): Promise<{ users: DbUserPublic[]; total: number }> {
-  const conditions: string[] = []
-  const values: (string | number)[] = []
-
-  if (options.search) {
-    const searchTerm = options.search.slice(0, 100)
-    const escaped = searchTerm.replace(/[%_]/g, '\\$&')
-    conditions.push(`(username LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\')`)
-    values.push(`%${escaped}%`, `%${escaped}%`)
-  }
-
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-
+  const drizzleDb = db(d1)
   const limit = options.limit ?? 20
   const offset = options.offset ?? 0
 
-  const [countResult, usersResult] = await db.batch([
-    db.prepare(`SELECT COUNT(*) as total FROM users ${whereClause}`).bind(...values),
-    db.prepare(
-      `SELECT id, username, email, avatar, role, created_at, updated_at FROM users ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
-    ).bind(...values, limit, offset),
+  let whereClause = undefined
+  if (options.search) {
+    const searchTerm = options.search.slice(0, 100)
+    const escaped = searchTerm.replace(/[%_]/g, '\\$&')
+    const pattern = `%${escaped}%`
+    whereClause = or(
+      sql`${users.username} LIKE ${pattern} ESCAPE '\\'`,
+      sql`${users.email} LIKE ${pattern} ESCAPE '\\'`
+    )
+  }
+
+  const [usersResult, countResult] = await Promise.all([
+    drizzleDb
+      .select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        avatar: users.avatar,
+        role: users.role,
+        created_at: users.created_at,
+        updated_at: users.updated_at,
+      })
+      .from(users)
+      .where(whereClause)
+      .orderBy(sql`${users.created_at} DESC`)
+      .limit(limit)
+      .offset(offset),
+    drizzleDb
+      .select({ total: count() })
+      .from(users)
+      .where(whereClause),
   ])
 
   return {
-    users: (usersResult as D1Result<DbUserPublic>).results ?? [],
-    total: (countResult as D1Result<{ total: number }>).results?.[0]?.total ?? 0,
+    users: usersResult as DbUserPublic[],
+    total: countResult[0]?.total ?? 0,
   }
 }
 
-export async function getDailyUserStats(db: D1Database, days: number = 30): Promise<{ date: string; count: number }[]> {
-  const stmt = db.prepare(
-    `SELECT date(created_at, 'unixepoch') as date, COUNT(*) as count FROM users WHERE created_at >= strftime('%s', 'now', ?) GROUP BY date(created_at, 'unixepoch') ORDER BY date ASC`
-  )
-  const result = await stmt.bind(`-${days} days`).all<{ date: string; count: number }>()
-  return result.results ?? []
+export async function getDailyUserStats(d1: D1Database, days: number = 30): Promise<{ date: string; count: number }[]> {
+  const result = await db(d1)
+    .select({
+      date: sql<string>`date(${users.created_at}, 'unixepoch')`,
+      count: count(),
+    })
+    .from(users)
+    .where(sql`${users.created_at} >= strftime('%s', 'now', ${`-${days} days`})`)
+    .groupBy(sql`date(${users.created_at}, 'unixepoch')`)
+    .orderBy(sql`date ASC`)
+  return result as { date: string; count: number }[]
 }

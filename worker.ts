@@ -6,13 +6,20 @@ import { addSecurityHeaders } from './server/middleware/security'
 import { getCorsOrigin, addCorsHeaders, createCorsPreflightResponse } from './server/middleware/cors'
 import { applyCacheHeaders } from './server/middleware/cache'
 import { injectClientConfig, renderSpaHtml } from './server/middleware/spa'
+import { recordMetric } from './server/middleware/monitor'
+import { getLogger } from './server/utils/logger'
 import type { Env } from './server/utils/env'
+
+const logger = getLogger('Worker')
 
 type AppEnv = { Bindings: Env }
 
 const app = new Hono<AppEnv>()
 // 将模块化路由挂载到 /api 前缀下
 app.route('/api', api)
+
+/** 请求体大小限制：10MB */
+const MAX_REQUEST_BODY_SIZE = 10 * 1024 * 1024 // 10MB
 
 /** 维护模式缓存，避免每个 API 请求都查询 D1 */
 let maintenanceCache: { value: boolean; expiry: number } | null = null
@@ -30,7 +37,7 @@ async function checkMaintenanceMode(db: D1Database): Promise<boolean> {
 }
 
 function handleWorkerError(err: unknown, request: Request, env: Env): Response {
-  console.error('[Worker Error]', err)
+  logger.error('Unhandled worker error', { error: err instanceof Error ? err.message : String(err) })
   const errorCorsOrigin = getCorsOrigin(request, env)
   return addSecurityHeaders(
     addCorsHeaders(
@@ -56,6 +63,15 @@ function isStaticAsset(pathname: string): boolean {
   return STATIC_EXTENSIONS.has(pathname.slice(lastDot))
 }
 
+/** 检查请求体大小是否超过限制 */
+function isRequestBodyTooLarge(request: Request): boolean {
+  const contentLength = request.headers.get('Content-Length')
+  if (!contentLength) return false
+  const size = parseInt(contentLength, 10)
+  if (isNaN(size)) return false
+  return size > MAX_REQUEST_BODY_SIZE
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
@@ -66,7 +82,26 @@ export default {
         return createCorsPreflightResponse(corsOrigin)
       }
 
+      // 请求体大小限制检查（仅对 API 请求）
+      if (url.pathname.startsWith('/api/') && isRequestBodyTooLarge(request)) {
+        logger.warn('Request body too large', {
+          path: url.pathname,
+          contentLength: request.headers.get('Content-Length'),
+        })
+        return addSecurityHeaders(
+          addCorsHeaders(
+            new Response(JSON.stringify({ error: '请求体过大，最大支持 10MB' }), {
+              status: 413,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+            corsOrigin
+          ),
+          false
+        )
+      }
+
       if (url.pathname.startsWith('/api/')) {
+        const apiStartTime = Date.now()
         const isMaintenance = await checkMaintenanceMode(env.DB)
         if (isMaintenance) {
           const isAllowed =
@@ -78,10 +113,16 @@ export default {
             url.pathname === '/api/auth/logout' ||
             url.pathname === '/api/health'
           if (!isAllowed) {
+            const statusCode = 503
+            recordMetric(env, ctx, {
+              path: url.pathname, method: request.method, statusCode,
+              latencyMs: Date.now() - apiStartTime,
+              ip: request.headers.get('CF-Connecting-IP') ?? undefined,
+            })
             return addSecurityHeaders(
               addCorsHeaders(
                 new Response(JSON.stringify({ error: '系统维护中，请稍后访问' }), {
-                  status: 503,
+                  status: statusCode,
                   headers: { 'Content-Type': 'application/json' },
                 }),
                 corsOrigin
@@ -92,6 +133,12 @@ export default {
         }
 
         const response = await app.fetch(request, env, ctx)
+        recordMetric(env, ctx, {
+          path: url.pathname, method: request.method,
+          statusCode: response.status,
+          latencyMs: Date.now() - apiStartTime,
+          ip: request.headers.get('CF-Connecting-IP') ?? undefined,
+        })
         return addCorsHeaders(response, corsOrigin)
       }
 

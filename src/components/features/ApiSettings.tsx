@@ -38,12 +38,29 @@ export default function ApiSettings({ isOpen, onClose, onConfigChange }: ApiSett
   }
 
   const handleSave = async () => {
-    if (!baseUrl.trim() || !apiKey.trim() || !model.trim()) {
+    const trimmedUrl = baseUrl.trim()
+    const trimmedKey = apiKey.trim()
+    const trimmedModel = model.trim()
+
+    if (!trimmedUrl || !trimmedKey || !trimmedModel) {
       showMessage('error', t('apiConfig.errors.incomplete'))
       return
     }
+
+    // URL 格式校验
     try {
-      await saveApiConfig({ baseUrl: baseUrl.trim(), apiKey: apiKey.trim(), model: model.trim() })
+      const url = new URL(trimmedUrl)
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        showMessage('error', t('apiConfig.errors.invalidProtocol', '仅支持 http:// 或 https:// 协议'))
+        return
+      }
+    } catch {
+      showMessage('error', t('apiConfig.errors.invalidUrl', '请输入有效的 URL 地址'))
+      return
+    }
+
+    try {
+      await saveApiConfig({ baseUrl: trimmedUrl, apiKey: trimmedKey, model: trimmedModel })
       showMessage('success', t('apiConfig.messages.saved'))
       onConfigChange?.()
     } catch (err) {

@@ -7,5 +7,5 @@ export const MAINTENANCE_MODE = envFromWindow?.MAINTENANCE_MODE || (import.meta.
 export const ENABLE_REGISTRATION = envFromWindow?.ENABLE_REGISTRATION || (import.meta.env.VITE_ENABLE_REGISTRATION as string | undefined)
 
 if (!TURNSTILE_SITE_KEY && import.meta.env.DEV) {
-  console.error('[config] TURNSTILE_SITE_KEY 未设置，Turnstile 验证将无法正常工作')
+  console.error('[config] TURNSTILE_SITE_KEY is not set, Turnstile verification will not work properly')
 }

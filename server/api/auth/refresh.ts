@@ -3,10 +3,12 @@ import { saveToken, saveRefreshToken, verifyRefreshToken, deleteRefreshToken } f
 import { jsonResponse, errorResponse } from '../../utils/response';
 import { getCookie, serializeCookie, getSecureCookieOptions, getAccessTokenCookieMaxAge, getRefreshTokenCookieMaxAge } from '../../utils/cookie';
 import { findUserById, updateUserDataKey } from '../../dao/user.dao';
+import { getLogger } from '../../utils/logger';
 import type { AppContext } from '../../utils/handler';
 import i18n from '../../../src/i18n';
 
 const t = i18n.t.bind(i18n);
+const logger = getLogger('Refresh')
 
 export const onRequestPost = async (context: AppContext) => {
   try {
@@ -88,7 +90,7 @@ export const onRequestPost = async (context: AppContext) => {
       ].join(', '),
     });
   } catch (error) {
-    console.error('Refresh token error:', error);
+    logger.error('Refresh token error', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse(t('auth.refresh.error', '刷新令牌失败，请稍后重试'), 500);
   }
 };

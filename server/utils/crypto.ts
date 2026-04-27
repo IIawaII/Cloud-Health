@@ -113,3 +113,14 @@ export function generateDataKey(): string {
   crypto.getRandomValues(array)
   return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('')
 }
+
+/**
+ * 使用 SHA-256 哈希字符串，返回十六进制字符串
+ * 用于验证码等不需要盐值的单向哈希场景
+ */
+export async function sha256Hash(input: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(input)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  return toHex(hashBuffer)
+}

@@ -7,11 +7,13 @@ import { findUserByUsername, findUserByEmail, createUser } from '../../dao/user.
 import { consumeVerificationCode } from '../../dao/verification.dao';
 import { getSystemConfig } from '../../dao/config.dao';
 import { serializeCookie, getSecureCookieOptions, getAccessTokenCookieMaxAge, getRefreshTokenCookieMaxAge } from '../../utils/cookie';
+import { getLogger } from '../../utils/logger';
 import type { AppContext } from '../../utils/handler';
 import { registerSchema } from '../../../shared/schemas';
 import i18n from '../../../src/i18n';
 
 const t = i18n.t.bind(i18n);
+const logger = getLogger('Register')
 
 function isUniqueConstraintError(error: unknown): boolean {
   return error instanceof Error && /unique constraint failed/i.test(error.message);
@@ -96,7 +98,7 @@ export const onRequestPost = async (context: AppContext) => {
         updated_at: now,
       });
     } catch (dbError) {
-      console.error('Registration D1 write failed:', dbError);
+      logger.error('D1 write failed', { error: dbError instanceof Error ? dbError.message : String(dbError) });
       if (isUniqueConstraintError(dbError)) {
         return errorResponse(t('auth.register.errors.alreadyExists', '用户名或邮箱已被注册'), 409);
       }
@@ -129,7 +131,7 @@ export const onRequestPost = async (context: AppContext) => {
         createdAt: tokenCreatedAt,
       });
     } catch (tokenError) {
-      console.error('Registration token write failed:', tokenError);
+      logger.error('Token write failed', { error: tokenError instanceof Error ? tokenError.message : String(tokenError) });
       // KV 写入失败时，用户已创建但无令牌。告知用户尝试直接登录，
       // 由登录流程重新颁发令牌（D1 与 KV 无分布式事务）。
       return errorResponse(
@@ -155,7 +157,7 @@ export const onRequestPost = async (context: AppContext) => {
       ].join(', '),
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    logger.error('Registration error', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse(t('auth.register.errors.registrationFailed', '注册失败，请稍后重试'), 500);
   }
 };

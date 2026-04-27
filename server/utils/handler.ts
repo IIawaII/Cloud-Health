@@ -10,8 +10,11 @@ import { errorResponse, safeErrorResponse } from './response'
 import { checkRateLimit } from './rateLimit'
 import { createUsageLog, getUserDailyUsageCount } from '../dao/log.dao'
 import { getSystemConfig } from '../dao/config.dao'
+import { getLogger } from './logger'
 import type { Env } from './env'
 import type { TokenData } from './auth'
+
+const logger = getLogger('AIHandler')
 
 export type AppContext = Context<{ Bindings: Env }>
 
@@ -48,7 +51,7 @@ export function createAIHandler<T>(options: AIHandlerOptions<T>) {
     try {
       const tokenData = await verifyToken({ request: context.req.raw, env: context.env })
       if (!tokenData) {
-        return errorResponse('未授权', 401)
+        return errorResponse('Unauthorized', 401)
       }
 
       if (options.rateLimit) {
@@ -59,7 +62,7 @@ export function createAIHandler<T>(options: AIHandlerOptions<T>) {
           windowSeconds: options.rateLimit.windowSeconds,
         })
         if (!rateLimit.allowed) {
-          return errorResponse('请求过于频繁，请稍后再试', 429, {
+          return errorResponse('Too many requests, please try again later', 429, {
             'Retry-After': String(rateLimit.resetAt - Math.floor(Date.now() / 1000)),
           })
         }
@@ -68,7 +71,7 @@ export function createAIHandler<T>(options: AIHandlerOptions<T>) {
       const body = await context.req.json<unknown>()
       const parseResult = options.schema.safeParse(body)
       if (!parseResult.success) {
-        const firstError = parseResult.error.errors[0]?.message || '请求参数错误'
+        const firstError = parseResult.error.errors[0]?.message || 'Invalid request parameters'
         return errorResponse(firstError, 400)
       }
 
@@ -80,7 +83,7 @@ export function createAIHandler<T>(options: AIHandlerOptions<T>) {
           if (!isNaN(dailyLimit) && dailyLimit > 0) {
             const todayCount = await getUserDailyUsageCount(context.env.DB, tokenData.userId)
             if (todayCount >= dailyLimit) {
-              return errorResponse('今日请求次数已达上限，请明天再试', 429)
+              return errorResponse('Daily request limit reached, please try again tomorrow', 429)
             }
           }
         }
@@ -98,7 +101,7 @@ export function createAIHandler<T>(options: AIHandlerOptions<T>) {
             action: options.action,
             metadata: null,
           }).catch((err) => {
-            console.warn('[UsageLog] Failed to record usage:', err)
+            logger.warn('Failed to record usage log', { error: err instanceof Error ? err.message : String(err) })
           })
         )
       }

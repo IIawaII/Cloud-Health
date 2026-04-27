@@ -11,12 +11,12 @@ import {
   FiSettings,
   FiMenu,
   FiLogOut,
-  FiShield,
   FiChevronsLeft,
   FiChevronsRight,
   FiMoon,
   FiSun,
 } from 'react-icons/fi'
+import { MdAdminPanelSettings } from "react-icons/md";
 import LanguageSwitcher from '../common/LanguageSwitcher'
 import LogoIcon from '../common/LogoIcon'
 
@@ -77,7 +77,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           }`}
         >
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center flex-shrink-0">
-            <FiShield className="w-4 h-4 text-white" />
+            <MdAdminPanelSettings className="w-4 h-4 text-white" />
           </div>
           <span className={`overflow-hidden whitespace-nowrap text-lg font-semibold tracking-tight transition-all duration-300 ${collapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}`}>
             {t('admin.title')}

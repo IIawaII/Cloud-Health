@@ -3,8 +3,13 @@ import { jsonResponse, errorResponse, parseLLMResult } from '../../utils/respons
 import { callLLM, createStreamResponse, resolveLLMConfig } from '../../utils/llm';
 import { SYSTEM_PROMPTS, USER_PROMPTS } from '../../utils/prompts';
 import { createAIHandler } from '../../utils/handler';
+import { getLogger } from '../../utils/logger';
+
+const logger = getLogger('Analyze')
 
 const MAX_FILE_SIZE_MB = 5;
+/** 文本内容最大长度：500KB */
+const MAX_TEXT_CONTENT_LENGTH = 500 * 1024; // 500KB
 
 const analyzeSchema = z.object({
   fileData: z.string().min(1, '请上传文件').max(15 * 1024 * 1024, '文件数据过大'),
@@ -22,10 +27,20 @@ export const onRequestPost = createAIHandler({
   async handler(data, context, _tokenData) {
     const { fileData, fileType, fileName, stream } = data;
 
+    // 文本内容长度校验（500KB 限制）
+    const isText = fileType === 'text/plain';
+    if (isText && fileData.length > MAX_TEXT_CONTENT_LENGTH) {
+      logger.warn('Text content exceeds limit', {
+        fileName,
+        contentLength: fileData.length,
+        maxLength: MAX_TEXT_CONTENT_LENGTH,
+      });
+      return errorResponse(`文本内容超过 ${MAX_TEXT_CONTENT_LENGTH / 1024}KB 限制，请缩短后重试`, 413);
+    }
+
     let dataSizeMB: number;
     if (fileData.startsWith('data:')) {
       const base64Content = fileData.split(',')[1] || '';
-      // 精确计算 base64 解码后大小：每 4 个字符对应 3 字节，减去填充字符数
       const padding = (base64Content.match(/=/g) || []).length;
       dataSizeMB = (base64Content.length * 3 - padding * 3) / 4 / 1024 / 1024;
     } else {
@@ -37,7 +52,6 @@ export const onRequestPost = createAIHandler({
 
     const isImage = fileType.startsWith('image/');
     const isPdf = fileType === 'application/pdf';
-    const isText = fileType === 'text/plain';
 
     if ((isImage || isPdf) && !fileData.startsWith('data:')) {
       return errorResponse('文件内容应为 base64 data URL 格式', 400);
@@ -52,11 +66,10 @@ export const onRequestPost = createAIHandler({
     }
     const { baseUrl, apiKey, model } = llmConfig;
 
-    // PDF 文件过大时，截断 base64 内容以避免 Worker CPU/内存超限导致 502
+    // PDF 文件过大时，截断 base64 内容
     let processedFileData = fileData;
     let isPdfTruncated = false;
     if (isPdf && fileData.length > 500_000) {
-      // 保留 data:前缀 和 前约 300KB 的 base64 内容（约 225KB 原始数据）
       const commaIndex = fileData.indexOf(',');
       if (commaIndex === -1) {
         return errorResponse('PDF 文件格式不正确，缺少 data URL 分隔符', 400);
@@ -64,10 +77,9 @@ export const onRequestPost = createAIHandler({
       const prefix = fileData.slice(0, commaIndex + 1);
       processedFileData = prefix + fileData.slice(prefix.length, prefix.length + 400_000);
       isPdfTruncated = true;
-      console.warn(`[analyze] PDF truncated from ${fileData.length} to ${processedFileData.length} chars`);
+      logger.warn('PDF truncated', { originalLength: fileData.length, truncatedLength: processedFileData.length });
     }
 
-    // PDF 不支持 image_url 类型，需要转为文本提示或提取内容描述
     const messages = isImage
       ? [
           { role: 'system', content: SYSTEM_PROMPTS.REPORT_ANALYZER_IMAGE },
@@ -89,7 +101,6 @@ export const onRequestPost = createAIHandler({
             { role: 'user', content: USER_PROMPTS.analyzeText(fileName, fileData) },
           ];
 
-    // 如果 PDF 被截断，在系统提示中补充说明，避免模型基于不完整内容给出误导性结论
     if (isPdf && isPdfTruncated) {
       const systemMsg = messages.find((m) => m.role === 'system');
       if (systemMsg && typeof systemMsg.content === 'string') {
@@ -110,7 +121,7 @@ export const onRequestPost = createAIHandler({
 
       if (!response.ok) {
         const err = await response.text();
-        console.error('[analyze] LLM request failed:', err);
+        logger.error('LLM request failed', { error: err.slice(0, 200) });
         return errorResponse(`模型请求失败: ${err.slice(0, 200)}`, 502);
       }
 
@@ -123,7 +134,7 @@ export const onRequestPost = createAIHandler({
 
       return jsonResponse({ result }, 200);
     } catch (err) {
-      console.error('[analyze] Unexpected error:', err);
+      logger.error('Unexpected analyze error', { error: err instanceof Error ? err.message : String(err) });
       return errorResponse('分析服务暂时不可用，请稍后重试或尝试上传较小的文件', 502);
     }
   },

@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { FiGlobe, FiCheck } from 'react-icons/fi'
 
 const LANGUAGES = [
-  { code: 'zh-CN', label: '中文' },
-  { code: 'en', label: 'English' },
+  { code: 'zh-CN', labelKey: 'language.zh' },
+  { code: 'en', labelKey: 'language.en' },
 ]
 
 interface LanguageSwitcherProps {
@@ -12,7 +12,7 @@ interface LanguageSwitcherProps {
 }
 
 export default function LanguageSwitcher({ className = '' }: LanguageSwitcherProps) {
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -33,10 +33,10 @@ export default function LanguageSwitcher({ className = '' }: LanguageSwitcherPro
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-foreground-muted dark:text-foreground-dark-muted hover:text-foreground dark:hover:text-foreground-dark hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-        title="Language"
+        title={t('language.label', 'Language')}
       >
         <FiGlobe className="w-4 h-4" />
-        <span>{current.label}</span>
+        <span>{t(current.labelKey)}</span>
       </button>
       {open && (
         <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-100 dark:border-slate-700 py-1 z-50 animate-fade-in">
@@ -53,7 +53,7 @@ export default function LanguageSwitcher({ className = '' }: LanguageSwitcherPro
                   : 'text-foreground-muted dark:text-foreground-dark-muted hover:bg-gray-50 dark:hover:bg-slate-700'
               }`}
             >
-              {lang.label}
+              {t(lang.labelKey)}
               {current.code === lang.code && <FiCheck className="w-3.5 h-3.5" />}
             </button>
           ))}

@@ -18,23 +18,20 @@ export interface CallLLMOptions {
 }
 
 /**
- * 从请求头和环境变量中解析 LLM 配置
- * 优先使用用户自定义配置（X-AI-* 头），否则回退到服务端环境变量
+ * 从请求头中解析用户自定义 LLM 配置
+ * 本项目设计为用户自带 API Key，服务端不再提供默认 Key
+ * 所有 AI 调用必须通过用户自己的 API 配置完成
  */
 export function resolveLLMConfig(
   request: Request,
-  env: Env
+  _env: Env
 ): { baseUrl: string; apiKey: string; model: string } | null {
   const userBaseUrl = request.headers.get('X-AI-Base-URL')
   const userApiKey = request.headers.get('X-AI-API-Key')
   const userModel = request.headers.get('X-AI-Model')
 
-  const baseUrl = userBaseUrl || env.AI_BASE_URL
-  const apiKey = userApiKey || env.AI_API_KEY
-  const model = userModel || env.AI_MODEL
-
-  if (!baseUrl || !apiKey || !model) return null
-  return { baseUrl, apiKey, model }
+  if (!userBaseUrl || !userApiKey || !userModel) return null
+  return { baseUrl: userBaseUrl, apiKey: userApiKey, model: userModel }
 }
 
 function isIPv4Address(value: string): boolean {

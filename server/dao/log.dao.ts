@@ -1,6 +1,9 @@
 /**
- * Log DAO - 使用日志与统计
+ * Log DAO - 使用日志与统计 (Drizzle ORM)
  */
+
+import { eq, and, gte, lte, count, sql } from 'drizzle-orm'
+import { getDb, usageLogs, users, type DbClient } from '../db'
 
 export interface UsageLog {
   id: string
@@ -10,115 +13,142 @@ export interface UsageLog {
   created_at: number
 }
 
+function db(d1: D1Database): DbClient {
+  return getDb(d1)
+}
+
 export async function createUsageLog(
-  db: D1Database,
+  d1: D1Database,
   log: Omit<UsageLog, 'created_at'>
 ): Promise<void> {
-  const stmt = db.prepare(
-    'INSERT INTO usage_logs (id, user_id, action, metadata, created_at) VALUES (?, ?, ?, ?, ?)'
-  )
-  await stmt.bind(log.id, log.user_id ?? null, log.action, log.metadata ?? null, Math.floor(Date.now() / 1000)).run()
+  await db(d1)
+    .insert(usageLogs)
+    .values({
+      id: log.id,
+      user_id: log.user_id ?? null,
+      action: log.action,
+      metadata: log.metadata ?? null,
+      created_at: Math.floor(Date.now() / 1000),
+    })
+    .run()
 }
 
 export async function getUsageLogs(
-  db: D1Database,
+  d1: D1Database,
   options: { limit?: number; offset?: number; action?: string; startDate?: number; endDate?: number } = {}
 ): Promise<{ logs: (UsageLog & { username: string | null })[]; total: number }> {
-  const conditions: string[] = []
-  const values: (string | number)[] = []
+  const drizzleDb = db(d1)
+  const conditions = []
 
   if (options.action) {
-    conditions.push('action = ?')
-    values.push(options.action)
+    conditions.push(eq(usageLogs.action, options.action))
   }
-  if (options.startDate) {
-    conditions.push('created_at >= ?')
-    values.push(options.startDate)
+  if (options.startDate !== undefined) {
+    conditions.push(gte(usageLogs.created_at, options.startDate))
   }
-  if (options.endDate) {
-    conditions.push('created_at <= ?')
-    values.push(options.endDate)
+  if (options.endDate !== undefined) {
+    conditions.push(lte(usageLogs.created_at, options.endDate))
   }
 
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined
   const limit = options.limit ?? 20
   const offset = options.offset ?? 0
 
-  const [countResult, logsResult] = await db.batch([
-    db.prepare(`SELECT COUNT(*) as total FROM usage_logs ${whereClause}`).bind(...values),
-    db.prepare(
-      `SELECT l.id, l.user_id, u.username, l.action, l.metadata, l.created_at FROM usage_logs l LEFT JOIN users u ON l.user_id = u.id ${whereClause} ORDER BY l.created_at DESC LIMIT ? OFFSET ?`
-    ).bind(...values, limit, offset),
+  const [logsResult, countResult] = await Promise.all([
+    drizzleDb
+      .select({
+        id: usageLogs.id,
+        user_id: usageLogs.user_id,
+        username: users.username,
+        action: usageLogs.action,
+        metadata: usageLogs.metadata,
+        created_at: usageLogs.created_at,
+      })
+      .from(usageLogs)
+      .leftJoin(users, eq(usageLogs.user_id, users.id))
+      .where(whereClause)
+      .orderBy(sql`${usageLogs.created_at} DESC`)
+      .limit(limit)
+      .offset(offset),
+    drizzleDb
+      .select({ total: count() })
+      .from(usageLogs)
+      .where(whereClause),
   ])
 
   return {
-    logs: (logsResult as D1Result<UsageLog & { username: string | null }>).results ?? [],
-    total: (countResult as D1Result<{ total: number }>).results?.[0]?.total ?? 0,
+    logs: logsResult as (UsageLog & { username: string | null })[],
+    total: countResult[0]?.total ?? 0,
   }
 }
 
 export async function getUsageStats(
-  db: D1Database,
+  d1: D1Database,
   startDate?: number,
   endDate?: number
 ): Promise<{ action: string; count: number }[]> {
-  const conditions: string[] = []
-  const values: (string | number)[] = []
+  const conditions = []
+  if (startDate !== undefined) conditions.push(gte(usageLogs.created_at, startDate))
+  if (endDate !== undefined) conditions.push(lte(usageLogs.created_at, endDate))
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
-  if (startDate) {
-    conditions.push('created_at >= ?')
-    values.push(startDate)
-  }
-  if (endDate) {
-    conditions.push('created_at <= ?')
-    values.push(endDate)
-  }
-
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-  const stmt = db.prepare(`SELECT action, COUNT(*) as count FROM usage_logs ${whereClause} GROUP BY action ORDER BY count DESC`)
-  const result = await stmt.bind(...values).all<{ action: string; count: number }>()
-  return result.results ?? []
+  const result = await db(d1)
+    .select({
+      action: usageLogs.action,
+      count: count(),
+    })
+    .from(usageLogs)
+    .where(whereClause)
+    .groupBy(usageLogs.action)
+    .orderBy(sql`count DESC`)
+  return result as { action: string; count: number }[]
 }
 
 export async function getUserDailyUsageCount(
-  db: D1Database,
+  d1: D1Database,
   userId: string,
   action?: string
 ): Promise<number> {
-  let sql = "SELECT COUNT(*) as count FROM usage_logs WHERE user_id = ? AND date(created_at, 'unixepoch') = date('now')"
-  const params: (string | number)[] = [userId]
+  const conditions = [
+    eq(usageLogs.user_id, userId),
+    sql`date(${usageLogs.created_at}, 'unixepoch') = date('now')`,
+  ]
   if (action) {
-    sql += ' AND action = ?'
-    params.push(action)
+    conditions.push(eq(usageLogs.action, action))
   }
-  const stmt = db.prepare(sql)
-  const result = await stmt.bind(...params).first<{ count: number }>()
-  return result?.count ?? 0
+
+  const result = await db(d1)
+    .select({ count: count() })
+    .from(usageLogs)
+    .where(and(...conditions))
+  return result[0]?.count ?? 0
 }
 
-export async function getStats(db: D1Database): Promise<{
+export async function getStats(d1: D1Database): Promise<{
   totalUsers: number
   todayNewUsers: number
   totalLogs: number
   todayLogs: number
 }> {
-  const totalUsersStmt = db.prepare('SELECT COUNT(*) as count FROM users')
-  const totalUsersResult = await totalUsersStmt.first<{ count: number }>()
+  const drizzleDb = db(d1)
 
-  const todayNewUsersStmt = db.prepare("SELECT COUNT(*) as count FROM users WHERE date(created_at, 'unixepoch') = date('now')")
-  const todayNewUsersResult = await todayNewUsersStmt.first<{ count: number }>()
-
-  const totalLogsStmt = db.prepare('SELECT COUNT(*) as count FROM usage_logs')
-  const totalLogsResult = await totalLogsStmt.first<{ count: number }>()
-
-  const todayLogsStmt = db.prepare("SELECT COUNT(*) as count FROM usage_logs WHERE date(created_at, 'unixepoch') = date('now')")
-  const todayLogsResult = await todayLogsStmt.first<{ count: number }>()
+  const [totalUsersResult, todayNewUsersResult, totalLogsResult, todayLogsResult] = await Promise.all([
+    drizzleDb.select({ count: count() }).from(users),
+    drizzleDb
+      .select({ count: count() })
+      .from(users)
+      .where(sql`date(${users.created_at}, 'unixepoch') = date('now')`),
+    drizzleDb.select({ count: count() }).from(usageLogs),
+    drizzleDb
+      .select({ count: count() })
+      .from(usageLogs)
+      .where(sql`date(${usageLogs.created_at}, 'unixepoch') = date('now')`),
+  ])
 
   return {
-    totalUsers: totalUsersResult?.count ?? 0,
-    todayNewUsers: todayNewUsersResult?.count ?? 0,
-    totalLogs: totalLogsResult?.count ?? 0,
-    todayLogs: todayLogsResult?.count ?? 0,
+    totalUsers: totalUsersResult[0]?.count ?? 0,
+    todayNewUsers: todayNewUsersResult[0]?.count ?? 0,
+    totalLogs: totalLogsResult[0]?.count ?? 0,
+    todayLogs: todayLogsResult[0]?.count ?? 0,
   }
 }

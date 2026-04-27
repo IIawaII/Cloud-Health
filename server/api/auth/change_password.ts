@@ -3,11 +3,13 @@ import { verifyToken, revokeAllUserTokens } from '../../utils/auth';
 import { jsonResponse, errorResponse } from '../../utils/response';
 import { checkRateLimit } from '../../utils/rateLimit';
 import { findUserById, updateUserPassword } from '../../dao/user.dao';
+import { getLogger } from '../../utils/logger';
 import type { AppContext } from '../../utils/handler';
 import { changePasswordSchema } from '../../../shared/schemas';
 import i18n from '../../../src/i18n';
 
 const t = i18n.t.bind(i18n);
+const logger = getLogger('ChangePassword')
 
 export const onRequestPost = async (context: AppContext) => {
   try {
@@ -63,7 +65,7 @@ export const onRequestPost = async (context: AppContext) => {
       requireReLogin: true,
     }, 200);
   } catch (error) {
-    console.error('Change password error:', error);
+    logger.error('Change password error', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse(t('settings.errors.changeFailed'), 500);
   }
 };

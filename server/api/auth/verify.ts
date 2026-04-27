@@ -1,10 +1,12 @@
 import { jsonResponse, errorResponse } from '../../utils/response';
 import { findUserById } from '../../dao/user.dao';
 import { verifyToken } from '../../utils/auth';
+import { getLogger } from '../../utils/logger';
 import type { AppContext } from '../../utils/handler';
 import i18n from '../../../src/i18n';
 
 const t = i18n.t.bind(i18n);
+const logger = getLogger('Verify')
 
 export const onRequestGet = async (context: AppContext) => {
   try {
@@ -26,7 +28,7 @@ export const onRequestGet = async (context: AppContext) => {
         dataKey = dbUser.data_key ?? undefined;
       }
     } catch (dbError) {
-      console.warn('Token verification fallback to token payload:', dbError);
+      logger.warn('Token verification fallback to token payload', { error: dbError instanceof Error ? dbError.message : String(dbError) });
     }
 
     return jsonResponse({
@@ -41,7 +43,7 @@ export const onRequestGet = async (context: AppContext) => {
       },
     }, 200);
   } catch (error) {
-    console.error('Token verification error:', error);
+    logger.error('Token verification error', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse(t('auth.errors.verifyFailed', '验证失败，请稍后重试'), 500);
   }
 };

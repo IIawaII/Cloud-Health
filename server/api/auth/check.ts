@@ -1,10 +1,12 @@
 import { jsonResponse, errorResponse } from '../../utils/response';
 import { checkRateLimit, buildRateLimitKey } from '../../utils/rateLimit';
 import { usernameExists, emailExists } from '../../dao/user.dao';
+import { getLogger } from '../../utils/logger';
 import type { AppContext } from '../../utils/handler';
 import i18n from '../../../src/i18n';
 
 const t = i18n.t.bind(i18n);
+const logger = getLogger('Check')
 
 interface CheckRequest {
   username?: string;
@@ -33,7 +35,7 @@ export const onRequestPost = async (context: AppContext) => {
         return errorResponse(t('auth.register.errors.tooManyChecks', '检查过于频繁，请稍后再试'), 429);
       }
     } catch (rateLimitError) {
-      console.warn('Check availability rate limit degraded:', rateLimitError);
+      logger.warn('Rate limit degraded', { error: rateLimitError instanceof Error ? rateLimitError.message : String(rateLimitError) });
     }
 
     if (username !== undefined) {
@@ -44,7 +46,7 @@ export const onRequestPost = async (context: AppContext) => {
     const exists = await emailExists(context.env.DB, email as string);
     return jsonResponse({ available: !exists, field: 'email' }, 200);
   } catch (error) {
-    console.error('Check availability error:', error);
+    logger.error('Check availability error', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse(t('auth.register.errors.checkFailed', '检查失败，请稍后重试'), 500);
   }
 };

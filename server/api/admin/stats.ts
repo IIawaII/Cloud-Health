@@ -2,9 +2,12 @@ import { jsonResponse, errorResponse } from '../../utils/response';
 import { getStats, getUsageStats } from '../../dao/log.dao';
 import { getDailyUserStats } from '../../dao/user.dao';
 import { withAdmin } from '../../middleware/admin';
-import type { AppContext } from '../../utils/handler';
+import { getLogger } from '../../utils/logger';
+import type { AdminContext } from '../../middleware/admin';
 
-export const onRequestGet = withAdmin(async (context: AppContext) => {
+const logger = getLogger('AdminStats')
+
+export const onRequestGet = withAdmin(async (context: AdminContext) => {
   try {
     const [stats, dailyUserStats, usageStats] = await Promise.all([
       getStats(context.env.DB),
@@ -24,7 +27,7 @@ export const onRequestGet = withAdmin(async (context: AppContext) => {
       },
     }, 200);
   } catch (error) {
-    console.error('Admin stats error:', error);
+    logger.error('Failed to get stats', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse('获取统计数据失败', 500);
   }
 });

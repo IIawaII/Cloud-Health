@@ -11,10 +11,12 @@ import {
   deleteVerificationCooldown,
   cleanupExpiredVerificationCodes,
 } from '../../dao/verification.dao';
+import { getLogger } from '../../utils/logger';
 import type { AppContext } from '../../utils/handler';
 import i18n from '../../../src/i18n';
 
 const t = i18n.t.bind(i18n);
+const logger = getLogger('SendCode')
 
 interface SendCodeRequest {
   email: string;
@@ -219,7 +221,7 @@ export const onRequestPost = async (context: AppContext) => {
       message: t('auth.verification.codeSent', '验证码已发送'),
     }, 200);
   } catch (error) {
-    console.error('Send verification code error:', error);
+    logger.error('Send verification code error', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse(t('auth.verification.sendFailed', '发送验证码失败，请稍后重试'), 500);
   }
 };

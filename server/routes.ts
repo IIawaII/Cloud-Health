@@ -17,11 +17,21 @@ import * as adminUsers from './api/admin/users'
 import * as adminLogs from './api/admin/logs'
 import * as adminAudit from './api/admin/audit'
 import * as adminConfig from './api/admin/config'
+import * as adminMetrics from './api/admin/metrics'
+import { openApiDocument } from './openapi'
+import { requireCsrfProtection } from './middleware/csrf'
 import type { Env } from './utils/env'
 
 type AppEnv = { Bindings: Env }
 
 const api = new Hono<AppEnv>()
+
+// CSRF 防护：对所有 API 请求检查敏感操作
+api.use('*', async (context, next) => {
+  const csrfError = requireCsrfProtection(context)
+  if (csrfError) return csrfError
+  await next()
+})
 
 // Auth routes
 api.post('/auth/register', authRegister.onRequestPost)
@@ -50,9 +60,47 @@ api.get('/admin/audit', adminAudit.onRequestGet)
 api.get('/admin/config', adminConfig.onRequestGet)
 api.put('/admin/config', adminConfig.onRequestPut)
 
+// Admin metrics routes (性能监控)
+api.get('/admin/metrics/overview', adminMetrics.onRequestGetOverview)
+api.get('/admin/metrics/trend', adminMetrics.onRequestGetTrend)
+api.get('/admin/metrics/paths', adminMetrics.onRequestGetPaths)
+api.get('/admin/metrics/status-codes', adminMetrics.onRequestGetStatusCodes)
+api.get('/admin/metrics/errors', adminMetrics.onRequestGetErrors)
+
 // Health check
 api.get('/health', (context) => {
   return context.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
+
+// OpenAPI 文档端点
+api.get('/docs/openapi.json', (context) => {
+  return context.json(openApiDocument)
+})
+
+// Swagger UI 页面
+api.get('/docs', (context) => {
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Cloud Health API Docs</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: '/api/docs/openapi.json',
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+    })
+  </script>
+</body>
+</html>`
+  return context.html(html)
 })
 
 export { api }

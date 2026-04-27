@@ -53,6 +53,9 @@
     "data": "数据管理",
     "config": "系统配置",
     "collapse": "收起",
+    "collapseExpand": "展开侧边栏",
+    "collapseCollapse": "收起侧边栏",
+    "metrics": "性能监控",
     "search": "搜索用户名或邮箱",
     "role": {
       "user": "普通用户",
@@ -173,7 +176,9 @@
       "loginFailed": "登录失败",
       "tooManyAttempts": "登录尝试过于频繁",
       "adminConfigError": "管理员账户配置异常",
-      "dataMigrationError": "登录失败，用户数据迁移异常"
+      "dataMigrationError": "登录失败，用户数据迁移异常",
+      "tokenExpired": "令牌已过期或无效",
+      "verifyFailed": "验证失败，请稍后重试"
     }
   },
   "landing": {
@@ -231,7 +236,10 @@
     "success": "成功",
     "noData": "暂无数据",
     "networkError": "网络错误，请稍后重试",
-    "loginRequired": "请先登录"
+    "timeoutError": "请求超时，请检查网络或稍后重试",
+    "loginRequired": "请先登录",
+    "on": "开",
+    "off": "关"
   },
   "theme": {
     "light": "浅色模式",
@@ -240,7 +248,8 @@
   },
   "language": {
     "zh": "中文",
-    "en": "English"
+    "en": "English",
+    "label": "语言"
   },
     "settings": {
     "title": "账号设置",
@@ -304,10 +313,12 @@
     "model": "模型名称",
     "save": "保存配置",
     "clear": "清除",
-    "info1": "您可以配置自己的 AI API 来替代服务端默认配置",
-    "info2": "配置仅保存在浏览器本地，不会上传到服务器",
+    "info1": "请配置您自己的 AI API，所有 AI 调用将直接使用您的配置",
+    "info2": "配置仅保存在浏览器本地（AES-GCM 加密），不会上传到服务器",
     "errors": {
       "incomplete": "请填写完整的 AI 配置信息",
+      "invalidProtocol": "仅支持 http:// 或 https:// 协议",
+      "invalidUrl": "请输入有效的 URL 地址",
       "saveFailed": "保存失败，请检查登录状态",
       "missingKey": "未找到数据密钥，请先登录"
     },
@@ -567,7 +578,36 @@
     "image": "图像文件",
     "text": "文本文件",
     "pdf": "PDF 文档",
-    "preview": "预览"
+    "preview": "预览",
+    "errors": {
+      "validateFailed": "文件验证失败",
+      "readFailed": "文件读取失败，请重试"
+    }
+  },
+  "metrics": {
+    "last1Hour": "最近 1 小时",
+    "last6Hours": "最近 6 小时",
+    "last24Hours": "最近 24 小时",
+    "last7Days": "最近 7 天",
+    "totalRequests": "总请求数",
+    "avgLatency": "平均延迟",
+    "maxLatency": "最大延迟",
+    "minLatency": "最小延迟",
+    "errorRate": "错误率",
+    "requestTrend": "请求量趋势",
+    "requestCount": "请求数",
+    "avgLatencyMs": "平均延迟(ms)",
+    "topPaths": "热门路径 Top 10",
+    "statusDist": "状态码分布",
+    "latencyDetail": "接口延迟详情",
+    "path": "路径",
+    "errorCount": "错误数",
+    "recentErrors": "最近错误日志",
+    "time": "时间",
+    "method": "方法",
+    "statusCode": "状态码",
+    "latency": "延迟",
+    "noErrors": "暂无错误记录"
   },
   "quizPanel": {
     "score": "{{score}} 分",

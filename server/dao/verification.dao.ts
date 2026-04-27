@@ -1,6 +1,13 @@
 /**
- * Verification DAO - 验证码
+ * Verification DAO - 验证码 (Drizzle ORM + SHA-256 哈希)
  */
+
+import { eq, and, sql } from 'drizzle-orm'
+import { getDb, verificationCodes, verificationCodeCooldowns, type DbClient } from '../db'
+import { sha256Hash } from '../utils/crypto'
+import { getLogger } from '../utils/logger'
+
+const logger = getLogger('VerificationDAO')
 
 export type VerificationCodePurpose = 'register' | 'update_email'
 
@@ -12,45 +19,75 @@ export interface VerificationCodeRecord {
   expiresAt: number
 }
 
+function db(d1: D1Database): DbClient {
+  return getDb(d1)
+}
+
 export async function upsertVerificationCode(
-  db: D1Database,
+  d1: D1Database,
   record: VerificationCodeRecord
 ): Promise<void> {
-  const stmt = db.prepare(
-    `INSERT INTO verification_codes (purpose, email, code, created_at, expires_at)
-     VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT(purpose, email) DO UPDATE SET
-       code = excluded.code,
-       created_at = excluded.created_at,
-       expires_at = excluded.expires_at`
-  )
+  const codeHash = await sha256Hash(record.code)
+  logger.info('Upserting verification code', { purpose: record.purpose, email: record.email })
 
-  await stmt.bind(record.purpose, record.email, record.code, record.createdAt, record.expiresAt).run()
+  await db(d1)
+    .insert(verificationCodes)
+    .values({
+      purpose: record.purpose,
+      email: record.email,
+      code: codeHash,
+      created_at: record.createdAt,
+      expires_at: record.expiresAt,
+    })
+    .onConflictDoUpdate({
+      target: [verificationCodes.purpose, verificationCodes.email],
+      set: {
+        code: codeHash,
+        created_at: record.createdAt,
+        expires_at: record.expiresAt,
+      },
+    })
+    .run()
 }
 
 export async function deleteVerificationCode(
-  db: D1Database,
+  d1: D1Database,
   purpose: VerificationCodePurpose,
   email: string
 ): Promise<void> {
-  const stmt = db.prepare('DELETE FROM verification_codes WHERE purpose = ? AND email = ?')
-  await stmt.bind(purpose, email).run()
+  await db(d1)
+    .delete(verificationCodes)
+    .where(
+      and(
+        eq(verificationCodes.purpose, purpose),
+        eq(verificationCodes.email, email)
+      )
+    )
+    .run()
 }
 
 export async function checkVerificationCooldown(
-  db: D1Database,
+  d1: D1Database,
   purpose: VerificationCodePurpose,
   email: string,
   cooldownSeconds: number
 ): Promise<{ allowed: boolean; remainingSeconds: number }> {
-  const stmt = db.prepare('SELECT sent_at FROM verification_code_cooldowns WHERE purpose = ? AND email = ?')
-  const record = await stmt.bind(purpose, email).first<{ sent_at: number }>()
+  const result = await db(d1)
+    .select({ sent_at: verificationCodeCooldowns.sent_at })
+    .from(verificationCodeCooldowns)
+    .where(
+      and(
+        eq(verificationCodeCooldowns.purpose, purpose),
+        eq(verificationCodeCooldowns.email, email)
+      )
+    )
+    .limit(1)
 
-  if (!record) {
+  if (result.length === 0) {
     return { allowed: true, remainingSeconds: 0 }
   }
 
-  const sentAt = record.sent_at * 1000
+  const sentAt = result[0].sent_at * 1000
   const now = Date.now()
   const elapsedSeconds = Math.floor((now - sentAt) / 1000)
 
@@ -62,61 +99,96 @@ export async function checkVerificationCooldown(
 }
 
 export async function setVerificationCooldown(
-  db: D1Database,
+  d1: D1Database,
   purpose: VerificationCodePurpose,
   email: string
 ): Promise<void> {
-  const stmt = db.prepare(
-    `INSERT INTO verification_code_cooldowns (purpose, email, sent_at)
-     VALUES (?, ?, ?)
-     ON CONFLICT(purpose, email) DO UPDATE SET
-       sent_at = excluded.sent_at`
-  )
-  await stmt.bind(purpose, email, Math.floor(Date.now() / 1000)).run()
+  await db(d1)
+    .insert(verificationCodeCooldowns)
+    .values({
+      purpose,
+      email,
+      sent_at: Math.floor(Date.now() / 1000),
+    })
+    .onConflictDoUpdate({
+      target: [verificationCodeCooldowns.purpose, verificationCodeCooldowns.email],
+      set: { sent_at: Math.floor(Date.now() / 1000) },
+    })
+    .run()
 }
 
 export async function deleteVerificationCooldown(
-  db: D1Database,
+  d1: D1Database,
   purpose: VerificationCodePurpose,
   email: string
 ): Promise<void> {
-  const stmt = db.prepare('DELETE FROM verification_code_cooldowns WHERE purpose = ? AND email = ?')
-  await stmt.bind(purpose, email).run()
+  await db(d1)
+    .delete(verificationCodeCooldowns)
+    .where(
+      and(
+        eq(verificationCodeCooldowns.purpose, purpose),
+        eq(verificationCodeCooldowns.email, email)
+      )
+    )
+    .run()
 }
 
 /**
  * 清理所有已过期的验证码记录
  */
-export async function cleanupExpiredVerificationCodes(db: D1Database): Promise<void> {
-  const stmt = db.prepare("DELETE FROM verification_codes WHERE expires_at <= ?")
-  await stmt.bind(new Date().toISOString()).run()
+export async function cleanupExpiredVerificationCodes(d1: D1Database): Promise<void> {
+  await db(d1)
+    .delete(verificationCodes)
+    .where(sql`${verificationCodes.expires_at} <= ${new Date().toISOString()}`)
+    .run()
 }
 
 export async function consumeVerificationCode(
-  db: D1Database,
+  d1: D1Database,
   purpose: VerificationCodePurpose,
   email: string,
   code: string,
   now: number = Math.floor(Date.now() / 1000)
 ): Promise<'consumed' | 'not_found' | 'expired' | 'invalid'> {
-  const deleteStmt = db.prepare(
-    'DELETE FROM verification_codes WHERE purpose = ? AND email = ? AND code = ? AND expires_at > ?'
-  )
-  const deleteResult = await deleteStmt.bind(purpose, email, code, now).run()
+  const drizzleDb = db(d1)
+  const codeHash = await sha256Hash(code)
+
+  // 先尝试原子删除（匹配哈希且未过期）
+  const deleteResult = await drizzleDb
+    .delete(verificationCodes)
+    .where(
+      and(
+        eq(verificationCodes.purpose, purpose),
+        eq(verificationCodes.email, email),
+        eq(verificationCodes.code, codeHash),
+        sql`${verificationCodes.expires_at} > ${now}`
+      )
+    )
+    .run()
 
   if (deleteResult.meta.changes > 0) {
+    logger.info('Verification code consumed', { purpose, email })
     return 'consumed'
   }
 
-  const lookupStmt = db.prepare('SELECT code, expires_at FROM verification_codes WHERE purpose = ? AND email = ?')
-  const record = await lookupStmt.bind(purpose, email).first<{ code: string; expires_at: number }>()
+  // 查找记录以确定具体失败原因
+  const record = await drizzleDb
+    .select({ code: verificationCodes.code, expires_at: verificationCodes.expires_at })
+    .from(verificationCodes)
+    .where(
+      and(
+        eq(verificationCodes.purpose, purpose),
+        eq(verificationCodes.email, email)
+      )
+    )
+    .limit(1)
 
-  if (!record) {
+  if (record.length === 0) {
     return 'not_found'
   }
 
-  if (record.expires_at <= now) {
-    await deleteVerificationCode(db, purpose, email)
+  if (record[0].expires_at <= now) {
+    await deleteVerificationCode(d1, purpose, email)
     return 'expired'
   }
 

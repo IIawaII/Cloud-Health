@@ -1,6 +1,12 @@
 /**
- * Audit DAO - 审计日志
+ * Audit DAO - 审计日志 (Drizzle ORM)
  */
+
+import { count, sql } from 'drizzle-orm'
+import { getDb, auditLogs, type DbClient } from '../db'
+import { getLogger } from '../utils/logger'
+
+const logger = getLogger('AuditDAO')
 
 export interface AuditLog {
   id: string
@@ -12,36 +18,51 @@ export interface AuditLog {
   created_at: number
 }
 
+function db(d1: D1Database): DbClient {
+  return getDb(d1)
+}
+
 export async function createAuditLog(
-  db: D1Database,
+  d1: D1Database,
   log: Omit<AuditLog, 'created_at'>
 ): Promise<void> {
-  const stmt = db.prepare(
-    'INSERT INTO audit_logs (id, admin_id, action, target_type, target_id, details, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  )
-  await stmt.bind(
-    log.id, log.admin_id, log.action,
-    log.target_type ?? null, log.target_id ?? null, log.details ?? null,
-    Math.floor(Date.now() / 1000)
-  ).run()
+  logger.info('Creating audit log', { action: log.action, admin_id: log.admin_id })
+  await db(d1)
+    .insert(auditLogs)
+    .values({
+      id: log.id,
+      admin_id: log.admin_id,
+      action: log.action,
+      target_type: log.target_type ?? null,
+      target_id: log.target_id ?? null,
+      details: log.details ?? null,
+      created_at: Math.floor(Date.now() / 1000),
+    })
+    .run()
 }
 
 export async function getAuditLogs(
-  db: D1Database,
+  d1: D1Database,
   options: { limit?: number; offset?: number } = {}
 ): Promise<{ logs: AuditLog[]; total: number }> {
+  const drizzleDb = db(d1)
   const limit = options.limit ?? 20
   const offset = options.offset ?? 0
 
-  const [countResult, logsResult] = await db.batch([
-    db.prepare('SELECT COUNT(*) as total FROM audit_logs'),
-    db.prepare(
-      'SELECT id, admin_id, action, target_type, target_id, details, created_at FROM audit_logs ORDER BY created_at DESC LIMIT ? OFFSET ?'
-    ).bind(limit, offset),
+  const [logsResult, countResult] = await Promise.all([
+    drizzleDb
+      .select()
+      .from(auditLogs)
+      .orderBy(sql`${auditLogs.created_at} DESC`)
+      .limit(limit)
+      .offset(offset),
+    drizzleDb
+      .select({ total: count() })
+      .from(auditLogs),
   ])
 
   return {
-    logs: (logsResult as D1Result<AuditLog>).results ?? [],
-    total: (countResult as D1Result<{ total: number }>).results?.[0]?.total ?? 0,
+    logs: logsResult as AuditLog[],
+    total: countResult[0]?.total ?? 0,
   }
 }

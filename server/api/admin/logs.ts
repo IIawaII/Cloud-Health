@@ -2,7 +2,10 @@ import { z } from 'zod';
 import { jsonResponse, errorResponse } from '../../utils/response';
 import { getUsageLogs } from '../../dao/log.dao';
 import { withAdmin } from '../../middleware/admin';
-import type { AppContext } from '../../utils/handler';
+import { getLogger } from '../../utils/logger';
+import type { AdminContext } from '../../middleware/admin';
+
+const logger = getLogger('AdminLogs')
 
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -19,7 +22,7 @@ function parseDateToTimestamp(dateStr: string | undefined): number | undefined {
   return Math.floor(d.getTime() / 1000);
 }
 
-export const onRequestGet = withAdmin(async (context: AppContext) => {
+export const onRequestGet = withAdmin(async (context: AdminContext) => {
   try {
     const url = new URL(context.req.url);
     const parseResult = querySchema.safeParse({
@@ -54,7 +57,7 @@ export const onRequestGet = withAdmin(async (context: AppContext) => {
       },
     }, 200);
   } catch (error) {
-    console.error('Admin logs error:', error);
+    logger.error('Failed to get logs', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse('获取日志失败', 500);
   }
 });

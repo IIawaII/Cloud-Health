@@ -15,11 +15,18 @@
     "test": "vitest run --config configs/vitest.config.ts && playwright test --config configs/playwright.config.cjs",
     "test:unit": "vitest run --config configs/vitest.config.ts",
     "test:e2e": "playwright test --config configs/playwright.config.cjs",
-    "test:watch": "vitest --config configs/vitest.config.ts"
+    "test:watch": "vitest --config configs/vitest.config.ts",
+    "db:generate": "drizzle-kit generate --config configs/drizzle.config.ts",
+    "db:push": "drizzle-kit push --config configs/drizzle.config.ts",
+    "db:studio": "drizzle-kit studio --config configs/drizzle.config.ts",
+    "db:migrate": "wrangler d1 migrations apply cloud-health-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply cloud-health-db --remote"
   },
   "dependencies": {
+    "@hono/zod-openapi": "^0.18.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.12.15",
     "i18next": "^26.0.8",
     "i18next-browser-languagedetector": "^8.2.1",
@@ -47,6 +54,7 @@
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.2.1",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9.13.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.14",

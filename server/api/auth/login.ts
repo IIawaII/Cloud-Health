@@ -5,10 +5,12 @@ import { validateTurnstile } from '../../utils/turnstile';
 import { checkRateLimit } from '../../utils/rateLimit';
 import { findUserByUsername, findUserByEmail, updateUserDataKey } from '../../dao/user.dao';
 import { serializeCookie, getSecureCookieOptions, getAccessTokenCookieMaxAge, getRefreshTokenCookieMaxAge } from '../../utils/cookie';
+import { getLogger } from '../../utils/logger';
 import type { AppContext } from '../../utils/handler';
 import { loginSchema, EMAIL_REGEX } from '../../../shared/schemas';
 import i18n from '../../../src/i18n';
 const t = i18n.t.bind(i18n);
+const logger = getLogger('Login')
 
 export const onRequestPost = async (context: AppContext) => {
   try {
@@ -42,7 +44,7 @@ export const onRequestPost = async (context: AppContext) => {
     if (adminUsername && adminPassword && usernameOrEmail === adminUsername) {
       // 校验密码格式，防止误配明文密码导致验证始终失败
       if (!/^\d+:[a-f0-9]{32}:[a-f0-9]{64}$/i.test(adminPassword)) {
-        console.error('[Admin Login] ADMIN_PASSWORD 格式不正确，必须为 PBKDF2 哈希格式（iterations:salt:hash）');
+        logger.error('ADMIN_PASSWORD format invalid, must be PBKDF2 hash (iterations:salt:hash)');
         return errorResponse(t('auth.errors.adminConfigError'), 500);
       }
       const isAdminPasswordValid = await verifyPassword(password, adminPassword);
@@ -50,12 +52,14 @@ export const onRequestPost = async (context: AppContext) => {
         const accessToken = generateToken();
         const refreshToken = generateToken();
         const tokenCreatedAt = new Date().toISOString();
+        const adminDataKey = generateDataKey();
 
         await saveToken(context.env.AUTH_TOKENS, accessToken, {
           userId: 'system-admin',
           username: adminUsername,
           email: 'admin@system.local',
           role: 'admin',
+          dataKey: adminDataKey,
           createdAt: tokenCreatedAt,
         }, ADMIN_ACCESS_TOKEN_TTL);
 
@@ -64,6 +68,7 @@ export const onRequestPost = async (context: AppContext) => {
           username: adminUsername,
           email: 'admin@system.local',
           role: 'admin',
+          dataKey: adminDataKey,
           createdAt: tokenCreatedAt,
         }, ADMIN_REFRESH_TOKEN_TTL);
 
@@ -76,6 +81,7 @@ export const onRequestPost = async (context: AppContext) => {
             username: adminUsername,
             email: 'admin@system.local',
             role: 'admin',
+            dataKey: adminDataKey,
           },
         }, 200, {
           'Set-Cookie': [
@@ -111,7 +117,7 @@ export const onRequestPost = async (context: AppContext) => {
       try {
         await updateUserDataKey(context.env.DB, user.id, dataKey);
       } catch (dbError) {
-        console.error('[Login] Failed to update data_key:', dbError);
+        logger.error('Failed to update data_key', { error: dbError instanceof Error ? dbError.message : String(dbError) });
         return errorResponse(t('auth.errors.dataMigrationError'), 500);
       }
     }
@@ -160,7 +166,7 @@ export const onRequestPost = async (context: AppContext) => {
       ].join(', '),
     });
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error('Login error', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse(t('auth.errors.loginFailed'), 500);
   }
 };

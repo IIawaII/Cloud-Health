@@ -4,6 +4,10 @@
  * CORS 头由 worker.ts 全局统一注入，handler 中无需重复设置
  */
 
+import { getLogger } from './logger'
+
+const logger = getLogger('Response')
+
 export function jsonResponse<T>(data: T, status = 200, extraHeaders?: Record<string, string>): Response {
   const headers = new Headers({ 'Content-Type': 'application/json' })
   if (extraHeaders) {
@@ -27,7 +31,7 @@ export function errorResponse(error: string, status = 500, extraHeaders?: Record
  */
 export function safeErrorResponse(err: unknown): Response {
   const msg = err instanceof Error ? err.message : String(err)
-  console.error('[Server Error]', msg)
+  logger.error('Server error', { error: msg })
   return errorResponse('服务器内部错误，请稍后重试', 500)
 }
 

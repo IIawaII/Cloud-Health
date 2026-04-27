@@ -194,12 +194,12 @@ export default function SystemConfig() {
             {enabled ? (
               <>
                 <FiToggleRight className="w-3.5 h-3.5" />
-                ON
+                {t('common.on', 'ON')}
               </>
             ) : (
               <>
                 <FiToggleLeft className="w-3.5 h-3.5" />
-                OFF
+                {t('common.off', 'OFF')}
               </>
             )}
           </span>

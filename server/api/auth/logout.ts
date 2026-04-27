@@ -1,10 +1,12 @@
 import { deleteToken } from '../../utils/auth';
 import { jsonResponse, errorResponse } from '../../utils/response';
 import { getCookie, serializeCookie, getSecureCookieOptions } from '../../utils/cookie';
+import { getLogger } from '../../utils/logger';
 import type { AppContext } from '../../utils/handler';
 import i18n from '../../../src/i18n';
 
 const t = i18n.t.bind(i18n);
+const logger = getLogger('Logout')
 
 export const onRequestPost = async (context: AppContext) => {
   try {
@@ -33,7 +35,7 @@ export const onRequestPost = async (context: AppContext) => {
       ].join(', '),
     });
   } catch (error) {
-    console.error('Logout error:', error);
+    logger.error('Logout error', { error: error instanceof Error ? error.message : String(error) });
     return errorResponse(t('auth.logout.error'), 500);
   }
 };

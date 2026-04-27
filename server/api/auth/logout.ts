@@ -1,4 +1,4 @@
-import { deleteToken } from '../../utils/auth';
+import { deleteToken, deleteRefreshToken } from '../../utils/auth';
 import { jsonResponse, errorResponse } from '../../utils/response';
 import { getCookie, serializeCookie, getSecureCookieOptions } from '../../utils/cookie';
 import { getLogger } from '../../utils/logger';
@@ -19,9 +19,17 @@ export const onRequestPost = async (context: AppContext) => {
       }
     }
 
+    // 读取 refresh token（仅从 Cookie）
+    const refreshToken = getCookie(context.req.raw, 'auth_refresh_token');
+
+    // 删除 access token
     if (token) {
-      // 删除令牌及其索引
       await deleteToken(context.env.AUTH_TOKENS, token);
+    }
+
+    // 删除 refresh token 及其索引
+    if (refreshToken) {
+      await deleteRefreshToken(context.env.AUTH_TOKENS, refreshToken);
     }
 
     const cookieOptions = getSecureCookieOptions(context.req.raw);

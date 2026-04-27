@@ -27,10 +27,6 @@ id = "KV_VERIFICATION_CODES_ID"
 tag = "v1"
 new_classes = ["TokenStore"]
 
-[[analytics_engine_datasets]]
-binding = "ANALYTICS"
-dataset = "cloud_health_metrics"
-
 # D1 Database:
 #   - DB
 #

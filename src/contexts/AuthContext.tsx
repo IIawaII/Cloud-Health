@@ -41,20 +41,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   /**
-   * 刷新会话（通过 httpOnly Cookie 自动携带 refresh token）
+   * 辅助函数：将用户状态同步到 React state + 持久化缓存
+   */
+  const setAuthenticatedState = useCallback((user: User | null) => {
+    persistUser(user);
+    setState({
+      isAuthenticated: user !== null,
+      user,
+      isLoading: false,
+    });
+  }, []);
+
+  /**
+   * 刷新会话（通过 httpOnly Cookie 携带 refresh token）
+   * 成功时会更新 React 状态和持久化缓存，返回 true
    */
   const doRefreshSession = useCallback(async (): Promise<boolean> => {
-    // 防止多标签页同时刷新
     const now = Date.now();
     let lockValue: string | null = null;
     try {
       lockValue = localStorage.getItem(REFRESH_LOCK_KEY);
     } catch {
-      // localStorage 不可用，跳过锁机制直接执行刷新
+      // localStorage 不可用时直接尝试刷新
     }
 
+    // 已有其他标签页正在刷新，等待其完成
     if (lockValue && now - parseInt(lockValue, 10) < 10000) {
-      // 另一标签页正在刷新，轮询等待锁释放（最多 8 秒）
       for (let i = 0; i < 16; i++) {
         await new Promise(r => setTimeout(r, 500));
         try {
@@ -65,29 +77,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           break;
         }
       }
-      // 锁释放后，验证当前会话是否已恢复，而非盲目返回 true
+      // 锁释放后，直接通过 /auth/verify 检查当前 cookie 状态
       try {
-        const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/verify`, {
+        const res = await fetchWithTimeout(`${API_BASE_URL}/api/auth/verify`, {
           timeout: 10000,
         });
-        if (response.ok) {
-          const data = await response.json();
+        if (res.ok) {
+          const data = await res.json();
           const user = extractUser(data);
-          persistUser(user);
+          setAuthenticatedState(user);
           return true;
         }
       } catch {
-        // 验证失败则继续走自己的刷新逻辑
+        // 验证失败，则继续进入自己的刷新逻辑
       }
+      // 等待结束后依然未恢复会话，则自己再去尝试刷新
+    }
+
+    // 获取锁
+    try {
+      localStorage.setItem(REFRESH_LOCK_KEY, String(now));
+    } catch {
+      // 无法加锁，直接尝试刷新
     }
 
     try {
-      try {
-        localStorage.setItem(REFRESH_LOCK_KEY, String(now));
-      } catch {
-        // 无法设置锁，直接执行刷新
-      }
-
       const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -97,11 +111,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         const user = extractUser(data);
-        persistUser(user);
+        // ✅ 刷新成功 → 更新 React 状态 + 持久化
+        setAuthenticatedState(user);
         return true;
       }
+      // 刷新失败（例如 refresh token 无效）
+      setAuthenticatedState(null);
+      return false;
     } catch (err) {
       console.warn('[Auth] refresh session failed:', err);
+      return false;
     } finally {
       try {
         localStorage.removeItem(REFRESH_LOCK_KEY);
@@ -109,76 +128,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // ignore
       }
     }
+  }, [setAuthenticatedState]);
 
-    return false;
-  }, []);
-
-  // 辅助函数：设置已认证状态
-  function setAuthenticated(user: User | null) {
-    persistUser(user);
-    setState({ isAuthenticated: true, user, isLoading: false });
-  }
-
-  // 辅助函数：设置离线/异常状态（保留缓存用户名和头像，避免闪烁）
-  function setOfflineState() {
-    const cached = loadCachedUser();
-    setState({
-      isAuthenticated: false,
-      user: cached ? (cached as User) : null,
-      isLoading: false,
-    });
-  }
-
+  /**
+   * 检查当前认证状态（页面初始化 / 主动调用）
+   */
   const checkAuth = useCallback(async () => {
-    async function doVerify() {
-      return fetchWithTimeout(`${API_BASE_URL}/api/auth/verify`, {
+    try {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/verify`, {
         timeout: 10000,
       });
-    }
-
-    try {
-      const response = await doVerify();
 
       if (response.ok) {
-        setAuthenticated(buildUserWithCache(extractUser(await response.json())));
+        const data = await response.json();
+        setAuthenticatedState(buildUserWithCache(extractUser(data)));
         return;
       }
 
-      // 非 401 的服务端错误（如 500）
       if (response.status !== 401) {
-        console.warn('[Auth] verify server error:', response.status);
-        setOfflineState();
+        // 服务端异常，降级显示缓存用户但不标记认证
+        const cached = loadCachedUser();
+        setState({
+          isAuthenticated: false,
+          user: cached ? (cached as User) : null,
+          isLoading: false,
+        });
         return;
       }
 
-      // 401: Access Token 过期，尝试用 Refresh Token 刷新
+      // 401：access token 过期 → 尝试用 refresh token 续期
       const refreshed = await doRefreshSession();
       if (!refreshed) {
+        // 刷新也失败 → 彻底登出
         clearUserCache();
         setState({ isAuthenticated: false, user: null, isLoading: false });
-        return;
       }
-
-      const retryResponse = await doVerify();
-      if (retryResponse.ok) {
-        setAuthenticated(buildUserWithCache(extractUser(await retryResponse.json())));
-        return;
-      }
-
-      // 刷新后仍验证失败
-      clearUserCache();
-      setState({ isAuthenticated: false, user: null, isLoading: false });
+      // 刷新成功时 doRefreshSession 内部已经更新了状态，无需额外操作
     } catch (err) {
       console.warn('[Auth] verify network error:', err);
-      setOfflineState();
+      const cached = loadCachedUser();
+      setState({
+        isAuthenticated: false,
+        user: cached ? (cached as User) : null,
+        isLoading: false,
+      });
     }
-  }, [doRefreshSession]);
+  }, [doRefreshSession, setAuthenticatedState]);
 
-  // 页面加载时：优先用缓存用户信息减少闪烁，再异步验证 Cookie 中的会话
+  // 初始化：用缓存用户减少闪烁，然后验证会话
   useEffect(() => {
     const cached = loadCachedUser();
     if (cached?.username) {
-      // 仅用缓存填充用户数据以减少 UI 闪烁，但不标记为已认证，避免伪认证状态
       setState(prev => ({
         ...prev,
         user: cached as User,
@@ -190,33 +190,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 多标签页同步
   useAuthSync(
-    useCallback(() => setState({ isAuthenticated: false, user: null, isLoading: false }), []),
+    useCallback(() => {
+      setState({ isAuthenticated: false, user: null, isLoading: false });
+    }, []),
     useCallback(() => window.location.reload(), [])
   );
 
   const handleAuthSuccess = useCallback((data: unknown): AuthResponse => {
     const user = extractUser(data);
-    persistUser(user);
-    setState({
-      isAuthenticated: true,
-      user: user ?? null,
-      isLoading: false,
-    });
+    setAuthenticatedState(user);
     broadcastAuthChange('login');
     return {
       success: true,
       message: getStringField(data, 'message') ?? '',
       user,
     };
-  }, []);
+  }, [setAuthenticatedState]);
 
   const login = useCallback(async (credentials: LoginCredentials): Promise<AuthResponse> => {
     try {
       const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentials),
         timeout: 10000,
       });
@@ -225,10 +220,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         return handleAuthSuccess(data);
-      } else {
-        const err = getApiError(data) || i18n.t('auth.errors.loginFailed', '登录失败');
-        return { success: false, message: err, error: getApiError(data) };
       }
+      const err = getApiError(data) || i18n.t('auth.errors.loginFailed', '登录失败');
+      return { success: false, message: err, error: getApiError(data) };
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         return { success: false, message: i18n.t('common.timeoutError', '请求超时，请检查网络或稍后重试'), error: '请求超时' };
@@ -239,13 +233,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (credentials: RegisterCredentials): Promise<AuthResponse> => {
     try {
-      const { confirmPassword: _confirmPassword, ...registerData } = credentials;
-      void _confirmPassword;
+      const { confirmPassword: _cp, ...registerData } = credentials;
+      void _cp;
       const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(registerData),
         timeout: 10000,
       });
@@ -254,10 +246,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         return handleAuthSuccess(data);
-      } else {
-        const err = getApiError(data) || i18n.t('auth.register.errors.registrationFailed', '注册失败');
-        return { success: false, message: err, error: getApiError(data) };
       }
+      const err = getApiError(data) || i18n.t('auth.register.errors.registrationFailed', '注册失败');
+      return { success: false, message: err, error: getApiError(data) };
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         return { success: false, message: i18n.t('common.timeoutError', '请求超时，请检查网络或稍后重试'), error: '请求超时' };
@@ -270,14 +261,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 先记录当前用户ID，用于登出后清理该用户的本地数据
     const currentUserId = state.user?.id;
 
+    // 1. 立刻清除刷新锁，防止其他标签页卡住
+    try {
+      localStorage.removeItem(REFRESH_LOCK_KEY);
+    } catch {
+      // ignore
+    }
+
+    // 2. 调用服务端登出接口（必须等待，确保服务器删除 token）
     try {
       await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
       });
     } catch {
-      // 忽略登出请求的错误
+      // 即使请求失败，也要从前端强制下线
     }
 
+    // 3. 清除所有本地缓存
     clearUserCache();
 
     // 清理当前用户的 ResultContext 本地数据，防止切换账户时数据混淆
@@ -290,6 +290,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('health_ai_config');
     localStorage.removeItem('user_data_key');
 
+    // 4. 立即更新前端状态
     setState({ isAuthenticated: false, user: null, isLoading: false });
     broadcastAuthChange('logout');
   }, [state.user]);
@@ -300,7 +301,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, register, logout, checkAuth, updateUser, refreshSession: doRefreshSession }}>
+    <AuthContext.Provider
+      value={{
+        ...state,
+        login,
+        register,
+        logout,
+        checkAuth,
+        updateUser,
+        refreshSession: doRefreshSession,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

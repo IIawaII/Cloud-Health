@@ -18,7 +18,7 @@ function utf8ToBase64(str: string): string {
   return btoa(binary);
 }
 
-function sanitizeSMTPParam(value: string): string {
+function stripNewlines(value: string): string {
   return value.replace(/[\r\n\0]/g, '');
 }
 
@@ -26,38 +26,26 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/.test(email) && !/[\r\n\0]/.test(email);
 }
 
-const DEFAULT_SMTP_TIMEOUT_MS = 15000
+const SMTP_TIMEOUT_MS = 15000;
 
 class SMTPTimeoutError extends Error {
-  constructor(message = 'SMTP connection timed out') {
-    super(message);
+  constructor() {
+    super('SMTP connection timed out');
     this.name = 'SMTPTimeoutError';
   }
 }
 
-class SMTPConnectionError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'SMTPConnectionError';
-  }
-}
-
 export function isSMTPTransientError(err: unknown): boolean {
-  if (err instanceof SMTPTimeoutError) return true
-  if (err instanceof SMTPConnectionError) return true
-  if (err instanceof Error) {
-    const msg = err.message.toLowerCase()
-    return msg.includes('timed out') || msg.includes('connection') || msg.includes('network') || msg.includes('econnrefused')
-  }
-  return false
+  if (err instanceof SMTPTimeoutError) return true;
+  const msg = err instanceof Error ? err.message.toLowerCase() : '';
+  return msg.includes('timed out') || msg.includes('connection') || msg.includes('network');
 }
 
 export async function sendEmailViaSMTP(
   config: SMTPConfig,
   to: string,
   subject: string,
-  html: string,
-  timeoutMs?: number
+  html: string
 ): Promise<void> {
   if (!isValidEmail(to)) {
     throw new Error('Invalid recipient email address');
@@ -66,41 +54,27 @@ export async function sendEmailViaSMTP(
     throw new Error('Invalid sender email address');
   }
 
-  const abortController = new AbortController();
-  let socket: Awaited<ReturnType<typeof connect>>;
-  try {
-    socket = await Promise.race([
-      connect(`${sanitizeSMTPParam(config.host)}:${config.port}`, { secureTransport: 'on', allowHalfOpen: false }),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new SMTPTimeoutError(`SMTP connection to ${config.host}:${config.port} timed out`)), timeoutMs ?? DEFAULT_SMTP_TIMEOUT_MS)),
-    ]);
-  } catch (err) {
-    if (err instanceof SMTPTimeoutError) throw err;
-    throw new SMTPConnectionError(`Failed to connect to ${config.host}:${config.port} - ${err instanceof Error ? err.message : String(err)}`);
-  }
+  const socket = connect(`${stripNewlines(config.host)}:${config.port}`, { secureTransport: 'on', allowHalfOpen: false });
   const reader = socket.readable.getReader() as ReadableStreamDefaultReader<Uint8Array>;
   const writer = socket.writable.getWriter() as WritableStreamDefaultWriter<Uint8Array>;
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   let buffer = '';
+  let timedOut = false;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
   function resetTimeout() {
     if (timeoutId) clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
-      abortController.abort();
-    }, timeoutMs ?? DEFAULT_SMTP_TIMEOUT_MS);
+      timedOut = true;
+      try { socket.close(); } catch {}
+    }, SMTP_TIMEOUT_MS);
   }
 
-  function clearCurrentTimeout() {
+  function clearTimeout_() {
     if (timeoutId) {
       clearTimeout(timeoutId);
       timeoutId = undefined;
-    }
-  }
-
-  function checkAbort(): void {
-    if (abortController.signal.aborted) {
-      throw new SMTPTimeoutError();
     }
   }
 
@@ -108,7 +82,7 @@ export async function sendEmailViaSMTP(
     resetTimeout();
     try {
       while (true) {
-        checkAbort();
+        if (timedOut) throw new SMTPTimeoutError();
         const lines = buffer.split('\r\n');
         for (let i = 0; i < lines.length - 1; i++) {
           if (lines[i].length >= 4 && lines[i][3] === ' ') {
@@ -123,18 +97,23 @@ export async function sendEmailViaSMTP(
         buffer += decoder.decode(value, { stream: true });
       }
     } catch (err) {
-      if (abortController.signal.aborted) {
-        throw new SMTPTimeoutError();
-      }
+      if (timedOut) throw new SMTPTimeoutError();
       throw err;
     }
   }
 
   async function sendCommand(cmd: string): Promise<{ code: number; text: string }> {
-    checkAbort();
+    if (timedOut) throw new SMTPTimeoutError();
     resetTimeout();
-    await writer.write(encoder.encode(sanitizeSMTPParam(cmd) + '\r\n'));
+    const safeCmd = stripNewlines(cmd);
+    await writer.write(encoder.encode(safeCmd + '\r\n'));
     return readResponse();
+  }
+
+  async function sendRaw(data: string): Promise<void> {
+    if (timedOut) throw new SMTPTimeoutError();
+    resetTimeout();
+    await writer.write(encoder.encode(data));
   }
 
   try {
@@ -193,18 +172,20 @@ export async function sendEmailViaSMTP(
       '',
       ...htmlLines,
       '.',
-    ].join('\r\n');
+    ].join('\r\n') + '\r\n';
 
-    const sendResp = await sendCommand(emailContent);
+    await sendRaw(emailContent);
+
+    const sendResp = await readResponse();
     if (sendResp.code !== 250) {
       throw new Error('Email delivery failed');
     }
 
     await sendCommand('QUIT');
   } finally {
-    clearCurrentTimeout();
-    try { reader.cancel(); } catch { /* ignore - cleanup only */ }
-    try { writer.close(); } catch { /* ignore - cleanup only */ }
-    try { socket.close(); } catch { /* ignore - cleanup only */ }
+    clearTimeout_();
+    try { reader.cancel(); } catch {}
+    try { writer.close(); } catch {}
+    try { socket.close(); } catch {}
   }
 }

@@ -164,6 +164,7 @@
       "hasAccount": "已有账号？",
       "loginNow": "立即登录",
       "success": "注册成功",
+      "welcomeMessage": "欢迎加入，{{username}}！🎉",
       "welcomeAvatar": "选择头像",
       "welcomeAvatarHint": "选一个喜欢的头像吧",
       "welcomeNickname": "称呼",

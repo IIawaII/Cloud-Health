@@ -164,6 +164,7 @@
       "hasAccount": "Already have an account?",
       "loginNow": "Login now",
       "success": "Registration successful",
+      "welcomeMessage": "Welcome aboard, {{username}}! 🎉",
       "welcomeAvatar": "Choose Avatar",
       "welcomeAvatarHint": "Pick an avatar you like",
       "welcomeNickname": "Nickname",

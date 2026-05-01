@@ -64,7 +64,7 @@ export default function Home() {
     <div className="space-y-16">
       {/* Hero */}
       <section className="text-center pt-8 pb-4">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-50 text-primary-600 text-sm font-medium mb-6">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 text-sm font-medium mb-6">
           <FiActivity className="w-4 h-4" />
           {t('home.title')}
         </div>
@@ -83,11 +83,11 @@ export default function Home() {
             const Icon = item.icon
             return (
               <div key={item.title} className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-700 shadow-card flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-700 shadow-card dark:shadow-card-dark flex items-center justify-center">
                   <Icon className="w-6 h-6 text-primary" />
                 </div>
-                <span className="text-sm font-medium text-foreground">{item.title}</span>
-                <span className="text-xs text-foreground-subtle">{item.desc}</span>
+                <span className="text-sm font-medium text-foreground dark:text-foreground-dark">{item.title}</span>
+                <span className="text-xs text-foreground-subtle dark:text-foreground-dark-subtle">{item.desc}</span>
               </div>
             )
           })}
@@ -103,7 +103,7 @@ export default function Home() {
               <Link
                 key={feature.path}
                 to={feature.path}
-                className="group relative bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
+                className="group relative bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-slate-700 shadow-card dark:shadow-card-dark hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
               >
                 <div className="flex items-start gap-5">
                   <div
@@ -113,12 +113,12 @@ export default function Home() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+                      <h3 className="text-lg font-semibold text-foreground dark:text-foreground-dark group-hover:text-primary transition-colors">
                         {feature.title}
                       </h3>
-                      <FiArrowRight className="w-5 h-5 text-foreground-subtle group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                      <FiArrowRight className="w-5 h-5 text-foreground-subtle dark:text-foreground-dark-subtle group-hover:text-primary group-hover:translate-x-1 transition-all" />
                     </div>
-                    <p className="text-sm text-foreground-muted leading-relaxed">
+                    <p className="text-sm text-foreground-muted dark:text-foreground-dark-muted leading-relaxed">
                       {feature.description}
                     </p>
                   </div>

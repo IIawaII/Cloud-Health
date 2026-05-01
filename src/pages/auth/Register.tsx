@@ -63,6 +63,23 @@ export default function Register() {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    if (!showWelcome) return;
+    const message = t('auth.register.welcomeMessage', { username: formData.username });
+    let index = 0;
+    setTypedText('');
+    setTypingDone(false);
+    const timer = setInterval(() => {
+      index++;
+      setTypedText(message.slice(0, index));
+      if (index >= message.length) {
+        clearInterval(timer);
+        setTypingDone(true);
+      }
+    }, 80);
+    return () => clearInterval(timer);
+  }, [showWelcome, t, formData.username]);
+
   const { value: isMaintenance } = useMaintenanceMode();
   const { value: isRegistrationEnabled } = useRegistrationEnabled();
   const isRegistrationClosed = !isRegistrationEnabled;

@@ -20,6 +20,41 @@
 
 ---
 
+## 📸 Demo
+
+<img src="./picture/Screenshot_EN.png" alt="Screenshot"/>
+
+---
+
+## 📑 Table of Contents
+
+- [🎯 Project Overview](#-project-overview)
+- [✨ Features](#-features)
+- [🛠️ Tech Stack](#-tech-stack)
+- [🏗️ Project Architecture](#-project-architecture)
+- [🚀 Quick Start](#-quick-start)
+- [📦 Deployment](#-deployment)
+- [⚙️ Environment Variables](#-environment-variables)
+- [📡 API Documentation](#-api-documentation)
+- [🧪 Testing](#-testing)
+- [🔧 Development Commands](#-development-commands)
+- [💾 Database Backup & Recovery](#-database-backup--recovery)
+- [🔔 Security](#-security)
+
+---
+
+## 🎯 Project Overview
+
+Cloud Health is an intelligent health management platform deployed on the Cloudflare Workers edge network. No self-hosted servers needed — leverage Cloudflare's global edge nodes for low-latency access, combined with AI large language models to provide users with health report interpretation, personalized health plans, smart Q&A, and more.
+
+**Core Advantages**:
+- 🚀 Edge deployment, global low latency
+- 💰 Runs on Cloudflare's free plan, zero server cost
+- 🔒 Security-first, end-to-end encryption from authentication to data
+- 🧩 Shared schemas between frontend & backend, type safety across the full stack
+
+---
+
 ## ✨ Features
 
 ### 🧑‍⚕️ AI-Powered Health Services
@@ -68,36 +103,43 @@
 
 | Layer | Technology |
 |-------|------------|
-| **Frontend Framework** | React 18 + TypeScript |
-| **Build Tool** | Vite 5 |
-| **Styling** | Tailwind CSS + tailwind-merge + CVA |
-| **Routing** | React Router DOM 7 |
+| **Frontend Framework** | [React 18](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) |
+| **Build Tool** | [Vite 5](https://vitejs.dev/) |
+| **Styling** | [Tailwind CSS](https://tailwindcss.com/) + [tailwind-merge](https://github.com/dcastil/tailwind-merge) + [CVA](https://cva.style/) |
+| **Routing** | [React Router DOM 7](https://reactrouter.com/) |
 | **State Management** | React Context + Hooks |
-| **Internationalization** | i18next + react-i18next |
-| **Backend Framework** | Hono 4 (Cloudflare Workers) |
-| **Database** | Cloudflare D1 (Drizzle ORM) |
-| **Cache** | Cloudflare KV |
-| **Rate Limiting** | Upstash Redis (Distributed) |
-| **Email Queue** | Cloudflare Queues |
-| **Human Verification** | Cloudflare Turnstile |
-| **AI Interface** | OpenAI API / OpenAI-compatible LLM API |
-| **API Documentation** | Hono Zod OpenAPI + Swagger UI |
-| **Validation** | Zod (Shared schemas between frontend & backend) |
-| **Testing** | Vitest (Unit/Integration) + Playwright (E2E) |
-| **Code Quality** | ESLint + TypeScript ESLint |
-| **CI/CD** | GitHub Actions |
-| **Deployment** | Cloudflare Workers + Workers Static Assets |
+| **Internationalization** | [i18next](https://www.i18next.com/) + [react-i18next](https://react.i18next.com/) |
+| **Backend Framework** | [Hono 4](https://hono.dev/) (Cloudflare Workers) |
+| **Database** | [Cloudflare D1](https://developers.cloudflare.com/d1/) ([Drizzle ORM](https://orm.drizzle.team/)) |
+| **Cache** | [Cloudflare KV](https://developers.cloudflare.com/kv/) |
+| **Rate Limiting** | [Upstash Redis](https://upstash.com/) (Distributed) |
+| **Email Queue** | [Cloudflare Queues](https://developers.cloudflare.com/queues/) |
+| **Human Verification** | [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/) |
+| **AI Interface** | [OpenAI API](https://platform.openai.com/docs/api-reference) / OpenAI-compatible LLM API |
+| **API Documentation** | [Hono Zod OpenAPI](https://github.com/honojs/middleware/tree/main/packages/zod-openapi) + [Swagger UI](https://swagger.io/tools/swagger-ui/) |
+| **Validation** | [Zod](https://zod.dev/) (Shared schemas between frontend & backend) |
+| **Testing** | [Vitest](https://vitest.dev/) (Unit/Integration) + [Playwright](https://playwright.dev/) (E2E) |
+| **Code Quality** | [ESLint](https://eslint.org/) + [TypeScript ESLint](https://typescript-eslint.io/) |
+| **CI/CD** | [GitHub Actions](https://docs.github.com/en/actions) |
+| **Deployment** | [Cloudflare Workers](https://workers.cloudflare.com/) + [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) |
 
 ---
 
 ## 🏗️ Project Architecture
+
+<details>
+<summary>📁 Click to expand full directory structure</summary>
 
 ```
 cloud-health/
 ├── public/                          # Static assets
 │   ├── User/                        # User avatar SVGs (1-51)
 │   ├── Doctor.svg                   # AI avatar
-│   └── logo.svg                     # Site icon
+│   ├── logo.svg                     # Site icon
+│   ├── icon.svg / icon-dark.svg     # PWA icons (light/dark)
+│   ├── avatar-sprite.svg            # Avatar sprite (build-generated)
+│   ├── manifest.webmanifest         # PWA manifest
+│   └── _headers                     # Cloudflare static asset security headers
 ├── server/                          # Backend (Hono on Cloudflare Workers)
 │   ├── api/                         # API route handlers
 │   │   ├── auth/                    # Auth (register/login/logout/verify/password/profile/code/refresh/ai-config)
@@ -108,13 +150,16 @@ cloud-health/
 │   ├── db/                          # Drizzle ORM Schema & database connection
 │   ├── middleware/                   # Middleware (security/CORS/CSRF/cache/monitor/admin auth/SPA)
 │   ├── queues/                      # Cloudflare Queues (email sending)
-│   ├── utils/                       # Utilities (auth/crypto/logger/LLM/rate-limit/SMTP/SSRF/Turnstile...)
+│   ├── types/                       # Server type declarations (swagger-ui etc.)
+│   ├── utils/                       # Utilities (adminInit/auth/cacheManager/configDefaults/cookie/crypto/
+│   │                                #   env/errors/handler/llm/logger/maintenanceCache/prompts/
+│   │                                #   rateLimit/response/smtp/turnstile/upstash)
 │   ├── app.ts                       # Hono app & route registration
 │   └── openapi.ts                   # OpenAPI 3.0 specification
 ├── shared/                          # Shared code between frontend & backend
 │   ├── schemas.ts                   # Zod validation schemas (register/login/password etc.)
-│   ├── types.ts                     # Shared type definitions
-│   └── i18n/                        # Shared i18n resources (zh-CN / en-US)
+│   ├── types.ts                     # Shared type definitions (ChatMessage/QuizQuestion/QuizResult/ApiConfig)
+│   └── i18n/                        # Shared i18n resources (zh-CN / en-US + server i18n entry)
 ├── src/                             # Frontend (React + Vite)
 │   ├── pages/                       # Page components
 │   │   ├── landing/                 # Landing page
@@ -123,25 +168,29 @@ cloud-health/
 │   │   ├── plan/                    # Health plan generator
 │   │   ├── chat/                    # Smart chat
 │   │   ├── quiz/                    # Health quiz
-│   │   ├── auth/                    # Login / Register
-│   │   ├── admin/                   # Admin (dashboard/users/data/config/metrics)
+│   │   ├── auth/                    # Login / Register / Registration closed
+│   │   ├── settings/                # Account settings
+│   │   ├── admin/                   # Admin (dashboard/users/data/config/metrics/backup)
 │   │   └── maintenance/             # Maintenance mode page
 │   ├── components/                  # Components
 │   │   ├── auth/                    # Route guards (ProtectedRoute / AdminProtectedRoute)
 │   │   ├── chat/                    # Chat interface (ChatInterface / MarkdownRenderer)
-│   │   ├── common/                  # Common (Avatar / ConfirmDialog / FileUploader / LanguageSwitcher...)
-│   │   ├── features/               # Features (AnalysisResult / PlanForm / QuizPanel / ApiSettings...)
+│   │   ├── common/                  # Common (Avatar/ConfirmDialog/FileUploader/LanguageSwitcher/
+│   │   │                            #   LogoIcon/ResultCard/TurnstileWidget)
+│   │   ├── features/               # Features (AnalysisResult/PlanForm/QuizPanel/ApiSettings/SettingsModal)
 │   │   └── layout/                  # Layout (Layout / AdminLayout / ErrorBoundary)
 │   ├── contexts/                    # React Context (Auth / Result / Theme)
-│   ├── hooks/                       # Custom Hooks (useAI / useAdmin / useTheme / useResult...)
+│   ├── hooks/                       # Custom Hooks (useAI/useAIBase/useAIStream/useAdmin/useAuthSync/
+│   │                                #   useClientConfig/useLocalStorage/useResult/useTheme)
 │   ├── config/                      # Frontend config (AI / App / Theme)
 │   ├── i18n/                        # Frontend i18n
 │   ├── types/                       # TypeScript types
-│   ├── utils/                       # Utilities
-│   ├── api/                         # API client
+│   ├── utils/                       # Utilities (anonymousId/api/avatar/css/date/file/html/
+│   │                                #   storage/trimMessages/userCache)
+│   ├── api/                         # API client (fetchWithTimeout + CSRF)
 │   ├── App.tsx                      # Route configuration
 │   └── main.tsx                     # App entry
-├── migrations/                      # D1 database migrations (14 versions)
+├── migrations/                      # D1 database migrations (8 versions)
 ├── configs/                         # Config files (Vite / ESLint / Tailwind / Vitest / Drizzle...)
 ├── scripts/                         # Build scripts
 │   ├── build-avatar-sprite.mjs      # Avatar sprite generation
@@ -149,14 +198,18 @@ cloud-health/
 │   ├── inject-wrangler-config.cjs   # Wrangler config injection (CI use)
 │   └── hash-password.mjs           # Admin password PBKDF2 hash generation
 ├── tests/                           # Tests
-│   ├── unit/                        # Unit tests (hooks / utils)
-│   ├── integration/                 # Integration tests (auth / admin / crypto / llm / rateLimit...)
-│   └── e2e/                         # E2E tests (Playwright)
-├── worker.ts                        # Cloudflare Workers entry
-├── wrangler.toml                    # Cloudflare Workers config
+│   ├── unit/                        # Unit tests (hooks/utils/backup)
+│   ├── integration/                 # Integration tests (auth/admin/concurrency/crypto/db/llm/load/
+│   │                                #   profile-aiconfig/rateLimit/response/turnstile)
+│   └── e2e/                         # E2E tests (Playwright: basic/core-flows)
+├── worker.ts                        # Cloudflare Workers entry (fetch/scheduled/queue)
+├── wrangler.toml                    # Cloudflare Workers production config
+├── wrangler.dev.toml                # Cloudflare Workers dev config
 ├── .dev.vars.example                # Local dev environment variables template
 └── .github/workflows/deploy.yml     # GitHub Actions auto-deployment
 ```
+
+</details>
 
 ---
 
@@ -164,7 +217,7 @@ cloud-health/
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) >= 20.0.0
+- [Node.js](https://nodejs.org/) >= 22.0.0
 - [npm](https://www.npmjs.com/) (installed with Node.js)
 - [Cloudflare Account](https://dash.cloudflare.com/sign-up) (required for deployment)
 - AI LLM API Key (OpenAI or compatible)
@@ -174,7 +227,7 @@ cloud-health/
 #### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_GITHUB_USERNAME/cloud-health.git
+git clone https://github.com/IIawaII/cloud-health.git
 cd cloud-health
 ```
 
@@ -218,6 +271,16 @@ AI_MODEL=gpt-4o
 
 # Allowed CORS origins (optional, defaults to current domain)
 ALLOWED_ORIGINS=https://your-domain.com
+
+# Route config (optional, not needed for local dev)
+ROUTE_PATTERN=your-domain.com/*
+ROUTE_ZONE_NAME=your-domain.com
+
+# SMTP timeout (optional, default 15000ms)
+SMTP_TIMEOUT_MS=15000
+
+# Runtime environment (optional, development | production)
+ENVIRONMENT=development
 ```
 
 > **Security Note**: `.dev.vars` is included in `.gitignore`. Never commit it to the repository.
@@ -225,7 +288,7 @@ ALLOWED_ORIGINS=https://your-domain.com
 #### 4. Generate admin password hash
 
 ```bash
-npm run hash-password "your-strong-password"
+npm run password "your-strong-password"
 ```
 
 Copy the output `ADMIN_PASSWORD=...` value into `.dev.vars`.
@@ -259,7 +322,7 @@ Visit `http://localhost:8787` to use the application.
 
 ### Method 1: GitHub Actions Auto-Deployment (Recommended)
 
-The project is configured with GitHub Actions to automatically run: Lint → Type Check → Unit Tests → Migration → Deploy → Secret Sync on push to `main`.
+The project is configured with GitHub Actions to automatically run: Lint → Type Check → Migration → Secret Sync → Deploy on push to `main`.
 
 #### 1. Fork this repository
 
@@ -275,13 +338,15 @@ Go to Repository → **Settings** → **Secrets and variables** → **Actions** 
 | `KV_AUTH_TOKENS_ID` | KV namespace `AUTH_TOKENS` ID |
 | `KV_VERIFICATION_CODES_ID` | KV namespace `VERIFICATION_CODES` ID |
 | `KV_SSRF_CACHE_ID` | KV namespace `SSRF_CACHE` ID |
+| `ROUTE_PATTERN` | Workers route pattern (e.g., `your-domain.com/*`) |
+| `ROUTE_ZONE_NAME` | Cloudflare Zone name (e.g., `your-domain.com`) |
 | `UPSTASH_REST_URL` | Upstash Redis REST URL |
 | `UPSTASH_REST_TOKEN` | Upstash Redis REST Token |
 | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile server-side secret key |
 | `SMTP_USER` | SMTP email account |
 | `SMTP_PASS` | SMTP email password |
 | `ADMIN_USERNAME` | Admin username |
-| `ADMIN_PASSWORD` | Admin password (PBKDF2 hash format, generate with `npm run hash-password`) |
+| `ADMIN_PASSWORD` | Admin password (PBKDF2 hash format, generate with `npm run password`) |
 | `ALLOWED_ORIGINS` | Allowed CORS origins (e.g., `https://your-domain.com`) |
 
 #### 3. Configure GitHub Variables
@@ -291,6 +356,7 @@ Go to Repository → **Settings** → **Secrets and variables** → **Actions** 
 | `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key |
 | `SMTP_HOST` | SMTP server address |
 | `SMTP_PORT` | SMTP server port |
+| `ENVIRONMENT` | Runtime environment (`production` / `development`) |
 
 > **Get KV ID**: Run `npx wrangler kv namespace list` or check Cloudflare Dashboard → Workers & Pages → KV.
 
@@ -312,7 +378,7 @@ npm run deploy
 | `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key | ✅ |
 | `SMTP_HOST` | SMTP server address | ✅ |
 | `SMTP_PORT` | SMTP server port | ✅ |
-| `ALLOWED_ORIGINS` | Allowed CORS origins (defaults to current domain) | ❌ |
+| `ENVIRONMENT` | Runtime environment (`production` / `development`) | ❌ |
 
 ### Secrets
 
@@ -329,8 +395,9 @@ npm run deploy
 | `AI_API_KEY` | AI model API key (server-side fallback) | ❌ |
 | `AI_BASE_URL` | AI model API base URL (server-side fallback) | ❌ |
 | `AI_MODEL` | AI model name, e.g., `gpt-4o` (server-side fallback) | ❌ |
+| `SMTP_TIMEOUT_MS` | SMTP timeout (milliseconds), default `15000` | ❌ |
 
-> **Admin Password Format**: `ADMIN_PASSWORD` must be in PBKDF2 hash format (`iterations:salt:hash`). Plain text is not accepted. Generate with `npm run hash-password "your-password"`.
+> **Admin Password Format**: `ADMIN_PASSWORD` must be in PBKDF2 hash format (`iterations:salt:hash`). Plain text is not accepted. Generate with `npm run password "your-password"`.
 
 ---
 
@@ -343,59 +410,16 @@ After deployment, admin users can access the **Swagger UI** online API documenta
 
 ### API Routes Overview
 
-#### Authentication `/api/auth`
+| Category | Prefix | Endpoints | Description |
+|----------|--------|-----------|-------------|
+| **Authentication** | `/api/auth` | 11 | Register, login, logout, token management, profile, AI config |
+| **AI Features** | `/api` | 5 | Chat, report analysis, health plan, quiz, URL validation |
+| **Admin** | `/api/admin` | 17 | Stats, users, logs, audit, config, metrics (incl. errors), backups |
+| **Public** | `/api/config` | 1 | Public config (maintenance mode, registration toggle) |
+| **Health** | `/api/health` | 1 | Database + Redis connectivity check |
+| **Client Error** | `/api/client-error` | 1 | Frontend error reporting |
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/auth/register` | User registration |
-| POST | `/api/auth/login` | User login |
-| POST | `/api/auth/logout` | User logout |
-| GET | `/api/auth/verify` | Token verification |
-| POST | `/api/auth/refresh` | Token renewal |
-| POST | `/api/auth/changePassword` | Change password |
-| POST | `/api/auth/updateProfile` | Update profile |
-| POST | `/api/auth/sendVerificationCode` | Send email verification code |
-| POST | `/api/auth/check` | Check username/email availability |
-| GET/PUT/DELETE | `/api/auth/ai-config` | AI config CRUD |
-
-#### AI Features `/api`
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/chat` | Smart chat (supports streaming) |
-| POST | `/api/analyze` | Health report analysis |
-| POST | `/api/plan` | Health plan generation |
-| POST | `/api/quiz` | Health quiz |
-| POST/GET | `/api/validate-url` | Validate AI API URL (SSRF protection) |
-
-#### Admin `/api/admin`
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/admin/stats` | System statistics overview |
-| GET | `/api/admin/users` | User list |
-| PATCH | `/api/admin/users/:id` | Edit user |
-| DELETE | `/api/admin/users/:id` | Delete user |
-| GET | `/api/admin/logs` | Usage logs |
-| GET | `/api/admin/audit` | Audit logs |
-| GET | `/api/admin/config` | Get system config |
-| PUT | `/api/admin/config` | Update system config |
-| GET | `/api/admin/metrics/overview` | Performance metrics overview |
-| GET | `/api/admin/metrics/trend` | Performance trend |
-| GET | `/api/admin/metrics/paths` | Request path statistics |
-| GET | `/api/admin/metrics/status-codes` | Status code distribution |
-| GET | `/api/admin/metrics/errors` | Error tracking |
-| GET | `/api/admin/backups` | Backup task list |
-| POST | `/api/admin/backups` | Create backup task |
-| PATCH | `/api/admin/backups/:id` | Update backup task |
-| DELETE | `/api/admin/backups/:id` | Delete backup task |
-
-#### Other
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/config/public` | Get public config (maintenance mode, registration toggle, etc.) |
-| GET | `/api/health` | Health check |
+> 📖 For detailed request/response formats, parameters, and authentication requirements, please refer to the Swagger UI documentation.
 
 ---
 
@@ -443,7 +467,7 @@ npm run db:migrate           # Apply migrations (local)
 npm run db:migrate:remote    # Apply migrations (remote)
 
 # Generate admin password hash
-npm run hash-password "your-password"
+npm run password "your-password"
 ```
 
 ---
@@ -467,13 +491,14 @@ npx wrangler d1 time-travel restore cloud-health-db --bookmark=00000085-0000024c
 
 > Restore operations are reversible — the system returns the previous bookmark for rollback.
 
-> **Backup Limitation**: Current backup data is stored within D1 (`backup_records` metadata) with actual data exported as JSON.
+> **Backup Limitation**: Current backup data is stored within D1 (`backup_records` metadata) with actual data exported as encrypted JSON (AES-GCM encryption).
+> Backup downloads use one-time tokens (5-minute validity), and restore operations require secondary confirmation.
 > If D1 becomes completely unavailable, backup data will also be inaccessible.
-> **Recommendation**: For production environments, consider exporting backup data to Cloudflare R2 object storage for off-site disaster recovery.
+> **Recommendation**: For production environments, consider exporting backup data to Cloudflare R2 object storage for disaster recovery.
 
-### Admin Dashboard Backup
+### Admin Panel Backup
 
-Use the backup management feature in the admin dashboard to create and manage backup tasks, supporting both manual and scheduled backups.
+Through the admin panel's backup management feature, you can create and manage backup tasks, supporting both manual and scheduled backups (daily/weekly/monthly). When scheduled backups fail, the system automatically notifies the admin via email.
 
 ---
 
@@ -485,8 +510,8 @@ Use the backup management feature in the admin dashboard to create and manage ba
 - **SSRF Protection**: User-defined AI API URLs are validated server-side (DNS-over-HTTPS resolution + private IP filtering + redirect tracking), results cached in KV (TTL 1 hour)
 - **SQL Injection Prevention**: Drizzle ORM parameterized queries + table name whitelist validation for data export
 - **Password Security**: Passwords stored using PBKDF2-SHA256 hashing (100,000 iterations), sessions use httpOnly Cookie + JWT
-- **CSRF Protection**: Cookie + Header double verification (`__Host-csrf-token` + `X-CSRF-Token`)
-- **Security Headers**: CSP (dynamic nonce) · HSTS (preload) · X-Frame-Options (DENY) · X-Content-Type-Options and more
+- **CSRF Protection**: Cookie + Header double verification (HTTPS: `__Host-csrf-token`, HTTP: `csrf-token` + `X-CSRF-Token`)
+- **Security Headers**: CSP (dynamic nonce) · HSTS (preload) · X-Frame-Options (DENY) · X-Content-Type-Options · Referrer-Policy · Permissions-Policy · Cross-Origin-Opener-Policy · Cross-Origin-Embedder-Policy · Cross-Origin-Resource-Policy
 - **Rate Limiting**: Distributed sliding window rate limiting via Upstash Redis to prevent API abuse
 - **Email Queue**: Email sending is processed asynchronously via Cloudflare Queues to avoid blocking requests
 - **CORS Control**: Precise control of allowed cross-origin sources via `ALLOWED_ORIGINS` environment variable
@@ -525,6 +550,6 @@ This project is licensed under the [ISC](LICENSE) License.
 
 <div align="center">
 
-**Made with ❤️ by Cloud Health Contributors**
+**Made with ❤️ by <a href="https://github.com/IIawaII">IIawaII</a>**
 
 </div>

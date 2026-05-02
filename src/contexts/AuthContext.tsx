@@ -13,6 +13,8 @@ interface AuthContextType extends AuthState {
   checkAuth: () => Promise<void>;
   updateUser: (user: User) => void;
   refreshSession: () => Promise<boolean>;
+  welcomePending: boolean;
+  setWelcomePending: (value: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: null,
     isLoading: true,
   });
+  const [welcomePending, setWelcomePending] = useState(false);
 
   /**
    * 辅助函数：将用户状态同步到 React state + 持久化缓存
@@ -336,6 +339,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         checkAuth,
         updateUser,
         refreshSession: doRefreshSession,
+        welcomePending,
+        setWelcomePending,
       }}
     >
       {children}

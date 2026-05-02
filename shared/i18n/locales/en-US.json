@@ -80,8 +80,7 @@
       "clearAuditLogsFailed": "Failed to clear audit logs",
       "missingUserId": "Missing user ID",
       "userNotFound": "User not found",
-      "cannotDegradeSelf": "System admin cannot downgrade their own role, which would result in losing admin access with no way to recover",
-      "cannotDegradeSystemAdmin": "Cannot downgrade system admin role",
+      "cannotModifySelfRole": "Cannot modify your own permissions",
       "onlySystemAdminCanModify": "Only system admin can modify system admin account permissions",
       "onlySystemAdminCanRevoke": "Only system admin can revoke admin privileges from other admins",
       "onlySystemAdminCanGrant": "Only system admin can grant admin privileges",
@@ -549,7 +548,11 @@
       "delete": "Delete",
       "confirm": "Confirm",
       "cancel": "Cancel",
-      "noPermission": "Insufficient permissions"
+      "noPermission": "Insufficient permissions",
+      "cannotModifySystemAdmin": "Cannot modify system admin permissions",
+      "cannotModifyAdmin": "Only system admin can modify admin permissions",
+      "cannotDeleteSystemAdmin": "Cannot delete system admin account",
+      "cannotDeleteAdmin": "Only system admin can delete admin accounts"
     },
     "errors": {
       "updateFailed": "Failed to update user role, please retry",

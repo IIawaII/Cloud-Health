@@ -80,8 +80,7 @@
       "clearAuditLogsFailed": "清空审计日志失败",
       "missingUserId": "缺少用户ID",
       "userNotFound": "用户不存在",
-      "cannotDegradeSelf": "系统管理员不能降低自身角色，这会导致失去管理权限而无法恢复",
-      "cannotDegradeSystemAdmin": "不能降低系统管理员的角色",
+      "cannotModifySelfRole": "不能修改自身权限",
       "onlySystemAdminCanModify": "只有系统管理员才能修改系统管理员账户的权限",
       "onlySystemAdminCanRevoke": "只有系统管理员才能取消其他管理员的管理员权限",
       "onlySystemAdminCanGrant": "只有系统管理员才能授予管理员权限",
@@ -549,7 +548,11 @@
       "delete": "删除",
       "confirm": "确认",
       "cancel": "取消",
-      "noPermission": "权限不足"
+      "noPermission": "权限不足",
+      "cannotModifySystemAdmin": "不能修改系统管理员权限",
+      "cannotModifyAdmin": "只有系统管理员才能修改管理员权限",
+      "cannotDeleteSystemAdmin": "不能删除系统管理员账户",
+      "cannotDeleteAdmin": "只有系统管理员才能删除管理员账户"
     },
     "errors": {
       "updateFailed": "更新用户角色失败，请稍后重试",

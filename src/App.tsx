@@ -38,7 +38,7 @@ function LoadingScreen() {
 
 // 统一认证状态检查与重定向
 function AuthGuard({ fallback, allowInMaintenance }: { fallback: React.ReactNode; allowInMaintenance?: boolean }) {
-  const { isAuthenticated, isLoading, user } = useAuth()
+  const { isAuthenticated, isLoading, user, welcomePending } = useAuth()
   const { value: isMaintenance, initialized } = useMaintenanceMode()
 
   if (isLoading || !initialized) {
@@ -46,6 +46,9 @@ function AuthGuard({ fallback, allowInMaintenance }: { fallback: React.ReactNode
   }
 
   if (isAuthenticated) {
+    if (welcomePending) {
+      return <>{fallback}</>
+    }
     if (user?.role === 'admin') {
       return <Navigate to="/admin" replace />
     }

@@ -68,11 +68,21 @@ export default function Dashboard() {
   const isDark = resolvedTheme === 'dark'
 
   const chartData = useMemo(() => {
-    if (!data?.dailyUserStats) return []
-    return data.dailyUserStats.map((item) => ({
-      date: item.date.slice(5),
-      users: item.count,
-    }))
+    if (!data?.dailyUserStats || data.dailyUserStats.length === 0) return []
+    const statsMap = new Map(data.dailyUserStats.map((item) => [item.date, item.count]))
+    const dates = data.dailyUserStats.map((item) => item.date).sort()
+    const startDate = new Date(dates[0])
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const result: { date: string; users: number }[] = []
+    const current = new Date(startDate)
+    current.setHours(0, 0, 0, 0)
+    while (current <= today) {
+      const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`
+      result.push({ date: key.slice(5), users: statsMap.get(key) ?? 0 })
+      current.setDate(current.getDate() + 1)
+    }
+    return result
   }, [data])
 
   const pieData = useMemo(() => {

@@ -76,11 +76,8 @@ export const onRequestPatch = withAdmin(async (context: AdminContext) => {
       return errorResponse(t('admin.errors.userNotFound', '用户不存在'), 404);
     }
 
-    if (id === SYSTEM_ADMIN_ID && parseResult.data.role !== 'admin') {
-      if (context.tokenData.userId === SYSTEM_ADMIN_ID) {
-        return errorResponse(t('admin.errors.cannotDegradeSelf', '系统管理员不能降低自身角色，这会导致失去管理权限而无法恢复'), 403);
-      }
-      return errorResponse(t('admin.errors.cannotDegradeSystemAdmin', '不能降低系统管理员的角色'), 403);
+    if (id === context.tokenData.userId) {
+      return errorResponse(t('admin.errors.cannotModifySelfRole', '不能修改自身权限'), 403);
     }
 
     const isSystemAdmin = context.tokenData.userId === SYSTEM_ADMIN_ID

@@ -14,11 +14,11 @@ export const FALLBACK_HTML = `<!doctype html>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <script id="turnstile-script" src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async></script>
-    <script type="module" crossorigin src="/assets/index-B3N13drI.js"></script>
+    <script type="module" crossorigin src="/assets/index-VSkZUNPj.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-react-ld_0ABdC.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-react-dom-CeH8dy2s.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-i18n-BGyDSKTn.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-pdf-CxDXO6Lf.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-pdf-DjVxuxcG.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-icons-DP4aIbmY.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-router-Dy67Ac9G.js">
     <link rel="stylesheet" crossorigin href="/assets/index-D009YeVC.css">

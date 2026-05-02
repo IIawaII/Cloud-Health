@@ -31,7 +31,7 @@ import {
 export default function Register() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { register } = useAuth();
+  const { register, setWelcomePending } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
   
   const [formData, setFormData] = useState({
@@ -62,23 +62,6 @@ export default function Register() {
   const checkAbortRef = useRef<AbortController | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (!showWelcome) return;
-    const message = t('auth.register.welcomeMessage', { username: formData.username });
-    let index = 0;
-    setTypedText('');
-    setTypingDone(false);
-    const timer = setInterval(() => {
-      index++;
-      setTypedText(message.slice(0, index));
-      if (index >= message.length) {
-        clearInterval(timer);
-        setTypingDone(true);
-      }
-    }, 80);
-    return () => clearInterval(timer);
-  }, [showWelcome, t, formData.username]);
 
   const { value: isMaintenance } = useMaintenanceMode();
   const { value: isRegistrationEnabled } = useRegistrationEnabled();
@@ -287,8 +270,6 @@ export default function Register() {
     };
   }, []);
 
-  const WELCOME_TEXT = t('auth.welcomeText', '嗨，别来无恙啊👋');
-
   useEffect(() => {
     if (!showWelcome) {
       setTypedText('');
@@ -296,18 +277,20 @@ export default function Register() {
       return;
     }
     setWelcomeNickname('');
-    let i = 0;
+    const message = t('auth.register.welcomeMessage', { username: formData.username });
+    let index = 0;
+    setTypedText('');
+    setTypingDone(false);
     const timer = setInterval(() => {
-      if (i < WELCOME_TEXT.length) {
-        setTypedText(WELCOME_TEXT.slice(0, i + 1));
-        i++;
-      } else {
+      index++;
+      setTypedText(message.slice(0, index));
+      if (index >= message.length) {
         clearInterval(timer);
         setTypingDone(true);
       }
-    }, 100);
+    }, 80);
     return () => clearInterval(timer);
-  }, [showWelcome, WELCOME_TEXT]);
+  }, [showWelcome, t, formData.username]);
 
   const handleWelcomeConfirm = async () => {
     if (!welcomeAvatar) return;
@@ -328,6 +311,7 @@ export default function Register() {
       // 静默处理，不影响跳转
     }
     setIsSavingWelcome(false);
+    setWelcomePending(false);
     navigate('/');
   };
 
@@ -376,6 +360,7 @@ export default function Register() {
 
     setIsLoading(true);
     setError('');
+    setWelcomePending(true);
 
     const result = await register({
       username: formData.username,
@@ -391,6 +376,7 @@ export default function Register() {
     if (result.success) {
       setShowWelcome(true);
     } else {
+      setWelcomePending(false);
       setError(result.error || t('auth.register.errors.registrationFailed'));
       // 重置 Turnstile token 并强制重新渲染验证组件
       setTurnstileToken('');

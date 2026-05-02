@@ -579,6 +579,66 @@ describe('admin API handlers', () => {
       })
     }
 
+    it('管理员不能修改自身权限', async () => {
+      await setupNonSystemAdminToken()
+      const ts = Math.floor(Date.now() / 1000)
+      db.getTable('users').set('admin-2', {
+        id: 'admin-2',
+        username: 'subadmin',
+        email: 'sub@test.com',
+        password_hash: 'hash',
+        avatar: null,
+        accountname: null,
+        role: 'admin',
+        data_key: null,
+        created_at: ts,
+        updated_at: ts,
+      })
+
+      const request = new Request('http://localhost/api/admin/users/admin-2', {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer non-sys-admin-token', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'user' }),
+      })
+      const context = createMockContext(kv, db, {
+        adminToken: 'non-sys-admin-token',
+        request,
+        params: { id: 'admin-2' },
+      })
+      const response = await apiUpdateUserRole(context as never)
+      expect(response.status).toBe(403)
+    })
+
+    it('system-admin 不能修改自身权限', async () => {
+      await setupSystemAdminToken()
+      const ts = Math.floor(Date.now() / 1000)
+      db.getTable('users').set('system-admin', {
+        id: 'system-admin',
+        username: 'admin',
+        email: 'admin@system.local',
+        password_hash: 'hash',
+        avatar: null,
+        accountname: null,
+        role: 'admin',
+        data_key: null,
+        created_at: ts,
+        updated_at: ts,
+      })
+
+      const request = new Request('http://localhost/api/admin/users/system-admin', {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer sys-admin-token', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'user' }),
+      })
+      const context = createMockContext(kv, db, {
+        adminToken: 'sys-admin-token',
+        request,
+        params: { id: 'system-admin' },
+      })
+      const response = await apiUpdateUserRole(context as never)
+      expect(response.status).toBe(403)
+    })
+
     it('非 system-admin 不能修改 system-admin 的权限', async () => {
       await setupNonSystemAdminToken()
       const ts = Math.floor(Date.now() / 1000)

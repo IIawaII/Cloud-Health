@@ -99,17 +99,26 @@ export default function Users() {
     }
   }
 
+  const getEditRestriction = (user: { id: string; role: string }): string | null => {
+    if (user.id === currentUser?.id) return t('users.actions.noPermission')
+    if (user.id === SYSTEM_ADMIN_ID) return t('users.actions.cannotModifySystemAdmin')
+    if (user.role === 'admin' && !isSystemAdmin) return t('users.actions.cannotModifyAdmin')
+    return null
+  }
+
   const canEditUser = (user: { id: string; role: string }) => {
-    if (user.id === SYSTEM_ADMIN_ID) return false
-    if (user.role === 'admin' && !isSystemAdmin) return false
-    return true
+    return getEditRestriction(user) === null
+  }
+
+  const getDeleteRestriction = (user: { id: string; role: string }): string | null => {
+    if (user.id === currentUser?.id) return t('users.actions.noPermission')
+    if (user.id === SYSTEM_ADMIN_ID) return t('users.actions.cannotDeleteSystemAdmin')
+    if (user.role === 'admin' && !isSystemAdmin) return t('users.actions.cannotDeleteAdmin')
+    return null
   }
 
   const canDeleteUser = (user: { id: string; role: string }) => {
-    if (user.id === currentUser?.id) return false
-    if (user.id === SYSTEM_ADMIN_ID) return false
-    if (user.role === 'admin' && !isSystemAdmin) return false
-    return true
+    return getDeleteRestriction(user) === null
   }
 
   const totalPages = data ? Math.ceil(data.total / pageSize) : 0
@@ -262,7 +271,7 @@ export default function Users() {
                                 <FiEdit2 className="w-4 h-4" />
                               </button>
                             ) : (
-                              <span className="p-1.5 text-slate-300 dark:text-slate-600" title={t('users.actions.noPermission')}>
+                              <span className="p-1.5 text-slate-300 dark:text-slate-600" title={getEditRestriction(user) ?? undefined}>
                                 <FiLock className="w-4 h-4" />
                               </span>
                             )}
@@ -292,7 +301,7 @@ export default function Users() {
                               </button>
                             )
                             ) : (
-                              <span className="p-1.5 text-slate-300 dark:text-slate-600" title={t('users.actions.noPermission')}>
+                              <span className="p-1.5 text-slate-300 dark:text-slate-600" title={getDeleteRestriction(user) ?? undefined}>
                                 <FiLock className="w-4 h-4" />
                               </span>
                             )}
